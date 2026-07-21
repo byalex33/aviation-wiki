@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+</style>
+</helmet>
+<div style="--accent: {{ accentColor }}; --radius: {{ radiusVal }}; min-height:100vh; background:#fafafa; color:#09090b; font-family:'Geist',-apple-system,'Helvetica Neue',sans-serif; font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;">
+
+  <!-- Nav -->
+  <header style="position:sticky; top:0; z-index:20; background:rgba(255,255,255,0.8); backdrop-filter:blur(10px); border-bottom:1px solid #e4e4e7;">
+    <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:24px; height:60px;">
+      <a href="#" style="display:flex; align-items:center; gap:9px; font-weight:600; font-size:17px; letter-spacing:-0.02em;">
+        <span style="width:28px; height:28px; border-radius:calc(var(--radius,10px) - 2px); background:var(--accent,#2563eb); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700;">✈</span>
+        Aeropedia
+      </a>
+      <div style="flex:1; max-width:420px; margin-left:auto; position:relative;">
+        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#a1a1aa; font-size:14px;">⌕</span>
+        <input placeholder="Search aircraft, engines, events…" style="width:100%; height:38px; border:1px solid #e4e4e7; background:#fff; border-radius:var(--radius,10px); padding:0 12px 0 34px; font-size:14px; font-family:inherit; color:#09090b; outline:none; box-shadow:0 1px 2px rgba(0,0,0,0.04);" />
+      </div>
+      <nav style="display:flex; align-items:center; gap:20px; font-size:14px; color:#52525b;">
+        <a href="#" style="font-weight:500;">Browse</a>
+        <a href="#" style="font-weight:500;">Timeline</a>
+        <a href="#" style="font-weight:500;">Random</a>
+        <a href="#" style="display:inline-flex; align-items:center; height:36px; padding:0 16px; background:var(--accent,#2563eb); color:#fff; border-radius:var(--radius,10px); font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,0.08);">Contribute</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width:1200px; margin:0 auto; padding:0 24px 72px;">
+
+    <!-- Hero -->
+    <section style="text-align:center; padding:76px 0 56px;">
+      <div style="display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 12px; border:1px solid #e4e4e7; background:#fff; border-radius:999px; font-size:12.5px; color:#52525b; font-weight:500; margin-bottom:22px; white-space:nowrap;">
+        <span style="width:6px; height:6px; border-radius:50%; background:var(--accent,#2563eb);"></span>
+        48,210 articles · updated daily
+      </div>
+      <h1 style="font-size:52px; line-height:1.05; letter-spacing:-0.035em; font-weight:700; margin:0 0 16px; max-width:760px; margin-inline:auto; text-wrap:balance;">The free encyclopedia of everything that flies</h1>
+      <p style="font-size:18px; color:#52525b; margin:0 auto 32px; max-width:560px; text-wrap:pretty;">A collaborative reference on the aircraft, engines, and people that made flight possible.</p>
+      <div style="max-width:600px; margin:0 auto; position:relative;">
+        <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#a1a1aa; font-size:17px;">⌕</span>
+        <input placeholder="Try “F-15 Eagle”, “Concorde”, “Spitfire”…" style="width:100%; height:52px; border:1px solid #e4e4e7; background:#fff; border-radius:var(--radius,10px); padding:0 130px 0 46px; font-size:16px; font-family:inherit; outline:none; box-shadow:0 4px 16px rgba(0,0,0,0.05);" />
+        <button style="position:absolute; right:6px; top:6px; height:40px; padding:0 22px; border:none; background:var(--accent,#2563eb); color:#fff; border-radius:calc(var(--radius,10px) - 2px); font-size:15px; font-weight:500; font-family:inherit; cursor:pointer;">Search</button>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section style="margin-bottom:48px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px;">
+        <h2 style="font-size:15px; font-weight:600; letter-spacing:-0.01em; margin:0;">Browse by category</h2>
+        <a href="#" style="font-size:13.5px; color:#52525b; font-weight:500;">View all →</a>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        <sc-for list="{{ categories }}" as="cat" hint-placeholder-count="4">
+          <a href="#" style="display:block; background:#fff; border:1px solid #e4e4e7; border-radius:var(--radius,10px); padding:18px; box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:box-shadow .15s, transform .15s;" style-hover="box-shadow:0 8px 24px rgba(0,0,0,0.08); transform:translateY(-2px);">
+            <div style="width:40px; height:40px; border-radius:calc(var(--radius,10px) - 2px); background:{{ cat.tint }}; color:var(--accent,#2563eb); display:flex; align-items:center; justify-content:center; font-size:19px; margin-bottom:14px;">{{ cat.glyph }}</div>
+            <div style="font-weight:600; font-size:15px; margin-bottom:3px;">{{ cat.name }}</div>
+            <div style="font-size:13px; color:#71717a; line-height:1.45; margin-bottom:10px;">{{ cat.desc }}</div>
+            <div style="font-size:12px; color:#a1a1aa; font-family:'Geist Mono',monospace;">{{ cat.count }} articles</div>
+          </a>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- Featured + popular -->
+    <section style="display:grid; grid-template-columns:1.6fr 1fr; gap:24px; align-items:start;">
+
+      <!-- Featured -->
+      <article style="background:#fff; border:1px solid #e4e4e7; border-radius:var(--radius,10px); overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+        <div style="position:relative; width:100%; aspect-ratio:16/8; background:repeating-linear-gradient(135deg,#f4f4f5,#f4f4f5 11px,#ececee 11px,#ececee 22px); display:flex; align-items:center; justify-content:center;">
+          <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#a1a1aa;">photo — F-15 in flight</span>
+          <span style="position:absolute; top:14px; left:14px; height:24px; padding:0 11px; display:inline-flex; align-items:center; background:var(--accent,#2563eb); color:#fff; border-radius:999px; font-size:12px; font-weight:500;">Featured today</span>
+        </div>
+        <div style="padding:22px 24px 24px;">
+          <div style="font-size:12px; color:#a1a1aa; font-family:'Geist Mono',monospace; margin-bottom:8px;">MILITARY · AIR SUPERIORITY</div>
+          <h3 style="font-size:24px; letter-spacing:-0.02em; font-weight:700; margin:0 0 10px;"><a href="F-15 Eagle.dc.html">McDonnell Douglas F-15 Eagle</a></h3>
+          <p style="margin:0 0 18px; color:#52525b; text-wrap:pretty;">An American twin-engine, all-weather tactical fighter designed for air superiority. First flown in 1972, the Eagle holds a combat record of more than 100 aerial victories with no confirmed air-to-air losses.</p>
+          <a href="F-15 Eagle.dc.html" style="display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 16px; border:1px solid #e4e4e7; border-radius:var(--radius,10px); font-size:14px; font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,0.04);">Read article →</a>
+        </div>
+      </article>
+
+      <!-- Popular -->
+      <div style="background:#fff; border:1px solid #e4e4e7; border-radius:var(--radius,10px); box-shadow:0 1px 2px rgba(0,0,0,0.04); overflow:hidden;">
+        <div style="padding:16px 20px; border-bottom:1px solid #f4f4f5;">
+          <h2 style="font-size:15px; font-weight:600; margin:0;">Popular this week</h2>
+        </div>
+        <div>
+          <sc-for list="{{ popular }}" as="p" hint-placeholder-count="6">
+            <a href="{{ p.href }}" style="display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid #f4f4f5;">
+              <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#a1a1aa; width:18px;">{{ p.rank }}</span>
+              <span style="flex:1; font-weight:500; font-size:14.5px;">{{ p.title }}</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#a1a1aa;">{{ p.views }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="border-top:1px solid #e4e4e7; background:#fff;">
+    <div style="max-width:1200px; margin:0 auto; padding:28px 24px; font-size:13px; color:#a1a1aa; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <span>Aeropedia — a fictional reference site. Content under a free-culture license.</span>
+      <span style="display:flex; gap:20px;"><a href="#" style="color:#52525b; font-weight:500;">Privacy</a><a href="#" style="color:#52525b; font-weight:500;">Contact</a><a href="#" style="color:#52525b; font-weight:500;">Contribute</a></span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:980},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#2563eb&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#2563eb&quot;,&quot;#0ea5e9&quot;,&quot;#16a34a&quot;,&quot;#e11d48&quot;,&quot;#7c3aed&quot;,&quot;#ea580c&quot;],&quot;section&quot;:&quot;Theme&quot;},&quot;radius&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:10,&quot;min&quot;:0,&quot;max&quot;:18,&quot;step&quot;:1,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accentColor: this.props.accentColor ?? "#2563eb",
+      radiusVal: (this.props.radius ?? 10) + "px",
+      categories: [
+        { name: "Commercial", desc: "Airliners, freighters & regional jets", count: "12,940", glyph: "🛫", tint: "#eff6ff" },
+        { name: "Military", desc: "Fighters, bombers, transports & UAVs", count: "9,120", glyph: "✦", tint: "#eff6ff" },
+        { name: "General aviation", desc: "Light aircraft, jets & rotorcraft", count: "14,380", glyph: "◈", tint: "#eff6ff" },
+        { name: "Historic", desc: "Pioneers, warbirds & retired types", count: "6,510", glyph: "◷", tint: "#eff6ff" },
+      ],
+      popular: [
+        { rank: "1", title: "F-15 Eagle", href: "F-15 Eagle.dc.html", views: "312k" },
+        { rank: "2", title: "Concorde", href: "#", views: "271k" },
+        { rank: "3", title: "Boeing 747", href: "#", views: "244k" },
+        { rank: "4", title: "SR-71 Blackbird", href: "#", views: "230k" },
+        { rank: "5", title: "Supermarine Spitfire", href: "#", views: "198k" },
+        { rank: "6", title: "Cessna 172", href: "#", views: "176k" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
