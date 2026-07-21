@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, BookOpen, Clock3, Plane, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,14 @@ const categories = [
   { name: "Military", description: "Fighters, bombers, transports & UAVs", count: "9,120", glyph: "MIL", href: "#" },
   { name: "General aviation", description: "Light aircraft, jets & rotorcraft", count: "14,380", glyph: "GEN", href: "#" },
   { name: "Historic", description: "Pioneers, warbirds & retired types", count: "6,510", glyph: "HIS", href: "#" },
+];
+
+const commercialTailLogos = [
+  { airline: "British Airways", src: "https://airhex.com/images/airline-logos/tail/british-airways.png" },
+  { airline: "Emirates", src: "https://airhex.com/images/airline-logos/tail/emirates.png" },
+  { airline: "Delta Air Lines", src: "https://airhex.com/images/airline-logos/tail/delta.png" },
+  { airline: "Qantas", src: "https://airhex.com/images/airline-logos/tail/qantas.png" },
+  { airline: "Singapore Airlines", src: "https://airhex.com/images/airline-logos/tail/singapore-airlines.png" },
 ];
 
 const popular = [
@@ -46,7 +55,22 @@ export default function Home() {
             <Link key={category.name} href={category.href} className="block">
               <Card className="group h-full gap-0 py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
                 <CardContent className="p-[18px]">
-                <div className="mb-3.5 grid size-10 place-items-center rounded-lg bg-accent font-mono text-[10px] font-semibold text-primary">{category.glyph}</div>
+                {category.name === "Commercial" ? (
+                  <div className="commercial-tail-logos mb-3.5 size-10 overflow-hidden rounded-lg bg-accent" aria-label="Commercial airline tail logos">
+                    {commercialTailLogos.map((logo) => (
+                      <Image
+                        key={logo.airline}
+                        src={logo.src}
+                        alt={`${logo.airline} tail logo`}
+                        width={40}
+                        height={40}
+                        className="commercial-tail-logo"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mb-3.5 grid size-10 place-items-center rounded-lg bg-accent font-mono text-[10px] font-semibold text-primary">{category.glyph}</div>
+                )}
                 <h3 className="font-semibold">{category.name}</h3>
                 <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{category.description}</p>
                 <p className="mt-2.5 font-mono text-xs text-muted-foreground/70">{category.count} articles</p>

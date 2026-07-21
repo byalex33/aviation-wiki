@@ -99,6 +99,31 @@
 }
 
 @layer components {
+  .commercial-tail-logos {
+    @apply relative;
+  }
+
+  .commercial-tail-logo {
+    @apply absolute inset-0 size-full object-cover opacity-0;
+    animation: commercial-tail-crossfade 20s ease-in-out infinite;
+  }
+
+  .commercial-tail-logo:nth-child(2) {
+    animation-delay: 4s;
+  }
+
+  .commercial-tail-logo:nth-child(3) {
+    animation-delay: 8s;
+  }
+
+  .commercial-tail-logo:nth-child(4) {
+    animation-delay: 12s;
+  }
+
+  .commercial-tail-logo:nth-child(5) {
+    animation-delay: 16s;
+  }
+
   .aircraft-placeholder {
     background: repeating-linear-gradient(135deg, hsl(240 5% 96%), hsl(240 5% 96%) 11px, hsl(240 5% 93%) 11px, hsl(240 5% 93%) 22px);
   }
@@ -122,5 +147,25 @@
 
   .field-label {
     @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
+  }
+}
+
+@keyframes commercial-tail-crossfade {
+  0%, 20%, 100% {
+    opacity: 0;
+  }
+
+  5%, 15% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commercial-tail-logo {
+    animation: none;
+  }
+
+  .commercial-tail-logo:first-child {
+    opacity: 1;
   }
 }
