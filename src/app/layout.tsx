@@ -138,6 +138,12 @@ export default function RootLayout({
                       Home
                     </Link>
                     <Link
+                      href="/pro"
+                      className="transition-colors hover:text-primary"
+                    >
+                      Pro
+                    </Link>
+                    <Link
                       href="/staff"
                       className="transition-colors hover:text-primary"
                     >

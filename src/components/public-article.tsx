@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WatchArticleButton } from "@/components/watch-article-button";
-import { parseArticleMarkdown } from "@/lib/article-markdown";
+import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { getSourceHealth } from "@/lib/wiki-public-db";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
@@ -104,19 +104,22 @@ export function InformationSidebar({
       <CardContent className="p-0">
         <dl className="divide-y">
           {fields.length ? (
-            fields.map((field, index) => (
-              <div
-                key={`${field.key}-${index}`}
-                className="grid grid-cols-[42%_1fr] gap-3 px-5 py-3 text-sm"
-              >
-                <dt className="min-w-0 break-words font-medium text-muted-foreground">
-                  {field.key}
-                </dt>
-                <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
-                  {field.value}
-                </dd>
-              </div>
-            ))
+            fields.map((field, index) => {
+              const parsed = parseStructuredFieldMarkdown(field.value);
+              return (
+                <div
+                  key={`${field.key}-${index}`}
+                  className="grid grid-cols-[42%_1fr] gap-3 px-5 py-3 text-sm"
+                >
+                  <dt className="min-w-0 break-words font-medium text-muted-foreground">
+                    {field.key}
+                  </dt>
+                  <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
+                    {parsed.errors.length ? field.value : <ArticleMarkdown root={parsed.root} compact />}
+                  </dd>
+                </div>
+              );
+            })
           ) : (
             <p className="px-5 py-4 text-sm text-muted-foreground">
               No structured information has been added.

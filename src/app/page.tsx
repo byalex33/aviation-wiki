@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDisplayLabel } from "@/lib/display";
-import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 import type { SearchDocument } from "@/lib/search-types";
 
 const categories = [
@@ -44,6 +43,10 @@ const commercialTailLogos = [
 ];
 
 export default async function Home() {
+  // ponytail: local SQLite fallback; use DATABASE_URL when shared Postgres data matters.
+  const { listPublicSearchDocuments } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/wiki-db");
   const documents = await listPublicSearchDocuments();
   const categoryCounts = new Map<string, number>();
   for (const document of documents) {
@@ -53,7 +56,12 @@ export default async function Home() {
   }
   const featured = documents.find((document) => document.slug === "f-15-eagle") || documents[0];
   return (
-    <main className="mx-auto max-w-[1200px] px-5 pb-20 sm:px-6">
+    <main className="home-background relative mx-auto max-w-[1200px] overflow-hidden px-5 pb-20 sm:px-6">
+      <div className="pointer-events-none absolute inset-0 text-primary" aria-hidden="true">
+        <Plane className="home-plane absolute left-[4%] top-32 size-7 -rotate-12 opacity-[0.06]" />
+        <Plane className="home-plane absolute right-[3%] top-[42%] size-6 rotate-[18deg] opacity-[0.05]" />
+        <Plane className="home-plane absolute bottom-24 left-[7%] size-8 -rotate-[24deg] opacity-[0.05]" />
+      </div>
       <section className="px-0 py-16 text-center sm:py-20">
         <Badge variant="outline" className="mb-5 h-7 rounded-full bg-card px-3 font-medium text-muted-foreground">
           <span className="mr-1 size-1.5 rounded-full bg-primary" />{documents.length} approved {documents.length === 1 ? "article" : "articles"}

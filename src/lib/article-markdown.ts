@@ -93,6 +93,12 @@ export function isSafeCitationUrl(value: string) {
   }
 }
 
+export function resolveFlagCode(value: string) {
+  const code = value.trim().toLowerCase();
+  if (code === "usa") return "us";
+  return /^[a-z]{2}$/.test(code) ? code : null;
+}
+
 export function getBlockAttributes(node: MarkdownNode) {
   return Object.fromEntries(
     (node.attributes ?? []).map((attribute) => [attribute.name ?? "", String(attribute.value ?? "")]),
@@ -212,6 +218,12 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
       if (!node.url || !isSafeUrl(node.url)) report(node, `Unsafe or unsupported URL: ${node.url ?? "empty URL"}.`);
     }
 
+    if (node.type === "text") {
+      for (const match of node.value?.matchAll(/f!\[([^\]]+)\]/g) ?? []) {
+        if (!resolveFlagCode(match[1])) report(node, `Unknown flag code: ${match[1]}. Use a two-letter country code.`);
+      }
+    }
+
     if (node.type === "mdxJsxFlowElement") {
       if (!node.name || !ARTICLE_BLOCKS.includes(node.name as ArticleBlockName)) {
         report(node, `Unsupported component <${node.name ?? "unknown"}>. Allowed components: ${ARTICLE_BLOCKS.join(", ")}.`);
@@ -250,4 +262,15 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
       : [];
   });
   return { root, errors, warnings, citations };
+}
+
+export function parseStructuredFieldMarkdown(source: string) {
+  const parsed = parseArticleMarkdown(source);
+  const allowed = new Set(["root", "paragraph", "text", "strong", "emphasis", "delete", "inlineCode", "break", "link"]);
+  const validate = (node: MarkdownNode) => {
+    if (!allowed.has(node.type)) parsed.errors.push({ ...location(node), message: "Structured fields only support inline Markdown." });
+    node.children?.forEach(validate);
+  };
+  validate(parsed.root);
+  return parsed;
 }

@@ -100,6 +100,33 @@
 }
 
 @layer components {
+  .home-background {
+    background:
+      radial-gradient(circle 5rem at 7% 14%, hsl(356 84% 48% / 0.07), transparent 70%),
+      radial-gradient(circle 4rem at 94% 44%, hsl(356 84% 48% / 0.06), transparent 70%),
+      radial-gradient(circle 5.5rem at 12% 88%, hsl(356 84% 48% / 0.05), transparent 70%);
+    background-repeat: no-repeat;
+    background-size: 104% 104%;
+    animation: home-blobs-drift 28s ease-in-out infinite alternate;
+  }
+
+  .home-plane {
+    animation: home-plane-drift 14s ease-in-out infinite alternate;
+  }
+
+  .home-plane:nth-child(2) {
+    --drift-x: -14px;
+    --drift-y: 10px;
+    animation-duration: 18s;
+  }
+
+  .home-plane:nth-child(3) {
+    --drift-x: 9px;
+    --drift-y: 12px;
+    animation-duration: 16s;
+    animation-delay: -6s;
+  }
+
   .commercial-tail-logos {
     @apply relative;
   }
@@ -161,7 +188,25 @@
   }
 }
 
+@keyframes home-blobs-drift {
+  from {
+    background-position: 0 0, 100% 0, 0 100%;
+  }
+
+  to {
+    background-position: 100% 70%, 0 100%, 100% 20%;
+  }
+}
+
+@keyframes home-plane-drift {
+  to {
+    translate: var(--drift-x, 12px) var(--drift-y, -8px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .home-background,
+  .home-plane,
   .commercial-tail-logo {
     animation: none;
   }

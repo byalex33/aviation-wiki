@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { contentTypes, type EntityOption, type EntityRelationship, type RevisionContent, type SourceLink } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
-import { parseArticleMarkdown } from "@/lib/article-markdown";
+import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { allowedRelationshipTypes, relationshipLabels, relationshipTargetType } from "@/lib/relationship-rules";
 
 type RevisionEditorProps = {
@@ -54,6 +54,7 @@ export function RevisionEditor({
   );
   const [relationships, setRelationships] = useState<EntityRelationship[]>(initialContent.relationships || []);
   const parsed = useMemo(() => parseArticleMarkdown(markdown), [markdown]);
+  const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
   const unusedMetadata = sources.filter((source) => source.url && !parsed.citations.some((citation) => citation.url === source.url || citation.identifier === source.identifier?.toLowerCase()));
 
   return (
@@ -114,7 +115,7 @@ export function RevisionEditor({
           <h2 className="font-semibold">Article Markdown</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             The same safe parser and component registry are used for preview and
-            publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>.
+            publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
           </p>
         </div>
         <div className="grid lg:grid-cols-2">
@@ -185,7 +186,7 @@ export function RevisionEditor({
             <h2 className="font-semibold">Structured fields</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Key facts appropriate to this {formatDisplayLabel(contentType)}{" "}
-              article.
+              article. Values support inline Markdown, including the flag syntax shown above.
             </p>
           </div>
           <Button
@@ -248,6 +249,7 @@ export function RevisionEditor({
             </div>
           ))}
         </div>
+        {fieldErrors.length > 0 && <ul className="mt-3 space-y-1 text-xs text-destructive">{fieldErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-xs">
@@ -347,20 +349,20 @@ export function RevisionEditor({
               <Button
                 type="submit"
                 variant="outline"
-                disabled={parsed.errors.length > 0 || !saveAction}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !saveAction}
               >
                 Save draft
               </Button>
               <Button
                 type="submit"
                 formAction={submitAction}
-                disabled={parsed.errors.length > 0 || !submitAction}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction}
               >
                 Submit for review
               </Button>
             </>
           ) : (
-            <Button type="submit" disabled={parsed.errors.length > 0 || !moderatorAction}>
+            <Button type="submit" disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !moderatorAction}>
               Save edits and approve
             </Button>
           )}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { parseArticleMarkdown } from "../src/lib/article-markdown";
+import { parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
 assert.deepEqual(valid.errors, []);
@@ -22,5 +22,11 @@ assert.ok(unsafe.errors.some((error) => error.message.includes("Unsafe or unsupp
 
 const unused = parseArticleMarkdown("Text only.\n\n[^unused]: https://example.com/unused");
 assert.ok(unused.warnings.some((warning) => warning.message.includes("not cited")));
+
+assert.deepEqual(parseStructuredFieldMarkdown("f![gr] Greece; f![usa] United States").errors, []);
+assert.equal(resolveFlagCode("usa"), "us");
+assert.match(parseArticleMarkdown("f![greece]").errors[0]?.message || "", /Unknown flag code/);
+assert.match(parseStructuredFieldMarkdown("![Logo](https://example.com/logo.png)").errors[0]?.message || "", /only support inline Markdown/);
+assert.match(parseStructuredFieldMarkdown("## Heading").errors[0]?.message || "", /only support inline Markdown/);
 
 console.log("Citation parser tests passed");

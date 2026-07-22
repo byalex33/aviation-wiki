@@ -8,6 +8,7 @@ import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import {
   isSafeCitationUrl,
   parseArticleMarkdown,
+  parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
 import { reconcileCitationSources } from "@/lib/article-citations";
 import { requireContributor, requireModerator } from "@/lib/wiki-auth";
@@ -79,6 +80,10 @@ function parseContent(
     }))
     .filter((field) => field.key && field.value)
     .slice(0, 60);
+  for (const field of fields) {
+    const fieldMarkdown = parseStructuredFieldMarkdown(field.value);
+    if (fieldMarkdown.errors.length) throw new Error(`Structured field "${field.key}" has invalid Markdown: ${fieldMarkdown.errors[0].message}`);
+  }
   const sections = parseArray<ArticleSection>(formData, "sections")
     .map((section) => ({
       heading: String(section.heading || "")

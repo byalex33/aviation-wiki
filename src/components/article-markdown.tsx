@@ -2,22 +2,32 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { ArticleBlock } from "@/components/article-blocks";
-import { getBlockAttributes, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
+import { getBlockAttributes, resolveFlagCode, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
 import { cn } from "@/lib/utils";
 
 type Definitions = Map<string, { url: string; title?: string | null }>;
 
 type CitationMap = Map<string, Citation>;
 
-function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap): ReactNode {
-  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations));
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+function renderText(value: string, key: string, compact: boolean) {
+  return value.split(/(f!\[[^\]]+\])/g).map((part, index) => {
+    const code = /^f!\[([^\]]+)\]$/.exec(part)?.[1];
+    const flagCode = code ? resolveFlagCode(code) : null;
+    return flagCode ? <Image key={`${key}-${index}`} src={`https://flagcdn.com/w40/${flagCode}.png`} alt={`Flag of ${regionNames.of(flagCode.toUpperCase()) ?? flagCode.toUpperCase()}`} width={40} height={30} unoptimized className={`${compact ? "w-6" : "w-10"} mr-1 inline-block h-auto rounded-xs align-middle`} /> : part;
+  });
 }
 
-function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap): ReactNode {
-  const children = renderChildren(node, definitions, citations);
+function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, compact: boolean): ReactNode {
+  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, compact));
+}
+
+function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, compact = false): ReactNode {
+  const children = renderChildren(node, definitions, citations, compact);
   switch (node.type) {
-    case "text": return node.value;
-    case "paragraph": return <p key={key} className="mb-4 leading-7 text-foreground/80">{children}</p>;
+    case "text": return renderText(node.value ?? "", key, compact);
+    case "paragraph": return <p key={key} className={compact ? "leading-normal" : "mb-4 leading-7 text-foreground/80"}>{children}</p>;
     case "heading": {
       const Heading = `h${node.depth}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
       return <Heading key={key} className={cn(
@@ -65,7 +75,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
   }
 }
 
-export function ArticleMarkdown({ root, citations = [] }: { root: MarkdownRoot; citations?: Citation[] }) {
+export function ArticleMarkdown({ root, citations = [], compact = false }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean }) {
   const definitions: Definitions = new Map();
   for (const node of root.children) {
     if (node.type === "definition" && node.identifier && node.url) {
@@ -78,9 +88,9 @@ export function ArticleMarkdown({ root, citations = [] }: { root: MarkdownRoot; 
   const mainNodes = root.children.filter((node) => !sidebarNodes.includes(node));
 
   return (
-    <div className={sidebarNodes.length ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
-      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap))}</article>
-      {sidebarNodes.length > 0 && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap))}</aside>}
+    <div className={compact ? "" : sidebarNodes.length ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
+      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, compact))}</article>
+      {!compact && sidebarNodes.length > 0 && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap))}</aside>}
     </div>
   );
 }
