@@ -18,7 +18,10 @@ import {
 import { listAllClerkUsers } from "@/lib/admin-users";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import { verifyRevision } from "@/lib/gemini-verification";
-import { emitRevisionOutcome } from "@/lib/notification-service";
+import {
+  emitCustomNotification,
+  emitRevisionOutcome,
+} from "@/lib/notification-service";
 import {
   getArticleById,
   getRevision,
@@ -305,4 +308,56 @@ export async function updateSourceCheckAction(formData: FormData) {
     after: { status, strength },
   });
   revalidatePath("/admin/sources");
+}
+
+export async function sendCustomNotificationAction(formData: FormData) {
+  const actor = await requireAdmin();
+  const audience = text(formData, "recipientId", 120);
+  const title = text(formData, "title", 160);
+  const message = text(formData, "message", 1_000);
+  const requestedHref = text(formData, "href", 500);
+  const href = requestedHref || "/notifications";
+  if (!title || !message)
+    throw new Error("A notification title and message are required.");
+  if (!href.startsWith("/") || href.startsWith("//"))
+    throw new Error("The destination must be a local aviation.wiki path.");
+  const users = await listAllClerkUsers();
+  const recipients =
+    audience === "all"
+      ? users
+      : users.filter((user) => user.id === audience);
+  if (!recipients.length) throw new Error("Notification recipient not found.");
+  const notifications: Array<
+    Awaited<ReturnType<typeof emitCustomNotification>>
+  > = [];
+  for (let index = 0; index < recipients.length; index += 10) {
+    const batch = recipients.slice(index, index + 10);
+    notifications.push(
+      ...(await Promise.all(
+        batch.map((recipient) =>
+          emitCustomNotification({
+            recipientId: recipient.id,
+            actorId: actor.userId,
+            title,
+            message,
+            href,
+          }),
+        ),
+      )),
+    );
+  }
+  const sentCount = notifications.filter(Boolean).length;
+  if (sentCount !== recipients.length)
+    throw new Error("One or more notifications could not be created.");
+  recordAdminAudit({
+    actorId: actor.userId,
+    actorName: actor.name,
+    action: "notification.custom_sent",
+    entityType: audience === "all" ? "audience" : "user",
+    entityId: audience,
+    after: { recipientCount: sentCount, title, message, href },
+  });
+  revalidatePath("/admin/notifications");
+  revalidatePath("/notifications");
+  redirect("/admin/notifications?sent=1");
 }

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { NotificationRecord } from "@/lib/notification-types";
 
 const iconByType = {
+  custom: BellRing,
   revision_approved: CheckCircle2,
   changes_requested: MessageSquareText,
   revision_rejected: XCircle,
@@ -29,6 +30,7 @@ const iconByType = {
 };
 
 const accentByType: Record<NotificationRecord["type"], string> = {
+  custom: "text-primary bg-primary/10",
   revision_approved: "text-emerald-600 bg-emerald-500/10",
   changes_requested: "text-amber-600 bg-amber-500/10",
   revision_rejected: "text-red-600 bg-red-500/10",

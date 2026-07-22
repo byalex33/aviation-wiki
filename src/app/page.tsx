@@ -9,13 +9,31 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDisplayLabel } from "@/lib/display";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
+import type { SearchDocument } from "@/lib/search-types";
 
 const categories = [
-  { name: "Commercial", description: "Airlines, flag carriers & low-cost operators", count: "1,240", glyph: "AIR", href: "/commercial" },
-  { name: "Military", description: "Fighters, bombers, transports & UAVs", count: "9,120", glyph: "MIL", href: "#" },
-  { name: "General aviation", description: "Light aircraft, jets & rotorcraft", count: "14,380", glyph: "GEN", href: "#" },
-  { name: "Historic", description: "Pioneers, warbirds & retired types", count: "6,510", glyph: "HIS", href: "#" },
+  { name: "Commercial", description: "Airlines, flag carriers & low-cost operators", glyph: "AIR", href: "/commercial" },
+  { name: "Military", description: "Fighters, bombers, transports & UAVs", glyph: "MIL", href: "#" },
+  { name: "General aviation", description: "Light aircraft, jets & rotorcraft", glyph: "GEN", href: "#" },
+  { name: "Historic", description: "Pioneers, warbirds & retired types", glyph: "HIS", href: "#" },
 ];
+
+const militaryPattern = /\b(?:air force|air superiority|attack aircraft|bomber|combat|fighter|military|reconnaissance|trainer|uav|unmanned|warplane)\b/i;
+const historicPattern = /\b(?:ceased|decommissioned|historic|museum|pioneer|retired|warbird|withdrawn from service)\b/i;
+
+function categoryFor(document: SearchDocument) {
+  if (document.contentType === "airline") return "Commercial";
+  const searchableText = `${document.title} ${document.description}`;
+  if (
+    document.contentType === "aircraft" &&
+    historicPattern.test(searchableText)
+  )
+    return "Historic";
+  if (document.contentType === "aircraft" && militaryPattern.test(searchableText))
+    return "Military";
+  if (document.contentType === "aircraft") return "General aviation";
+  return null;
+}
 
 const commercialTailLogos = [
   { airline: "British Airways", src: "https://airhex.com/images/airline-logos/tail/british-airways.png" },
@@ -27,6 +45,12 @@ const commercialTailLogos = [
 
 export default async function Home() {
   const documents = await listPublicSearchDocuments();
+  const categoryCounts = new Map<string, number>();
+  for (const document of documents) {
+    const category = categoryFor(document);
+    if (category)
+      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+  }
   const featured = documents.find((document) => document.slug === "f-15-eagle") || documents[0];
   return (
     <main className="mx-auto max-w-[1200px] px-5 pb-20 sm:px-6">
@@ -61,7 +85,9 @@ export default async function Home() {
                 )}
                 <h3 className="font-semibold">{category.name}</h3>
                 <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{category.description}</p>
-                <p className="mt-2.5 font-mono text-xs text-muted-foreground/70">{category.count} articles</p>
+                <p className="mt-2.5 font-mono text-xs text-muted-foreground/70">
+                  {(categoryCounts.get(category.name) || 0).toLocaleString()} {categoryCounts.get(category.name) === 1 ? "page" : "pages"}
+                </p>
                 </CardContent>
               </Card>
             </Link>

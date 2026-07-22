@@ -1,4 +1,5 @@
 export const notificationTypes = [
+  "custom",
   "revision_approved",
   "changes_requested",
   "revision_rejected",

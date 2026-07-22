@@ -24,7 +24,7 @@ const links = [
   ["/admin/sources", "Sources", BookCheck],
   ["/admin/import", "Data import", DatabaseZap, "admin"],
   ["/admin/audit", "Audit log", ScrollText, "admin"],
-  ["/admin/notifications", "Notification diagnostics", BellRing, "admin"],
+  ["/admin/notifications", "Notifications", BellRing, "admin"],
 ] as const;
 
 export default async function AdminLayout({

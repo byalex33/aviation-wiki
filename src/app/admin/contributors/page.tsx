@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { updateContributorAction } from "@/app/admin/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RoleUsername } from "@/components/role-username";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,9 @@ export default async function AdminContributorsPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold">{user.name}</h3>
+                      <h3>
+                        <RoleUsername name={user.name} role={user.role} />
+                      </h3>
                       <Badge variant="outline">
                         {formatDisplayLabel(user.role)}
                       </Badge>

@@ -7,6 +7,7 @@ import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionRecord, RevisionStatus, SourceLink } from "@/lib/wiki-types";
+import type { OpenFlightsAirline } from "@/lib/openflights";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -69,6 +70,35 @@ export async function getArticleBySlug(slug: string, contentType?: ContentType):
   if (!value) return null;
   const article = mapArticle(value);
   return { ...article, liveRevision: article.liveRevisionId ? await getRevision(article.liveRevisionId) : null };
+}
+
+export async function ensureDirectoryAirlineArticle(
+  airline: OpenFlightsAirline,
+) {
+  await ready();
+  const slug = normalizeSlug(airline.name);
+  const existing = await getArticleBySlug(slug, "airline");
+  if (existing?.liveRevision?.status === "approved") return existing;
+  const articleId = existing?.id || randomUUID();
+  const revisionId = randomUUID();
+  const now = new Date();
+  const fields = [
+    { key: "IATA code", value: airline.iata },
+    { key: "ICAO code", value: airline.icao || "Not listed" },
+    { key: "Callsign", value: airline.callsign || "Not listed" },
+    { key: "Country", value: airline.country || "Not listed" },
+    { key: "Status", value: airline.active ? "Active" : "Ceased" },
+  ];
+  const markdown = `${airline.name} is ${airline.active ? "an active" : "a historic"} airline${airline.country ? ` based in ${airline.country}` : ""}. Its IATA code is ${airline.iata}${airline.icao ? ` and its ICAO designator is ${airline.icao}` : ""}.`;
+  await sql.begin(async (transaction) => {
+    if (!existing)
+      await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${slug},${airline.name},'airline',NULL,${now},${now}) ON CONFLICT (content_type,slug) DO NOTHING`;
+    const [article] = await transaction`SELECT id,live_revision_id FROM articles WHERE content_type='airline' AND slug=${slug} LIMIT 1 FOR UPDATE`;
+    if (!article || article.live_revision_id) return;
+    await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${String(article.id)},'approved','system','aviation.wiki','Initial import from the OpenFlights airline directory',${airline.name},'airline',${markdown},${transaction.json(fields)},${transaction.json([])},${transaction.json([{ label: "OpenFlights airline database", url: "https://openflights.org/data.php", publisher: "OpenFlights" }])},${transaction.json([])},${slug},NULL,${now},${now},${now},${now},'system','Imported from the public airline directory')`;
+    await transaction`UPDATE articles SET live_revision_id=${revisionId},updated_at=${now} WHERE id=${String(article.id)} AND live_revision_id IS NULL`;
+  });
+  return getArticleBySlug(slug, "airline");
 }
 
 export async function getArticleById(id: string): Promise<ArticleWithLiveRevision | null> {

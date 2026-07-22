@@ -1,6 +1,7 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
+import { randomUUID } from "node:crypto";
 
 import {
   createNotification,
@@ -109,6 +110,31 @@ export async function emitNotification(input: NotificationInput) {
   if (
     preferences.frequency === "immediate" &&
     preferences.enabledTypes[input.type]
+  )
+    await deliverNotificationEmail(notification);
+  return notification;
+}
+
+export async function emitCustomNotification(input: {
+  recipientId: string;
+  actorId: string;
+  title: string;
+  message: string;
+  href: string;
+}) {
+  const preferences = getNotificationPreferences(input.recipientId);
+  const notification = createNotification({
+    userId: input.recipientId,
+    type: "custom",
+    title: input.title,
+    message: input.message,
+    href: input.href,
+    dedupeKey: `custom:${input.actorId}:${randomUUID()}`,
+  });
+  if (
+    notification &&
+    preferences.frequency === "immediate" &&
+    preferences.enabledTypes.custom
   )
     await deliverNotificationEmail(notification);
   return notification;

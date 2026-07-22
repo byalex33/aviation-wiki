@@ -8,17 +8,15 @@ import {
   ShieldCheck,
   BookOpenCheck,
   AlertTriangle,
-  Bell,
-  BellOff,
 } from "lucide-react";
 
-import { togglePublicArticleWatchAction } from "@/app/public-actions";
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { ApprovedRelationships } from "@/components/entity-relationships";
 import { ImportedRevisionData } from "@/components/imported-revision-data";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WatchArticleButton } from "@/components/watch-article-button";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { getSourceHealth } from "@/lib/wiki-public-db";
@@ -68,26 +66,11 @@ export function ArticleHeader({
           View history
         </Link>
         {signedIn && (
-          <form action={togglePublicArticleWatchAction}>
-            <input type="hidden" name="articleId" value={articleId} />
-            <input
-              type="hidden"
-              name="watching"
-              value={watching ? "false" : "true"}
-            />
-            <input
-              type="hidden"
-              name="returnTo"
-              value={articlePath(contentType, slug)}
-            />
-            <button
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-              type="submit"
-            >
-              {watching ? <BellOff /> : <Bell />}
-              {watching ? "Unwatch" : "Watch"}
-            </button>
-          </form>
+          <WatchArticleButton
+            articleId={articleId}
+            returnTo={articlePath(contentType, slug)}
+            watching={watching}
+          />
         )}
         <Link
           href={`${editorHref}&correction=1`}
@@ -111,7 +94,7 @@ export function InformationSidebar({
   fields: StructuredField[];
 }) {
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-md lg:sticky lg:top-20">
+    <Card className="min-w-0 gap-0 overflow-hidden py-0 shadow-md">
       <CardHeader className="border-b bg-primary/5 py-5">
         <CardTitle>{title}</CardTitle>
         <p className="text-xs font-medium uppercase tracking-wider text-primary">
@@ -126,10 +109,12 @@ export function InformationSidebar({
                 key={`${field.key}-${index}`}
                 className="grid grid-cols-[42%_1fr] gap-3 px-5 py-3 text-sm"
               >
-                <dt className="font-medium text-muted-foreground">
+                <dt className="min-w-0 break-words font-medium text-muted-foreground">
                   {field.key}
                 </dt>
-                <dd className="break-words">{field.value}</dd>
+                <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
+                  {field.value}
+                </dd>
               </div>
             ))
           ) : (

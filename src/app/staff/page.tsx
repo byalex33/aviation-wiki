@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ShieldCheck, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { RoleUsername } from "@/components/role-username";
 import { formatDisplayLabel } from "@/lib/display";
 import { listPublicStaffUsers } from "@/lib/staff-users";
 
@@ -38,7 +39,9 @@ export default async function StaffPage() {
                 className="size-16 rounded-full border object-cover"
               />
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-semibold tracking-tight">{member.name}</h2>
+                <h2 className="truncate text-lg tracking-tight">
+                  <RoleUsername name={member.name} role={member.role} />
+                </h2>
                 <Badge variant="outline" className="mt-2">
                   <ShieldCheck className="size-3.5" aria-hidden="true" />
                   {formatDisplayLabel(member.role)}

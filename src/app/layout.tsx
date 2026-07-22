@@ -6,6 +6,7 @@ import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import { Analytics } from "@vercel/analytics/next";
 import { Search } from "lucide-react";
+import { Toaster } from "sonner";
 
 import { AccountMenu } from "@/components/account-menu";
 import { HeaderSearch } from "@/components/header-search";
@@ -165,6 +166,7 @@ export default function RootLayout({
             </div>
           </footer>
           <Analytics />
+          <Toaster position="bottom-right" richColors />
         </ClerkProvider>
       </body>
     </html>

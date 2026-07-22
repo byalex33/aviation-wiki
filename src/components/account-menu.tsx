@@ -4,11 +4,14 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { Menu } from "@base-ui/react/menu";
 import { BookOpen, LogOut, Settings, ShieldCheck, UserRound } from "lucide-react";
 
+import { RoleUsername } from "@/components/role-username";
+
 export function AccountMenu() {
   const { openUserProfile, signOut } = useClerk();
   const { isLoaded, user } = useUser();
   const displayName = user?.username || user?.fullName || "Your account";
   const email = user?.primaryEmailAddress?.emailAddress;
+  const role = String(user?.publicMetadata.role || "contributor");
 
   return (
     <Menu.Root>
@@ -28,7 +31,9 @@ export function AccountMenu() {
         <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[100] outline-none">
           <Menu.Popup className="w-64 origin-[var(--transform-origin)] rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-xl outline-none transition-[transform,scale,opacity] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0">
             <div className="px-2.5 py-2">
-              <p className="truncate text-sm font-semibold">{displayName}</p>
+              <p className="truncate text-sm">
+                <RoleUsername name={displayName} role={role} />
+              </p>
               {email && <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>}
             </div>
             <Menu.Separator className="my-1 h-px bg-border" />

@@ -6,6 +6,7 @@ import { AirlineCountryFilter } from "@/components/airline-country-filter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOpenFlightsAirlines } from "@/lib/openflights";
+import { normalizeSlug } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Commercial airlines",
@@ -183,7 +184,12 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
                 const status = openFlights ? (openFlights.active ? "Active" : "Ceased") : airline.status;
 
                 return (
-                <article key={airline.name} className="group block">
+                <Link
+                  key={airline.name}
+                  href={`/commercial/${normalizeSlug(name)}?iata=${encodeURIComponent(airline.iata)}`}
+                  className="group block"
+                  aria-label={`View ${name}`}
+                >
                   <Card className="h-full gap-0 overflow-hidden py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
                     <div className="flex h-28 items-center justify-center border-b bg-white p-5">
                       <Image src={`https://images.kiwi.com/airlines/64/${airline.iata}.png`} alt={`${name} logo`} width={64} height={64} unoptimized className="max-h-16 w-auto object-contain transition-transform group-hover:scale-105" />
@@ -202,7 +208,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
                       </dl>
                     </CardContent>
                   </Card>
-                </article>
+                </Link>
                 );
               })}
             </div>
