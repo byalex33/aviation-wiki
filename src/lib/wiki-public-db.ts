@@ -6,7 +6,7 @@ import { articlePath } from "@/lib/article-routes";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
-import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionRecord, RevisionStatus } from "@/lib/wiki-types";
+import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionRecord, RevisionStatus, SourceLink } from "@/lib/wiki-types";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -103,6 +103,17 @@ export async function getArticlePublicationControls(contentType: ContentType, sl
 export async function isWatchingArticle(userId: string, articleId: string) {
   await ready();
   return Boolean(await row<{ exists: boolean }>("SELECT true AS exists FROM article_watches WHERE user_id=$1 AND article_id=$2",[userId,articleId]));
+}
+
+export async function getSourceHealth(sources: SourceLink[]) {
+  const urls = [...new Set(sources.map((source) => source.url).filter(Boolean))];
+  if (!urls.length) return { citedCount: 0, lastReviewedAt: null, broken: 0, stale: 0 };
+  await ready();
+  const checks = await sql`SELECT url,status,checked_at FROM source_checks WHERE url IN ${sql(urls)}` as unknown as Array<{url:string;status:string;checked_at:Date|string}>;
+  const byUrl = new Map(checks.map((check) => [check.url,check]));
+  const staleBefore = Date.now() - 180 * 24 * 60 * 60 * 1000;
+  const dates = checks.map((check) => new Date(check.checked_at).getTime()).filter(Number.isFinite);
+  return { citedCount: urls.length, lastReviewedAt: dates.length ? new Date(Math.max(...dates)).toISOString() : null, broken: urls.filter((url) => byUrl.get(url)?.status === "broken").length, stale: urls.filter((url) => { const checked = byUrl.get(url)?.checked_at; return !checked || new Date(checked).getTime() < staleBefore; }).length };
 }
 
 const searchableFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign|country|country of origin|manufacturer|engine|alias|aliases|abbreviation|abbreviations|acronym)(\b|$)/i;

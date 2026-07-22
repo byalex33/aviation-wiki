@@ -12,7 +12,7 @@ import {
   BellOff,
 } from "lucide-react";
 
-import { toggleArticleWatchAction } from "@/app/notifications/actions";
+import { togglePublicArticleWatchAction } from "@/app/public-actions";
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { ApprovedRelationships } from "@/components/entity-relationships";
 import { ImportedRevisionData } from "@/components/imported-revision-data";
@@ -21,7 +21,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
-import { getSourceHealth } from "@/lib/admin-db";
+import { getSourceHealth } from "@/lib/wiki-public-db";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import type {
   ArticleRecord,
@@ -68,7 +68,7 @@ export function ArticleHeader({
           View history
         </Link>
         {signedIn && (
-          <form action={toggleArticleWatchAction}>
+          <form action={togglePublicArticleWatchAction}>
             <input type="hidden" name="articleId" value={articleId} />
             <input
               type="hidden"
@@ -228,8 +228,8 @@ export function SourceList({
   );
 }
 
-export function ArticleSourcePanel({ sources }: { sources: SourceLink[] }) {
-  const health = getSourceHealth(sources);
+export async function ArticleSourcePanel({ sources }: { sources: SourceLink[] }) {
+  const health = await getSourceHealth(sources);
   return (
     <Card className="gap-0 py-0">
       <CardContent className="p-5">
