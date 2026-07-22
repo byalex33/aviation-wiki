@@ -34,3 +34,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Contribution workflow
+
+Authenticated contributors work in `/contribute`. Drafts and submitted revisions are stored separately from the live revision, so contributor actions cannot publish content. Submitted revisions move through `verifying` and `pending_review`; moderators can approve, edit and approve, request changes, or reject from `/moderation`.
+
+Moderator access is granted through Clerk user public metadata:
+
+```json
+{ "role": "moderator" }
+```
+
+Gemini verification is advisory and requires the server-only `GEMINI_API_KEY` variable. It stores claim/source checks for moderators but has no publishing authority. Copy `.env.example` for the complete environment contract.
+
+The default revision store is SQLite at `.data/aviation-wiki.db`. Set `AVIATION_WIKI_DB_PATH` to a path on persistent storage in deployed environments; ephemeral serverless filesystems are not suitable for production revisions.

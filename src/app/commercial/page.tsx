@@ -136,7 +136,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
         </div>
         <aside className="border-l-2 border-primary/25 pl-4 text-sm lg:mb-1 lg:max-w-52" aria-label="Contribute to aviation.wiki">
           <p className="font-semibold">Something missing?</p>
-          <Link href="#" className="article-link mt-1 inline-block">Sign up to contribute.</Link>
+          <Link href="/contribute" className="article-link mt-1 inline-block">Sign up to contribute.</Link>
         </aside>
       </section>
 

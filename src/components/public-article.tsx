@@ -1,0 +1,398 @@
+import Link from "next/link";
+import {
+  CalendarClock,
+  ExternalLink,
+  FilePenLine,
+  History,
+  MessageSquareWarning,
+  ShieldCheck,
+  BookOpenCheck,
+  AlertTriangle,
+  Bell,
+  BellOff,
+} from "lucide-react";
+
+import { toggleArticleWatchAction } from "@/app/notifications/actions";
+import { ArticleMarkdown } from "@/components/article-markdown";
+import { ApprovedRelationships } from "@/components/entity-relationships";
+import { ImportedRevisionData } from "@/components/imported-revision-data";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseArticleMarkdown } from "@/lib/article-markdown";
+import { citedSources, sourceTitle } from "@/lib/article-citations";
+import { getSourceHealth } from "@/lib/admin-db";
+import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import type {
+  ArticleRecord,
+  ContentType,
+  RevisionRecord,
+  SourceLink,
+  StructuredField,
+  VerificationResult,
+} from "@/lib/wiki-types";
+import { formatDisplayLabel } from "@/lib/display";
+
+export function ArticleHeader({
+  title,
+  contentType,
+  slug,
+  articleId,
+  watching,
+  signedIn,
+}: {
+  title: string;
+  contentType: ContentType;
+  slug: string;
+  articleId: string;
+  watching: boolean;
+  signedIn: boolean;
+}) {
+  const editorHref = `/editor?type=${contentType}&slug=${encodeURIComponent(slug)}`;
+  return (
+    <header className="border-b pb-6">
+      <Badge variant="outline">{formatDisplayLabel(contentType)}</Badge>
+      <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+        {title}
+      </h1>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link href={editorHref} className={buttonVariants({ size: "sm" })}>
+          <FilePenLine />
+          Edit
+        </Link>
+        <Link
+          href={articleHistoryPath(contentType, slug)}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <History />
+          View history
+        </Link>
+        {signedIn && (
+          <form action={toggleArticleWatchAction}>
+            <input type="hidden" name="articleId" value={articleId} />
+            <input
+              type="hidden"
+              name="watching"
+              value={watching ? "false" : "true"}
+            />
+            <input
+              type="hidden"
+              name="returnTo"
+              value={articlePath(contentType, slug)}
+            />
+            <button
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              type="submit"
+            >
+              {watching ? <BellOff /> : <Bell />}
+              {watching ? "Unwatch" : "Watch"}
+            </button>
+          </form>
+        )}
+        <Link
+          href={`${editorHref}&correction=1`}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <MessageSquareWarning />
+          Suggest correction
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+export function InformationSidebar({
+  title,
+  contentType,
+  fields,
+}: {
+  title: string;
+  contentType: ContentType;
+  fields: StructuredField[];
+}) {
+  return (
+    <Card className="gap-0 overflow-hidden py-0 shadow-md lg:sticky lg:top-20">
+      <CardHeader className="border-b bg-primary/5 py-5">
+        <CardTitle>{title}</CardTitle>
+        <p className="text-xs font-medium uppercase tracking-wider text-primary">
+          {formatDisplayLabel(contentType)}
+        </p>
+      </CardHeader>
+      <CardContent className="p-0">
+        <dl className="divide-y">
+          {fields.length ? (
+            fields.map((field, index) => (
+              <div
+                key={`${field.key}-${index}`}
+                className="grid grid-cols-[42%_1fr] gap-3 px-5 py-3 text-sm"
+              >
+                <dt className="font-medium text-muted-foreground">
+                  {field.key}
+                </dt>
+                <dd className="break-words">{field.value}</dd>
+              </div>
+            ))
+          ) : (
+            <p className="px-5 py-4 text-sm text-muted-foreground">
+              No structured information has been added.
+            </p>
+          )}
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ArticleMetadata({ revision }: { revision: RevisionRecord }) {
+  const approvedAt = revision.reviewedAt || revision.updatedAt;
+  return (
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <CalendarClock className="size-4" />
+        Last approved{" "}
+        {new Date(approvedAt).toLocaleDateString(undefined, {
+          dateStyle: "long",
+        })}
+      </span>
+      <span>Revision {revision.id.slice(0, 8)}</span>
+    </div>
+  );
+}
+
+export function SourceList({
+  sources,
+  citations,
+}: {
+  sources: SourceLink[];
+  citations: ReturnType<typeof parseArticleMarkdown>["citations"];
+}) {
+  const cited = citedSources(citations, sources);
+  return (
+    <section id="sources" className="mt-12 scroll-mt-24 border-t pt-8">
+      <h2 className="text-2xl font-bold">Sources</h2>
+      {cited.length ? (
+        <ol className="mt-4 space-y-3 pl-5 text-sm text-muted-foreground">
+          {cited.map(({ citation, source }) => (
+            <li
+              key={citation.identifier}
+              id={`source-${citation.number}`}
+              value={citation.number}
+              className="scroll-mt-24 list-decimal"
+            >
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="article-link"
+              >
+                {sourceTitle(source)}
+                <ExternalLink className="ml-1 inline size-3.5" />
+              </a>
+              {source.publisher && <span> — {source.publisher}</span>}
+              {source.accessedAt && (
+                <span>
+                  . Accessed{" "}
+                  {new Date(
+                    `${source.accessedAt}T00:00:00Z`,
+                  ).toLocaleDateString()}
+                </span>
+              )}
+              {source.archiveUrl && (
+                <span>
+                  {" "}
+                  ·{" "}
+                  <a
+                    href={source.archiveUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="article-link"
+                  >
+                    Archived copy
+                  </a>
+                </span>
+              )}
+              {citation.occurrences > 1 && (
+                <span className="ml-2 text-xs">
+                  Cited {citation.occurrences} times
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">
+          This revision does not contain inline citations.
+        </p>
+      )}
+    </section>
+  );
+}
+
+export function ArticleSourcePanel({ sources }: { sources: SourceLink[] }) {
+  const health = getSourceHealth(sources);
+  return (
+    <Card className="gap-0 py-0">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2">
+          <BookOpenCheck className="size-5 text-primary" />
+          <h2 className="font-semibold">Article sources</h2>
+        </div>
+        <p className="mt-3 text-2xl font-bold">{health.citedCount}</p>
+        <p className="text-xs text-muted-foreground">
+          cited {health.citedCount === 1 ? "source" : "sources"}
+        </p>
+        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+          <p>
+            {health.lastReviewedAt
+              ? `Last source review ${new Date(health.lastReviewedAt).toLocaleDateString()}`
+              : "Sources have not been reviewed yet"}
+          </p>
+          {health.broken > 0 && (
+            <p className="flex items-center gap-1.5 text-destructive">
+              <AlertTriangle className="size-3.5" />
+              {health.broken} broken source{" "}
+              {health.broken === 1 ? "warning" : "warnings"}
+            </p>
+          )}
+          {health.stale > 0 && (
+            <p className="flex items-center gap-1.5 text-amber-700">
+              <AlertTriangle className="size-3.5" />
+              {health.stale} stale or unchecked
+            </p>
+          )}
+        </div>
+        <a href="#sources" className="article-link mt-4 inline-block text-sm">
+          View all sources
+        </a>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function VerificationInformation({
+  verification,
+}: {
+  verification: VerificationResult | null;
+}) {
+  if (!verification) return null;
+  return (
+    <Card className="mt-8 gap-0 py-0">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 size-5 text-primary" />
+          <div>
+            <h2 className="font-semibold">Source verification</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              {verification.summary}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Advisory check{" "}
+              {verification.status === "completed"
+                ? "completed"
+                : verification.status}{" "}
+              {new Date(verification.checkedAt).toLocaleDateString()}.
+              Publication was decided by a human moderator.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function MissingArticleState({
+  slug,
+  contentType,
+}: {
+  slug: string;
+  contentType: ContentType;
+}) {
+  const title = slug
+    .split("-")
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : ""))
+    .join(" ");
+  return (
+    <main className="mx-auto grid min-h-[65vh] max-w-2xl place-items-center px-5 py-20 text-center">
+      <div>
+        <Badge variant="outline">{formatDisplayLabel(contentType)}</Badge>
+        <h1 className="mt-5 text-4xl font-bold">
+          This article does not exist yet
+        </h1>
+        <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+          There is no approved revision for “{title}”. Drafts and submissions
+          awaiting review are never shown publicly.
+        </p>
+        <Link
+          href={`/editor?type=${contentType}&slug=${encodeURIComponent(slug)}`}
+          className={`${buttonVariants()} mt-7`}
+        >
+          Create this article
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+export function PublicArticle({
+  article,
+  revision,
+  watching,
+  signedIn,
+}: {
+  article: ArticleRecord;
+  revision: RevisionRecord;
+  watching: boolean;
+  signedIn: boolean;
+}) {
+  const parsed = parseArticleMarkdown(revision.markdown);
+  const publicSources = citedSources(parsed.citations, revision.sources).map(
+    ({ source }) => source,
+  );
+  return (
+    <main className="mx-auto max-w-[1180px] px-5 pb-20 pt-8 sm:px-6">
+      <nav className="mb-7 text-sm text-muted-foreground">
+        <Link href="/" className="article-link">
+          aviation.wiki
+        </Link>
+        <span> / </span>
+        <span>{formatDisplayLabel(revision.contentType)}</span>
+        <span> / </span>
+        <span>{revision.title}</span>
+      </nav>
+      <ArticleHeader
+        title={revision.title}
+        contentType={revision.contentType}
+        slug={article.slug}
+        articleId={article.id}
+        watching={watching}
+        signedIn={signedIn}
+      />
+      <div className="mt-5">
+        <ArticleMetadata revision={revision} />
+      </div>
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          {parsed.errors.length ? (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              This approved revision cannot be rendered safely.
+            </p>
+          ) : (
+            <ArticleMarkdown root={parsed.root} citations={parsed.citations} />
+          )}
+          <ApprovedRelationships article={article} />
+          <ImportedRevisionData revisionId={revision.id} />
+          <SourceList sources={revision.sources} citations={parsed.citations} />
+          <VerificationInformation verification={revision.verification} />
+        </div>
+        <aside className="space-y-5 lg:sticky lg:top-20">
+          <InformationSidebar
+            title={revision.title}
+            contentType={revision.contentType}
+            fields={revision.fields}
+          />
+          <ArticleSourcePanel sources={publicSources} />
+        </aside>
+      </div>
+    </main>
+  );
+}

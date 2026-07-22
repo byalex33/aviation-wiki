@@ -1,0 +1,47 @@
+import type { RevisionContent } from "@/lib/wiki-types";
+
+export const f15Article: RevisionContent & { slug: string } = {
+  slug: "f-15-eagle",
+  title: "McDonnell Douglas F-15 Eagle",
+  contentType: "aircraft",
+  markdown: [
+    "## Overview",
+    "",
+    "The McDonnell Douglas F-15 Eagle is an American twin-engine, all-weather tactical fighter aircraft designed to gain and maintain air superiority in aerial combat. Developed for the United States Air Force from a 1967 requirement, it first flew in July 1972 and entered service in 1976.",
+    "",
+    "## Development",
+    "",
+    "The program originated from the U.S. Air Force's F-X studies of the mid-1960s, seeking a dedicated air-superiority fighter to replace the F-4 Phantom II. McDonnell Douglas was awarded the contract in 1969, and the first prototype flew on 27 July 1972.",
+    "",
+    "## Design",
+    "",
+    "The F-15 is powered by two afterburning turbofan engines mounted side by side in the fuselage. Its cropped-delta wing and large control surfaces provide sustained turn performance, while the bubble canopy affords the pilot near-unobstructed vision.",
+    "",
+    "## Operational history",
+    "",
+    "Entering U.S. service in 1976, the Eagle became the backbone of American air defense and has been exported to several allied nations. It saw extensive combat from the 1980s onward.",
+  ].join("\n"),
+  fields: [
+    { key: "Role", value: "Air superiority fighter" },
+    { key: "Manufacturer", value: "McDonnell Douglas (now Boeing)" },
+    { key: "First flight", value: "27 July 1972" },
+    { key: "Introduction", value: "9 January 1976" },
+    { key: "Status", value: "In service" },
+    { key: "Primary users", value: "USAF & allied air forces" },
+    { key: "Produced", value: "1972–present" },
+    { key: "Crew", value: "1 (2 in two-seat variants)" },
+    { key: "Length", value: "19.43 m (63 ft 9 in)" },
+    { key: "Wingspan", value: "13.05 m (42 ft 10 in)" },
+    { key: "Maximum speed", value: "Mach 2.5 (2,655 km/h)" },
+  ],
+  sections: [
+    { heading: "Overview", body: "The McDonnell Douglas F-15 Eagle is an American twin-engine, all-weather tactical fighter aircraft designed to gain and maintain air superiority in aerial combat. Developed for the United States Air Force from a 1967 requirement, it first flew in July 1972 and entered service in 1976." },
+    { heading: "Development", body: "The program originated from the U.S. Air Force's F-X studies of the mid-1960s, seeking a dedicated air-superiority fighter to replace the F-4 Phantom II. McDonnell Douglas was awarded the contract in 1969, and the first prototype flew on 27 July 1972." },
+    { heading: "Design", body: "The F-15 is powered by two afterburning turbofan engines mounted side by side in the fuselage. Its cropped-delta wing and large control surfaces provide sustained turn performance, while the bubble canopy affords the pilot near-unobstructed vision." },
+    { heading: "Operational history", body: "Entering U.S. service in 1976, the Eagle became the backbone of American air defense and has been exported to several allied nations. It saw extensive combat from the 1980s onward." },
+  ],
+  sources: [
+    { label: "United States Air Force — F-15 Eagle Fact Sheet", url: "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104501/f-15-eagle/" },
+  ],
+  relationships: [],
+};
