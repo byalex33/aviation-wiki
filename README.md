@@ -47,4 +47,4 @@ Moderator access is granted through Clerk user public metadata:
 
 Gemini verification is advisory and requires the server-only `GEMINI_API_KEY` variable. It stores claim/source checks for moderators but has no publishing authority. Copy `.env.example` for the complete environment contract.
 
-The default revision store is SQLite at `.data/aviation-wiki.db`. Set `AVIATION_WIKI_DB_PATH` to a path on persistent storage in deployed environments; ephemeral serverless filesystems are not suitable for production revisions.
+Public article and search data use Neon Postgres through the server-only `DATABASE_URL` variable. Local SQLite remains available for the legacy moderation test harness while those authenticated write paths are migrated.

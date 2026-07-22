@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDisplayLabel } from "@/lib/display";
-import { listPublicSearchDocuments } from "@/lib/wiki-db";
+import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 const categories = [
   { name: "Commercial", description: "Airlines, flag carriers & low-cost operators", count: "1,240", glyph: "AIR", href: "/commercial" },
@@ -25,8 +25,8 @@ const commercialTailLogos = [
   { airline: "Singapore Airlines", src: "https://airhex.com/images/airline-logos/tail/singapore-airlines.png" },
 ];
 
-export default function Home() {
-  const documents = listPublicSearchDocuments();
+export default async function Home() {
+  const documents = await listPublicSearchDocuments();
   const featured = documents.find((document) => document.slug === "f-15-eagle") || documents[0];
   return (
     <main className="mx-auto max-w-[1200px] px-5 pb-20 sm:px-6">

@@ -25,7 +25,7 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
   let preview;
   try { preview = await getImportProvider(route.provider).preview(route.sourceId, contentType); } catch { notFound(); }
   const assessment = assessImportPreview(preview);
-  const fuzzy = searchPublicArticles({ query: preview.title, contentType, pageSize: 5 }).hits;
+  const fuzzy = (await searchPublicArticles({ query: preview.title, contentType, pageSize: 5 })).hits;
   const candidateMap = new Map<string, { id: string; title: string; detail: string }>();
   for (const item of [...assessment.titleMatches, ...assessment.aliasMatches, ...assessment.identifierCollisions]) candidateMap.set(String(item.id), { id: String(item.id), title: String(item.title), detail: [item.archived_at ? "Archived" : "", item.redirect_to_slug ? "Redirect" : "", item.field_key ? `${item.field_key}: ${item.field_value}` : ""].filter(Boolean).join(" · ") || "Existing article" });
   if (assessment.externalMapping) candidateMap.set(String(assessment.externalMapping.article_id), { id: String(assessment.externalMapping.article_id), title: String(assessment.externalMapping.title), detail: "Already linked to this source identifier" });

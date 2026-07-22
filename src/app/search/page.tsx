@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const type = contentTypes.includes(typeValue as ContentType) ? typeValue as ContentType : undefined;
   const country = valueOf(raw.country).slice(0, 100);
   const requestedPage = Math.max(1, Number.parseInt(valueOf(raw.page) || "1", 10) || 1);
-  const results = searchPublicArticles({ query, contentType: type, country: country || undefined, page: requestedPage, pageSize: 12 });
+  const results = await searchPublicArticles({ query, contentType: type, country: country || undefined, page: requestedPage, pageSize: 12 });
   const grouped = results.hits.reduce<Record<string, typeof results.hits>>((groups, hit) => { (groups[hit.contentType] ||= []).push(hit); return groups; }, {});
   return <main className="mx-auto min-h-[70vh] max-w-[1050px] px-5 pb-20 pt-10 sm:px-6">
     <h1 className="text-4xl font-bold tracking-tight">Search aviation.wiki</h1>

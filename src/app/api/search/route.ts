@@ -7,5 +7,5 @@ export async function GET(request: Request) {
   const contentType = rawType && contentTypes.includes(rawType as ContentType) ? rawType as ContentType : undefined;
   const page = Number.parseInt(params.get("page") || "1", 10);
   const pageSize = Number.parseInt(params.get("pageSize") || "8", 10);
-  return Response.json(searchPublicArticles({ query: params.get("q") || "", contentType, country: params.get("country") || undefined, page: Number.isFinite(page) ? page : 1, pageSize: Number.isFinite(pageSize) ? pageSize : 8 }), { headers: { "Cache-Control": "private, no-store" } });
+  return Response.json(await searchPublicArticles({ query: params.get("q") || "", contentType, country: params.get("country") || undefined, page: Number.isFinite(page) ? page : 1, pageSize: Number.isFinite(pageSize) ? pageSize : 8 }), { headers: { "Cache-Control": "private, no-store" } });
 }

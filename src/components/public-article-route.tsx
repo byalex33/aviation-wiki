@@ -12,15 +12,15 @@ import {
 } from "@/components/revision-history";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
-import { getArticlePublicationControls } from "@/lib/admin-db";
-import { isWatchingArticle } from "@/lib/notification-db";
 import {
   getApprovedRevision,
   getArticleBySlug,
   getSlugRedirect,
   listArticleHistory,
   normalizeSlug,
-} from "@/lib/wiki-db";
+  getArticlePublicationControls,
+  isWatchingArticle,
+} from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
 
 export async function PublicArticleRoute({
@@ -32,20 +32,20 @@ export async function PublicArticleRoute({
 }) {
   const slug = normalizeSlug((await params).slug);
   if (!slug) notFound();
-  const controls = getArticlePublicationControls(contentType, slug);
+  const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
     permanentRedirect(articlePath(contentType, controls.redirect_to_slug));
-  const article = getArticleBySlug(slug, contentType);
+  const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = getSlugRedirect(contentType, slug);
+    const destination = await getSlugRedirect(contentType, slug);
     if (destination) permanentRedirect(articlePath(contentType, destination));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     return <MissingArticleState slug={slug} contentType={contentType} />;
   const session = await auth();
   const watching = session.userId
-    ? isWatchingArticle(session.userId, article.id)
+    ? await isWatchingArticle(session.userId, article.id)
     : false;
   return (
     <PublicArticle
@@ -67,24 +67,24 @@ export async function PublicArticleHistoryRoute({
   contentType: ContentType;
 }) {
   const slug = normalizeSlug((await params).slug);
-  const controls = getArticlePublicationControls(contentType, slug);
+  const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
     permanentRedirect(
       articleHistoryPath(contentType, controls.redirect_to_slug),
     );
-  const article = getArticleBySlug(slug, contentType);
+  const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = getSlugRedirect(contentType, slug);
+    const destination = await getSlugRedirect(contentType, slug);
     if (destination)
       permanentRedirect(articleHistoryPath(contentType, destination));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
-  const history = listArticleHistory(article.id);
+  const history = await listArticleHistory(article.id);
   const query = await searchParams;
-  const from = query.from ? getApprovedRevision(article.id, query.from) : null;
-  const to = query.to ? getApprovedRevision(article.id, query.to) : null;
+  const from = query.from ? await getApprovedRevision(article.id, query.from) : null;
+  const to = query.to ? await getApprovedRevision(article.id, query.to) : null;
   const pathname = articleHistoryPath(contentType, slug);
   return (
     <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-8 sm:px-6">
