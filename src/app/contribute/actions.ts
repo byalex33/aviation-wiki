@@ -4,32 +4,25 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { verifyRevision } from "@/lib/gemini-verification";
-import {
-  assertArticleEditable,
-  getContributorRestriction,
-  recordAdminAudit,
-} from "@/lib/admin-db";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import {
   isSafeCitationUrl,
   parseArticleMarkdown,
 } from "@/lib/article-markdown";
 import { reconcileCitationSources } from "@/lib/article-citations";
-import { emitRevisionOutcome } from "@/lib/notification-service";
 import { requireContributor, requireModerator } from "@/lib/wiki-auth";
 import {
-  createOrGetArticle,
-  getArticleById,
-  getArticleBySlug,
-  getRevision,
-  moderatorEditRevision,
+  assertArticleEditable as assertPostgresArticleEditable,
+  createOrGetArticle as createOrGetPostgresArticle,
+  getArticleById as getPostgresArticleById,
+  getArticleBySlug as getPostgresArticleBySlug,
+  getContributorRestriction as getPostgresContributorRestriction,
+  getRevision as getPostgresRevision,
   normalizeSlug,
-  publishRevision,
-  restoreRevision,
-  saveDraft,
-  transitionRevision,
-  validateRelationships,
-} from "@/lib/wiki-db";
+  saveDraft as savePostgresDraft,
+  transitionRevision as transitionPostgresRevision,
+  validateRelationships as validatePostgresRelationships,
+} from "@/lib/wiki-public-db";
 import {
   contentTypes,
   relationshipTypes,
@@ -170,27 +163,27 @@ async function persistFromForm(
   const revisionId = String(formData.get("revisionId") || "") || undefined;
   const submittedArticleId =
     String(formData.get("articleId") || "") || undefined;
-  const existingRevision = revisionId ? getRevision(revisionId) : null;
+  const existingRevision = revisionId ? await getPostgresRevision(revisionId) : null;
   if (revisionId && !existingRevision) throw new Error("Revision not found.");
   const existingArticle = existingRevision
-    ? getArticleById(existingRevision.articleId)
+    ? await getPostgresArticleById(existingRevision.articleId)
     : submittedArticleId
-      ? getArticleById(submittedArticleId)
-      : getArticleBySlug(slug, content.contentType);
-  const restriction = getContributorRestriction(contributor.userId);
+      ? await getPostgresArticleById(submittedArticleId)
+      : await getPostgresArticleBySlug(slug, content.contentType);
+  const restriction = await getPostgresContributorRestriction(contributor.userId);
   if (restriction === "suspended" || restriction === "read_only")
     throw new Error("This account is not allowed to submit edits.");
   const article =
     existingArticle ||
-    createOrGetArticle(slug, content.title, content.contentType);
+    await createOrGetPostgresArticle(slug, content.title, content.contentType);
   if (article.contentType !== content.contentType)
     throw new Error(
       "An existing article cannot change content type through an edit.",
     );
   if (existingRevision && existingRevision.articleId !== article.id)
     throw new Error("The revision does not belong to this article.");
-  assertArticleEditable(article.id, contributor.role, restriction);
-  validateRelationships(
+  await assertPostgresArticleEditable(article.id, contributor.role, restriction);
+  await validatePostgresRelationships(
     article.id,
     content.contentType,
     content.relationships,
@@ -205,7 +198,7 @@ async function persistFromForm(
     .slice(0, 500);
   if (requireSubmissionFields && !editSummary)
     throw new Error("An edit summary is required before submission.");
-  return saveDraft({
+  return savePostgresDraft({
     revisionId,
     articleId: article.id,
     proposedSlug: slug,
@@ -242,9 +235,9 @@ export async function saveDraftAction(formData: FormData) {
 export async function submitRevisionAction(formData: FormData) {
   const contributor = await requireContributor();
   const revision = await persistFromForm(formData, true);
-  transitionRevision(revision.id, contributor.userId, "verifying");
+  await transitionPostgresRevision(revision.id, contributor.userId, "verifying");
   const verification = await verifyRevision(revision);
-  transitionRevision(revision.id, contributor.userId, "pending_review", {
+  await transitionPostgresRevision(revision.id, contributor.userId, "pending_review", {
     verification,
   });
   revalidatePath("/contribute");
@@ -258,6 +251,11 @@ export async function submitRevisionAction(formData: FormData) {
 
 export async function moderateRevisionAction(formData: FormData) {
   const moderator = await requireModerator();
+  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, publishRevision, transitionRevision }, { emitRevisionOutcome }] = await Promise.all([
+    import("@/lib/admin-db"),
+    import("@/lib/wiki-db"),
+    import("@/lib/notification-service"),
+  ]);
   const revisionId = String(formData.get("revisionId") || "");
   const intent = String(formData.get("intent") || "");
   const note = String(formData.get("moderatorNote") || "")
@@ -321,6 +319,11 @@ export async function moderateRevisionAction(formData: FormData) {
 
 export async function editAndApproveAction(formData: FormData) {
   const moderator = await requireModerator();
+  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, moderatorEditRevision, publishRevision, validateRelationships }, { emitRevisionOutcome }] = await Promise.all([
+    import("@/lib/admin-db"),
+    import("@/lib/wiki-db"),
+    import("@/lib/notification-service"),
+  ]);
   const revisionId = String(formData.get("revisionId") || "");
   const content = parseContent(formData, true);
   const editSummary = String(formData.get("editSummary") || "")
@@ -382,6 +385,10 @@ export async function editAndApproveAction(formData: FormData) {
 
 export async function restoreRevisionAction(formData: FormData) {
   const moderator = await requireModerator();
+  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, restoreRevision, transitionRevision }] = await Promise.all([
+    import("@/lib/admin-db"),
+    import("@/lib/wiki-db"),
+  ]);
   const sourceRevisionId = String(formData.get("revisionId") || "");
   const source = getRevision(sourceRevisionId);
   if (!source) throw new Error("Revision not found.");

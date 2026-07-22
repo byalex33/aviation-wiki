@@ -5,8 +5,10 @@ import { randomUUID } from "node:crypto";
 import { articlePath } from "@/lib/article-routes";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
+import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
-import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionRecord, RevisionStatus, SourceLink } from "@/lib/wiki-types";
+import type { WikiRole } from "@/lib/wiki-auth";
+import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, SourceLink, VerificationResult } from "@/lib/wiki-types";
 import type { OpenFlightsAirline } from "@/lib/openflights";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
@@ -123,6 +125,107 @@ export async function listEntityOptions(): Promise<EntityOption[]> {
   await ready();
   const values = await rows<{id:string;title:string;slug:string;content_type:ContentType}>("SELECT id,title,slug,content_type FROM articles ORDER BY content_type,title");
   return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
+}
+
+export async function listApprovedEntityOptions(): Promise<EntityOption[]> {
+  await ready();
+  const values = await rows<{id:string;title:string;slug:string;content_type:ContentType}>("SELECT a.id,a.title,a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL ORDER BY a.content_type,a.title");
+  return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
+}
+
+export async function getEditableRevision(articleId: string, contributorId: string) {
+  await ready();
+  const value = await row<RevisionRow>(`${revisionSelect} WHERE r.article_id=$1 AND r.contributor_id=$2 AND r.status IN ('draft','changes_requested') ORDER BY r.updated_at DESC LIMIT 1`, [articleId, contributorId]);
+  return value ? mapRevision(value) : null;
+}
+
+export async function getContributorRestriction(userId: string) {
+  await ready();
+  return (await row<{restriction:string}>("SELECT restriction FROM contributor_profiles WHERE user_id=$1", [userId]))?.restriction ?? "none";
+}
+
+export async function assertArticleEditable(articleId: string, role: WikiRole, restriction = "none") {
+  await ready();
+  const article = await row<{archived_at:Date|string|null;protection_level:string;is_locked:boolean}>("SELECT archived_at,protection_level,is_locked FROM articles WHERE id=$1", [articleId]);
+  if (!article) throw new Error("Article not found.");
+  if (restriction === "suspended" || restriction === "read_only") throw new Error("This account is not allowed to submit edits.");
+  if (article.archived_at) throw new Error("Archived articles cannot be edited.");
+  if (article.is_locked && role !== "admin") throw new Error("This article is locked.");
+  const ranks: Record<string, number> = { contributor: 0, trusted_contributor: 1, moderator: 2, admin: 3 };
+  const required: Record<string, number> = { open: 0, trusted: 1, moderator: 2, admin: 3 };
+  if ((ranks[role] ?? 0) < (required[article.protection_level] ?? 0)) throw new Error("Your role cannot edit this protected article.");
+}
+
+export async function validateRelationships(articleId: string, sourceType: ContentType, relationships: EntityRelationship[], citationIdentifiers: Set<string>) {
+  if (!relationships.length) return;
+  await ready();
+  const targetIds = [...new Set(relationships.map((relationship) => relationship.targetArticleId))];
+  const values = await sql`SELECT a.id,a.content_type,a.archived_at,r.status FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id WHERE a.id IN ${sql(targetIds)}` as unknown as Array<{id:string;content_type:ContentType;archived_at:Date|string|null;status:RevisionStatus|null}>;
+  const targets = new Map(values.map((value) => [value.id, value]));
+  const seen = new Set<string>();
+  for (const relationship of relationships) {
+    const key = relationshipKey(relationship);
+    if (seen.has(key)) throw new Error("Duplicate relationships are not allowed.");
+    seen.add(key);
+    const target = targets.get(relationship.targetArticleId);
+    if (!target || target.status !== "approved" || target.archived_at) throw new Error("Relationships may only target existing approved entities.");
+    validateRelationshipShape(articleId, sourceType, relationship, target.content_type);
+    for (const identifier of relationship.citationIdentifiers) if (!citationIdentifiers.has(identifier.toLowerCase())) throw new Error(`Relationship citation [^${identifier}] is not defined in the article.`);
+  }
+}
+
+export async function createOrGetArticle(slug: string, title: string, contentType: ContentType) {
+  const existing = await getArticleBySlug(slug, contentType);
+  if (existing) return existing;
+  await ready();
+  const id = randomUUID();
+  const now = new Date();
+  await sql.begin(async (transaction) => {
+    const reserved = await transaction`SELECT 1 FROM article_slug_redirects WHERE content_type=${contentType} AND old_slug=${slug} LIMIT 1`;
+    if (reserved.length) throw new Error("That slug is reserved by an existing article redirect.");
+    await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${id},${slug},${title},${contentType},NULL,${now},${now}) ON CONFLICT (content_type,slug) DO NOTHING`;
+  });
+  const article = await getArticleBySlug(slug, contentType);
+  if (!article) throw new Error("Article could not be created.");
+  return article;
+}
+
+export async function saveDraft(input: { revisionId?: string; articleId: string; proposedSlug: string; contributorId: string; contributorName: string; editSummary: string; content: RevisionContent; parentRevisionId: string | null }) {
+  await ready();
+  const id = input.revisionId || randomUUID();
+  const now = new Date();
+  await sql.begin(async (transaction) => {
+    if (input.revisionId) {
+      const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [input.revisionId]) as unknown as RevisionRow[];
+      const existing = values[0] ? mapRevision(values[0]) : null;
+      if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new Error("This revision cannot be edited.");
+      await transaction`UPDATE revisions SET status='draft',contributor_name=${input.contributorName},edit_summary=${input.editSummary},title=${input.content.title},content_type=${input.content.contentType},markdown=${input.content.markdown},fields_json=${transaction.json(input.content.fields)},sections_json=${transaction.json(input.content.sections)},sources_json=${transaction.json(input.content.sources)},relationships_json=${transaction.json(input.content.relationships)},proposed_slug=${input.proposedSlug},verification_json=NULL,moderator_note=NULL,updated_at=${now} WHERE id=${input.revisionId}`;
+      await transaction`DELETE FROM revision_import_field_sources s WHERE s.revision_id=${input.revisionId} AND NOT EXISTS (SELECT 1 FROM jsonb_to_recordset(${transaction.json(input.content.fields)}::jsonb) AS f(key text,value text) WHERE f.key=s.field_key AND f.value=s.field_value)`;
+      if (existing.status === "changes_requested") await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${input.revisionId},${input.contributorId},${existing.status},'draft','Contributor resumed the requested changes.',${now})`;
+      return;
+    }
+    await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at) VALUES (${id},${input.articleId},'draft',${input.contributorId},${input.contributorName},${input.editSummary},${input.content.title},${input.content.contentType},${input.content.markdown},${transaction.json(input.content.fields)},${transaction.json(input.content.sections)},${transaction.json(input.content.sources)},${transaction.json(input.content.relationships)},${input.proposedSlug},${input.parentRevisionId},${now},${now})`;
+  });
+  const revision = await getRevision(id);
+  if (!revision) throw new Error("Draft could not be saved.");
+  return revision;
+}
+
+export async function transitionRevision(id: string, actorId: string, toStatus: RevisionStatus, options: { note?: string | null; verification?: VerificationResult | null; moderator?: boolean } = {}) {
+  const allowedTransitions: Record<RevisionStatus, RevisionStatus[]> = { draft: ["verifying", "pending_review"], verifying: ["pending_review", "changes_requested", "approved", "rejected"], pending_review: ["changes_requested", "approved", "rejected"], changes_requested: ["draft"], approved: [], rejected: [] };
+  await ready();
+  await sql.begin(async (transaction) => {
+    const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [id]) as unknown as RevisionRow[];
+    const revision = values[0] ? mapRevision(values[0]) : null;
+    if (!revision) throw new Error("Revision not found.");
+    if (!allowedTransitions[revision.status].includes(toStatus)) throw new Error(`Revision cannot move from ${revision.status} to ${toStatus}.`);
+    const now = new Date();
+    await transaction`UPDATE revisions SET status=${toStatus},verification_json=CASE WHEN ${Boolean(options.verification)} THEN ${options.verification ? transaction.json(options.verification) : null} ELSE verification_json END,moderator_id=CASE WHEN ${Boolean(options.moderator)} THEN ${actorId} ELSE moderator_id END,moderator_note=COALESCE(${options.note ?? null},moderator_note),submitted_at=CASE WHEN ${toStatus} IN ('verifying','pending_review') THEN COALESCE(submitted_at,${now}) ELSE submitted_at END,reviewed_at=CASE WHEN ${toStatus} IN ('approved','rejected','changes_requested') THEN ${now} ELSE reviewed_at END,updated_at=${now} WHERE id=${id}`;
+    await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${id},${actorId},${revision.status},${toStatus},${options.note ?? null},${now})`;
+  });
+  const revision = await getRevision(id);
+  if (!revision) throw new Error("Revision not found.");
+  return revision;
 }
 
 export async function getRevisionImportImages(revisionId: string) {
