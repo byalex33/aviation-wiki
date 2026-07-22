@@ -4,10 +4,10 @@ import { Card } from "@/components/ui/card";
 import type { RevisionContent } from "@/lib/wiki-types";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { sourceForCitation, sourceTitle } from "@/lib/article-citations";
-import { listEntityOptions } from "@/lib/wiki-db";
+import { listEntityOptions } from "@/lib/wiki-public-db";
 import { relationshipKey, relationshipLabels } from "@/lib/relationship-rules";
 
-export function RevisionComparison({ current, proposed }: { current: RevisionContent | null; proposed: RevisionContent }) {
+export async function RevisionComparison({ current, proposed }: { current: RevisionContent | null; proposed: RevisionContent }) {
   const currentFields = new Map((current?.fields || []).map((field) => [field.key, field.value]));
   const proposedFields = new Map(proposed.fields.map((field) => [field.key, field.value]));
   const fieldKeys = [...new Set([...currentFields.keys(), ...proposedFields.keys()])];
@@ -22,7 +22,7 @@ export function RevisionComparison({ current, proposed }: { current: RevisionCon
     ...proposedCitations.filter((citation) => !currentIds.has(citation.identifier)).map((citation) => ({ kind: "added" as const, citation, source: sourceForCitation(citation, proposed.sources) })),
     ...currentCitations.filter((citation) => !proposedIds.has(citation.identifier)).map((citation) => ({ kind: "removed" as const, citation, source: sourceForCitation(citation, current?.sources || []) })),
   ];
-  const entityNames = new Map(listEntityOptions().map((entity) => [entity.id, entity.title]));
+  const entityNames = new Map((await listEntityOptions()).map((entity) => [entity.id, entity.title]));
   const currentRelationships = new Map((current?.relationships || []).map((relationship) => [relationshipKey(relationship), relationship]));
   const proposedRelationships = new Map(proposed.relationships.map((relationship) => [relationshipKey(relationship), relationship]));
   const relationshipKeys = [...new Set([...currentRelationships.keys(), ...proposedRelationships.keys()])];

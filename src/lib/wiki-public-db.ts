@@ -89,6 +89,22 @@ export async function getApprovedRevision(articleId: string, revisionId: string)
   return revision?.articleId === articleId && revision.status === "approved" ? revision : null;
 }
 
+export async function listEntityOptions(): Promise<EntityOption[]> {
+  await ready();
+  const values = await rows<{id:string;title:string;slug:string;content_type:ContentType}>("SELECT id,title,slug,content_type FROM articles ORDER BY content_type,title");
+  return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
+}
+
+export async function getRevisionImportImages(revisionId: string) {
+  await ready();
+  return await rows<{file_name:string;image_url:string;thumbnail_url:string;creator:string;license:string;license_url:string;attribution:string;source_page:string;retrieved_at:string}>("SELECT file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at::text AS retrieved_at FROM revision_import_images WHERE revision_id=$1 ORDER BY file_name",[revisionId]);
+}
+
+export async function getRevisionImportFieldSources(revisionId: string) {
+  await ready();
+  return await rows<{field_key:string;field_value:string;provider:string;source_identifier:string;source_urls_json:string}>("SELECT field_key,field_value,provider,source_identifier,source_urls_json::text AS source_urls_json FROM revision_import_field_sources WHERE revision_id=$1 ORDER BY field_key",[revisionId]);
+}
+
 export async function getSlugRedirect(contentType: ContentType, slug: string) {
   await ready();
   const value = await row<{ slug: string }>("SELECT a.slug FROM article_slug_redirects r JOIN articles a ON a.id=r.article_id WHERE r.content_type=$1 AND r.old_slug=$2", [contentType, slug]);
