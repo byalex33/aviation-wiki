@@ -36,12 +36,12 @@ export function RoleUsername({
   className?: string;
 }) {
   const treatment = roleStyles[role as keyof typeof roleStyles];
-  if (!treatment) return <span className={className}>{name}</span>;
+  if (!treatment) return <span className={cn("capitalize", className)}>{name}</span>;
   const Icon = treatment.Icon;
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 font-semibold",
+        "inline-flex items-center gap-1 font-semibold capitalize",
         treatment.className,
         className,
       )}

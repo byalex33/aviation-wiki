@@ -57,10 +57,14 @@ export default async function Home() {
   const featured = documents.find((document) => document.slug === "f-15-eagle") || documents[0];
   return (
     <main className="home-background relative mx-auto max-w-[1200px] overflow-hidden px-5 pb-20 sm:px-6">
-      <div className="pointer-events-none absolute inset-0 text-primary" aria-hidden="true">
-        <Plane className="home-plane absolute left-[4%] top-32 size-7 -rotate-12 opacity-[0.06]" />
-        <Plane className="home-plane absolute right-[3%] top-[42%] size-6 rotate-[18deg] opacity-[0.05]" />
-        <Plane className="home-plane absolute bottom-24 left-[7%] size-8 -rotate-[24deg] opacity-[0.05]" />
+      <div className="pointer-events-none absolute inset-0 text-muted-foreground" aria-hidden="true">
+        <Plane className="home-plane absolute left-[3%] top-24 size-6 -rotate-12 opacity-15" />
+        <Plane className="home-plane absolute right-[4%] top-36 size-7 rotate-[18deg] opacity-15" />
+        <Plane className="home-plane absolute left-[1%] top-[43%] size-5 -rotate-[28deg] opacity-10" />
+        <Plane className="home-plane absolute right-[2%] top-[53%] size-8 rotate-12 opacity-10" />
+        <Plane className="home-plane absolute bottom-[28%] left-[9%] size-6 rotate-[24deg] opacity-10" />
+        <Plane className="home-plane absolute bottom-24 right-[8%] size-5 -rotate-[18deg] opacity-15" />
+        <Plane className="home-plane absolute bottom-10 left-[42%] size-7 rotate-[8deg] opacity-10" />
       </div>
       <section className="px-0 py-16 text-center sm:py-20">
         <Badge variant="outline" className="mb-5 h-7 rounded-full bg-card px-3 font-medium text-muted-foreground">

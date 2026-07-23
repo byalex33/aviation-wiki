@@ -10,11 +10,10 @@ import {
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAdminTotals, listAdminQueue } from "@/lib/admin-db";
+import { getAdminDashboard } from "@/lib/wiki-public-db";
 
-export default function AdminDashboardPage() {
-  const totals = getAdminTotals();
-  const queue = listAdminQueue({ status: "pending_review" }).slice(0, 5);
+export default async function AdminDashboardPage() {
+  const { totals, queue } = await getAdminDashboard();
   const cards = [
     ["Articles", totals.articles, Library],
     ["Published", totals.published, BookCheck],

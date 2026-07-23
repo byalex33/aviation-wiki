@@ -58,6 +58,26 @@ export function normalizeSlug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
 }
 
+export async function getAdminDashboard() {
+  await ready();
+  const [totals, queue] = await Promise.all([
+    row<Record<string, number>>(`SELECT
+      (SELECT COUNT(*)::int FROM articles) articles,
+      (SELECT COUNT(*)::int FROM articles WHERE live_revision_id IS NOT NULL AND archived_at IS NULL) published,
+      (SELECT COUNT(*)::int FROM articles WHERE archived_at IS NOT NULL) archived,
+      (SELECT COUNT(*)::int FROM revisions WHERE status IN ('verifying','pending_review')) pending,
+      (SELECT COUNT(DISTINCT contributor_id)::int FROM revisions WHERE contributor_id != 'system') contributors,
+      (SELECT COUNT(DISTINCT source->>'url')::int FROM revisions, jsonb_array_elements(sources_json) source WHERE source->>'url' IS NOT NULL) sources,
+      (SELECT COUNT(*)::int FROM articles WHERE protection_level != 'open' OR is_locked) "protectedPages",
+      (SELECT COUNT(*)::int FROM admin_audit_log) "auditEvents"`),
+    rows<Record<string, unknown>>(`SELECT r.*,a.slug article_slug,a.live_revision_id
+      FROM revisions r JOIN articles a ON a.id=r.article_id
+      WHERE r.status='pending_review'
+      ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 5`),
+  ]);
+  return { totals, queue };
+}
+
 export async function getRevision(id: string) {
   await ready();
   const value = await row<RevisionRow>(`${revisionSelect} WHERE r.id=$1`, [id]);

@@ -101,13 +101,8 @@
 
 @layer components {
   .home-background {
-    background:
-      radial-gradient(circle 5rem at 7% 14%, hsl(356 84% 48% / 0.07), transparent 70%),
-      radial-gradient(circle 4rem at 94% 44%, hsl(356 84% 48% / 0.06), transparent 70%),
-      radial-gradient(circle 5.5rem at 12% 88%, hsl(356 84% 48% / 0.05), transparent 70%);
-    background-repeat: no-repeat;
-    background-size: 104% 104%;
-    animation: home-blobs-drift 28s ease-in-out infinite alternate;
+    background-image: radial-gradient(circle, hsl(210 10% 70% / 0.22) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 
   .home-plane {
@@ -188,16 +183,6 @@
   }
 }
 
-@keyframes home-blobs-drift {
-  from {
-    background-position: 0 0, 100% 0, 0 100%;
-  }
-
-  to {
-    background-position: 100% 70%, 0 100%, 100% 20%;
-  }
-}
-
 @keyframes home-plane-drift {
   to {
     translate: var(--drift-x, 12px) var(--drift-y, -8px);
@@ -205,7 +190,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-background,
   .home-plane,
   .commercial-tail-logo {
     animation: none;
