@@ -7,7 +7,6 @@ import { ImportForm } from "@/components/admin/import-form";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { assessImportPreview } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 import { getImportProvider } from "@/lib/import-providers";
 import { searchPublicArticles } from "@/lib/wiki-search";
@@ -18,13 +17,16 @@ function one(value: string | string[] | undefined) { return Array.isArray(value)
 
 export default async function ImportPreviewPage({ params, searchParams }: { params: Promise<{ provider: string; sourceId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
+  const { assessImportPreview } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
   const route = await params;
   const rawType = one((await searchParams).type);
   if (!contentTypes.includes(rawType as ContentType)) notFound();
   const contentType = rawType as ContentType;
   let preview;
   try { preview = await getImportProvider(route.provider).preview(route.sourceId, contentType); } catch { notFound(); }
-  const assessment = assessImportPreview(preview);
+  const assessment = await assessImportPreview(preview);
   const fuzzy = (await searchPublicArticles({ query: preview.title, contentType, pageSize: 5 })).hits;
   const candidateMap = new Map<string, { id: string; title: string; detail: string }>();
   for (const item of [...assessment.titleMatches, ...assessment.aliasMatches, ...assessment.identifierCollisions]) candidateMap.set(String(item.id), { id: String(item.id), title: String(item.title), detail: [item.archived_at ? "Archived" : "", item.redirect_to_slug ? "Redirect" : "", item.field_key ? `${item.field_key}: ${item.field_value}` : ""].filter(Boolean).join(" · ") || "Existing article" });

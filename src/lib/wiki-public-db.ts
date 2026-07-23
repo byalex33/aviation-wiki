@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { articlePath } from "@/lib/article-routes";
+import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
@@ -10,6 +11,7 @@ import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import type { WikiRole } from "@/lib/wiki-auth";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, SourceLink, VerificationResult } from "@/lib/wiki-types";
 import type { OpenFlightsAirline } from "@/lib/openflights";
+import type { ImportField, ImportImage, ImportPreview, ImportProviderId } from "@/lib/import-types";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -76,6 +78,268 @@ export async function getAdminDashboard() {
       ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 5`),
   ]);
   return { totals, queue };
+}
+
+export type QueueFilters = {
+  status?: string;
+  contentType?: string;
+  contributor?: string;
+  submittedFrom?: string;
+  verification?: string;
+  conflicting?: boolean;
+};
+
+const adminRevisionSelect = `SELECT
+  r.id,r.article_id,r.status,r.contributor_id,r.contributor_name,r.edit_summary,r.title,r.content_type,r.markdown,
+  r.fields_json::text fields_json,r.sections_json::text sections_json,r.sources_json::text sources_json,
+  r.relationships_json::text relationships_json,r.verification_json::text verification_json,
+  r.moderator_id,r.moderator_note,r.assigned_moderator_id,r.proposed_slug,r.parent_revision_id,
+  r.created_at,r.updated_at,r.submitted_at,r.reviewed_at,
+  a.slug article_slug,a.live_revision_id,a.title article_title,
+  (SELECT COUNT(*)::int FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review')) conflict_count
+  FROM revisions r JOIN articles a ON a.id=r.article_id`;
+
+export async function listAdminQueue(filters: QueueFilters = {}) {
+  await ready();
+  const conditions = ["r.status IN ('verifying','pending_review','changes_requested','rejected','approved')"];
+  const values: unknown[] = [];
+  const add = (condition: string, value: unknown) => {
+    values.push(value);
+    conditions.push(condition.replace("?", `$${values.length}`));
+  };
+  if (filters.status && filters.status !== "all") add("r.status=?", filters.status);
+  if (filters.contentType && filters.contentType !== "all") add("r.content_type=?", filters.contentType);
+  if (filters.contributor) {
+    values.push(`%${filters.contributor}%`);
+    conditions.push(`(r.contributor_name ILIKE $${values.length} OR r.contributor_id ILIKE $${values.length})`);
+  }
+  if (filters.submittedFrom) add("r.submitted_at>=?", `${filters.submittedFrom}T00:00:00.000Z`);
+  if (filters.verification && filters.verification !== "all") {
+    if (filters.verification === "missing") conditions.push("r.verification_json IS NULL");
+    else add("r.verification_json->>'status'=?", filters.verification);
+  }
+  if (filters.conflicting) conditions.push("(SELECT COUNT(*) FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review'))>1");
+  return rows<Record<string, unknown>>(`${adminRevisionSelect} WHERE ${conditions.join(" AND ")}
+    ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 250`, values);
+}
+
+export async function listAdminArticles(search = "") {
+  await ready();
+  return rows<Record<string, unknown>>(`SELECT a.*,r.status live_status,r.verification_json::text verification_json,
+    (SELECT COUNT(*)::int FROM revisions x WHERE x.article_id=a.id) revision_count,
+    (SELECT COUNT(*)::int FROM revisions x WHERE x.article_id=a.id AND x.status IN ('verifying','pending_review')) pending_count
+    FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id
+    WHERE a.title ILIKE $1 OR a.slug ILIKE $1 ORDER BY a.updated_at DESC LIMIT 250`, [`%${search}%`]);
+}
+
+export async function findDuplicateArticles() {
+  await ready();
+  return rows<{normalized_title:string;count:number;slugs:string}>(`SELECT lower(trim(title)) normalized_title,COUNT(*)::int count,string_agg(slug,', ' ORDER BY slug) slugs
+    FROM articles WHERE archived_at IS NULL GROUP BY lower(trim(title)) HAVING COUNT(*)>1 ORDER BY count DESC`);
+}
+
+export async function getContributorStats() {
+  await ready();
+  return rows<Record<string, unknown>>(`SELECT contributor_id,MAX(contributor_name) contributor_name,
+    COUNT(*) FILTER (WHERE status='approved')::int approved_count,
+    COUNT(*) FILTER (WHERE status='rejected')::int rejected_count,
+    COUNT(*) FILTER (WHERE status IN ('verifying','pending_review'))::int pending_count
+    FROM revisions WHERE contributor_id!='system' GROUP BY contributor_id`);
+}
+
+export const getRevisionCountsByContributor = getContributorStats;
+
+export async function getContributorProfiles() {
+  await ready();
+  return rows<Record<string, unknown>>("SELECT * FROM contributor_profiles");
+}
+
+export async function getAdminRevision(id: string) {
+  await ready();
+  return row<Record<string, unknown>>(`${adminRevisionSelect} WHERE r.id=$1`, [id]);
+}
+
+export async function getLiveRevisionForArticle(articleId: string) {
+  await ready();
+  return row<Record<string, unknown>>(`${adminRevisionSelect} WHERE a.id=$1 AND r.id=a.live_revision_id`, [articleId]);
+}
+
+export async function listPrivateRevisionNotes(revisionId: string) {
+  await ready();
+  return rows<Record<string, unknown>>("SELECT * FROM revision_private_notes WHERE revision_id=$1 ORDER BY created_at DESC", [revisionId]);
+}
+
+export async function listSourceReview() {
+  await ready();
+  const [sources, missing] = await Promise.all([
+    rows<Record<string, unknown>>(`SELECT source->>'url' url,MAX(COALESCE(source->>'title',source->>'label')) label,COUNT(*)::int usage_count,
+      sc.status,sc.strength,sc.note,sc.checked_at,
+      CASE WHEN sc.checked_at IS NULL OR sc.checked_at<NOW()-INTERVAL '180 days' THEN 1 ELSE 0 END stale
+      FROM revisions r CROSS JOIN LATERAL jsonb_array_elements(r.sources_json) source
+      LEFT JOIN source_checks sc ON sc.url=source->>'url'
+      WHERE source->>'url' IS NOT NULL
+      GROUP BY source->>'url',sc.status,sc.strength,sc.note,sc.checked_at
+      ORDER BY usage_count DESC,url`),
+    rows<Record<string, unknown>>("SELECT id,title,status FROM revisions WHERE jsonb_array_length(sources_json)=0 ORDER BY updated_at DESC LIMIT 100"),
+  ]);
+  return { sources, missing };
+}
+
+export async function listAuditLog() {
+  await ready();
+  return rows<Record<string, unknown>>("SELECT id,actor_id,actor_name,action,entity_type,entity_id,article_id,revision_id,before_json::text before_json,after_json::text after_json,created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 500");
+}
+
+export async function getAllRevisionHistory(articleId: string) {
+  await ready();
+  return rows<Record<string, unknown>>("SELECT id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,created_at,updated_at,submitted_at,reviewed_at FROM revisions WHERE article_id=$1 ORDER BY created_at DESC", [articleId]);
+}
+
+export async function getArticleAdminById(id: string) {
+  await ready();
+  return row<Record<string, unknown>>("SELECT * FROM articles WHERE id=$1", [id]);
+}
+
+export async function assessImportPreview(preview: ImportPreview) {
+  await ready();
+  const slug = normalizeSlug(preview.title);
+  const [titleMatches, aliasMatches, externalMapping] = await Promise.all([
+    rows<Record<string, unknown>>(`SELECT a.id,a.title,a.slug,a.content_type,a.archived_at,a.redirect_to_slug,a.protection_level,a.is_locked,r.status
+      FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id
+      WHERE lower(a.title)=lower($1) OR lower(a.slug)=lower($2) ORDER BY a.updated_at DESC LIMIT 20`, [preview.title, slug]),
+    rows<Record<string, unknown>>(`SELECT a.id,a.title,a.slug,a.content_type,a.archived_at,x.old_slug
+      FROM article_slug_redirects x JOIN articles a ON a.id=x.article_id WHERE lower(x.old_slug)=lower($1)`, [slug]),
+    row<Record<string, unknown>>(`SELECT x.article_id,a.title,a.slug,a.content_type,a.archived_at
+      FROM article_external_identifiers x JOIN articles a ON a.id=x.article_id WHERE x.provider=$1 AND x.source_identifier=$2`, [preview.provider, preview.sourceId]),
+  ]);
+  const identifierCollisions: Array<Record<string, unknown>> = [];
+  for (const field of preview.fields.filter((item) => /code|registration|callsign|designation|iso 3166/i.test(item.key))) {
+    identifierCollisions.push(...await rows<Record<string, unknown>>(`SELECT DISTINCT a.id,a.title,a.slug,a.content_type,a.archived_at,$1 field_key,$2 field_value
+      FROM revisions r JOIN articles a ON a.id=r.article_id CROSS JOIN LATERAL jsonb_array_elements(r.fields_json) field
+      WHERE r.status!='rejected' AND lower(field->>'key')=lower($1) AND lower(field->>'value')=lower($2)
+      ORDER BY a.updated_at DESC LIMIT 20`, [field.key, field.value]));
+  }
+  return { titleMatches, aliasMatches, externalMapping: externalMapping || null, identifierCollisions };
+}
+
+export async function listImportHistory() {
+  await ready();
+  return rows<Record<string, unknown>>(`SELECT h.id,h.actor_id,h.actor_name,h.provider,h.source_identifiers_json::text source_identifiers_json,
+    h.article_id,h.revision_id,h.created_at,a.title article_title,a.slug article_slug,a.content_type,r.status revision_status
+    FROM import_history h JOIN articles a ON a.id=h.article_id JOIN revisions r ON r.id=h.revision_id
+    ORDER BY h.created_at DESC LIMIT 500`);
+}
+
+export async function listFailedEmailDeliveries(limit = 100) {
+  await ready();
+  return rows<Record<string, unknown>>(`SELECT d.id,d.notification_id,d.status,d.provider_message_id,d.failure_reason,d.retry_count,d.created_at,d.updated_at,
+    n.type,n.article_id,n.revision_id FROM notification_email_deliveries d JOIN notifications n ON n.id=d.notification_id
+    WHERE d.status='failed' ORDER BY d.updated_at DESC LIMIT $1`, [Math.min(500, Math.max(1, limit))]);
+}
+
+export async function assignRevision(revisionId: string, moderatorId: string | null) {
+  await ready();
+  await sql`UPDATE revisions SET assigned_moderator_id=${moderatorId},updated_at=${new Date()} WHERE id=${revisionId}`;
+}
+
+export async function addPrivateRevisionNote(input: {
+  revisionId: string;
+  moderatorId: string;
+  moderatorName: string;
+  note: string;
+}) {
+  await ready();
+  await sql`INSERT INTO revision_private_notes (id,revision_id,moderator_id,moderator_name,note,created_at)
+    VALUES (${randomUUID()},${input.revisionId},${input.moderatorId},${input.moderatorName},${input.note},${new Date()})`;
+}
+
+export async function upsertContributorProfile(input: {
+  userId: string;
+  notes: string;
+  restriction: string;
+  trusted: boolean;
+}) {
+  await ready();
+  await sql`INSERT INTO contributor_profiles (user_id,moderator_notes,restriction,trusted,updated_at)
+    VALUES (${input.userId},${input.notes},${input.restriction},${input.trusted},${new Date()})
+    ON CONFLICT (user_id) DO UPDATE SET moderator_notes=EXCLUDED.moderator_notes,restriction=EXCLUDED.restriction,trusted=EXCLUDED.trusted,updated_at=EXCLUDED.updated_at`;
+}
+
+export async function updateSourceCheck(input: {
+  url: string;
+  status: string;
+  strength: string;
+  note: string;
+  checkedBy: string;
+}) {
+  await ready();
+  await sql`INSERT INTO source_checks (url,status,strength,note,checked_by,checked_at)
+    VALUES (${input.url},${input.status},${input.strength},${input.note},${input.checkedBy},${new Date()})
+    ON CONFLICT (url) DO UPDATE SET status=EXCLUDED.status,strength=EXCLUDED.strength,note=EXCLUDED.note,checked_by=EXCLUDED.checked_by,checked_at=EXCLUDED.checked_at`;
+}
+
+export async function recordAdminAudit(input: {
+  actorId: string;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  articleId?: string | null;
+  revisionId?: string | null;
+  before?: unknown;
+  after?: unknown;
+}) {
+  await ready();
+  await sql`INSERT INTO admin_audit_log (id,actor_id,actor_name,action,entity_type,entity_id,article_id,revision_id,before_json,after_json,created_at)
+    VALUES (${randomUUID()},${input.actorId},${input.actorName},${input.action},${input.entityType},${input.entityId},${input.articleId ?? null},${input.revisionId ?? null},
+      ${input.before === undefined ? null : sql.json(input.before as never)},${input.after === undefined ? null : sql.json(input.after as never)},${new Date()})`;
+}
+
+export async function updateArticleAdmin(input: {
+  articleId: string;
+  protectionLevel: string;
+  locked: boolean;
+  archived: boolean;
+  redirectToSlug: string | null;
+  slug?: string;
+}) {
+  await ready();
+  await sql.begin(async (transaction) => {
+    const [article] = await transaction`SELECT * FROM articles WHERE id=${input.articleId} FOR UPDATE`;
+    if (!article) throw new Error("Article not found.");
+    const slug = input.slug || String(article.slug);
+    const [collision] = await transaction`SELECT id FROM articles WHERE content_type=${String(article.content_type)} AND slug=${slug} AND id!=${input.articleId}`;
+    if (collision) throw new Error("That slug is already used by another article of this type.");
+    const [aliasCollision] = await transaction`SELECT article_id FROM article_slug_redirects WHERE content_type=${String(article.content_type)} AND old_slug=${slug} AND article_id!=${input.articleId}`;
+    if (aliasCollision) throw new Error("That slug is reserved by another article redirect.");
+    if (input.archived) {
+      const [incoming] = await transaction`SELECT COUNT(*)::int count FROM article_relationships WHERE target_article_id=${input.articleId}`;
+      if (Number(incoming.count)) throw new Error("This entity is referenced by approved relationships. Remove those links through reviewed revisions before archiving it.");
+    }
+    if (input.redirectToSlug) {
+      const [target] = await transaction`SELECT id,redirect_to_slug FROM articles WHERE content_type=${String(article.content_type)} AND slug=${input.redirectToSlug}`;
+      if (!target) throw new Error("The redirect target must be an existing article of the same type.");
+      const visited = new Set([input.articleId]);
+      let cursor = target;
+      while (cursor) {
+        if (visited.has(String(cursor.id))) throw new Error("That redirect would create a loop.");
+        visited.add(String(cursor.id));
+        if (!cursor.redirect_to_slug) break;
+        [cursor] = await transaction`SELECT id,redirect_to_slug FROM articles WHERE content_type=${String(article.content_type)} AND slug=${String(cursor.redirect_to_slug)}`;
+      }
+    }
+    const now = new Date();
+    if (slug !== article.slug)
+      await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
+        VALUES (${String(article.content_type)},${String(article.slug)},${input.articleId},${now})
+        ON CONFLICT (content_type,old_slug) DO UPDATE SET article_id=EXCLUDED.article_id,created_at=EXCLUDED.created_at
+        WHERE article_slug_redirects.article_id=EXCLUDED.article_id`;
+    await transaction`UPDATE articles SET slug=${slug},protection_level=${input.protectionLevel},is_locked=${input.locked},
+      archived_at=${input.archived ? now : null},redirect_to_slug=${input.redirectToSlug},updated_at=${now} WHERE id=${input.articleId}`;
+    if (slug !== article.slug)
+      await transaction`UPDATE revisions SET proposed_slug=${slug}
+        WHERE article_id=${input.articleId} AND status IN ('draft','verifying','pending_review','changes_requested') AND proposed_slug=${String(article.slug)}`;
+  });
 }
 
 export async function getRevision(id: string) {
@@ -245,6 +509,155 @@ export async function transitionRevision(id: string, actorId: string, toStatus: 
   });
   const revision = await getRevision(id);
   if (!revision) throw new Error("Revision not found.");
+  return revision;
+}
+
+export async function publishRevision(id: string, moderatorId: string, note?: string | null) {
+  const revision = await getRevision(id);
+  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new Error("This revision is no longer awaiting review.");
+  const article = await getArticleById(revision.articleId);
+  if (!article) throw new Error("Article not found.");
+  if (article.liveRevisionId !== revision.parentRevisionId) throw new Error("The live article changed after this revision was created. Rebase and review it again before approval.");
+  if (revision.contentType !== article.contentType) throw new Error("An existing article cannot change content type through a revision.");
+  const parsedMarkdown = parseArticleMarkdown(revision.markdown);
+  if (parsedMarkdown.errors.length) throw new Error("This revision contains invalid or unsafe Markdown and cannot be approved.");
+  await validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
+  await sql.begin(async (transaction) => {
+    const [currentRevision] = await transaction`SELECT status FROM revisions WHERE id=${id} FOR UPDATE`;
+    const [currentArticle] = await transaction`SELECT slug,live_revision_id,archived_at FROM articles WHERE id=${revision.articleId} FOR UPDATE`;
+    if (!currentRevision || !["pending_review", "verifying"].includes(String(currentRevision.status))) throw new Error("This revision is no longer awaiting review.");
+    if (!currentArticle || currentArticle.archived_at) throw new Error("Archived articles cannot be published.");
+    if (currentArticle.live_revision_id !== revision.parentRevisionId) throw new Error("The live article changed after this revision was created. Rebase and review it again before approval.");
+    const [collision] = await transaction`SELECT id FROM articles WHERE content_type=${revision.contentType} AND slug=${revision.proposedSlug} AND id!=${revision.articleId}`;
+    if (collision) throw new Error("That slug is already used by another article of this type.");
+    const [aliasCollision] = await transaction`SELECT article_id FROM article_slug_redirects WHERE content_type=${revision.contentType} AND old_slug=${revision.proposedSlug} AND article_id!=${revision.articleId}`;
+    if (aliasCollision) throw new Error("That slug is reserved by another article redirect.");
+    const now = new Date();
+    await transaction`UPDATE revisions SET status='approved',moderator_id=${moderatorId},moderator_note=COALESCE(${note ?? null},moderator_note),reviewed_at=${now},updated_at=${now} WHERE id=${id}`;
+    await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at)
+      VALUES (${randomUUID()},${id},${moderatorId},${String(currentRevision.status)},'approved',${note ?? null},${now})`;
+    if (revision.proposedSlug !== currentArticle.slug)
+      await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
+        VALUES (${revision.contentType},${String(currentArticle.slug)},${revision.articleId},${now})
+        ON CONFLICT (content_type,old_slug) DO UPDATE SET article_id=EXCLUDED.article_id,created_at=EXCLUDED.created_at
+        WHERE article_slug_redirects.article_id=EXCLUDED.article_id`;
+    await transaction`UPDATE articles SET slug=${revision.proposedSlug},title=${revision.title},content_type=${revision.contentType},live_revision_id=${id},updated_at=${now} WHERE id=${revision.articleId}`;
+    await transaction`DELETE FROM article_relationships WHERE source_article_id=${revision.articleId}`;
+    for (const relationship of revision.relationships)
+      await transaction`INSERT INTO article_relationships (source_article_id,target_article_id,relationship_type,approved_revision_id,created_at)
+        VALUES (${revision.articleId},${relationship.targetArticleId},${relationship.type},${id},${now})`;
+  });
+  return (await getArticleById(revision.articleId))!;
+}
+
+export async function restoreRevision(sourceRevisionId: string, moderatorId: string, moderatorName: string) {
+  const source = await getRevision(sourceRevisionId);
+  if (!source || source.status !== "approved") throw new Error("Only approved revisions can be restored.");
+  const article = await getArticleById(source.articleId);
+  if (!article) throw new Error("Article not found.");
+  const restored = await saveDraft({
+    articleId: source.articleId,
+    proposedSlug: article.slug,
+    contributorId: moderatorId,
+    contributorName: moderatorName,
+    editSummary: `Restore revision ${source.id.slice(0, 8)}`,
+    content: source,
+    parentRevisionId: article.liveRevisionId,
+  });
+  await sql.begin(async (transaction) => {
+    await transaction`INSERT INTO revision_import_field_sources
+      SELECT ${restored.id},field_key,field_value,provider,source_identifier,source_urls_json
+      FROM revision_import_field_sources WHERE revision_id=${sourceRevisionId} ON CONFLICT DO NOTHING`;
+    await transaction`INSERT INTO revision_import_images
+      SELECT ${restored.id},file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at
+      FROM revision_import_images WHERE revision_id=${sourceRevisionId} ON CONFLICT DO NOTHING`;
+  });
+  return transitionRevision(restored.id, moderatorId, "verifying", {
+    note: "Proposed restoration of an earlier approved revision.",
+    moderator: true,
+  });
+}
+
+export async function createImportedDraft(input: {
+  provider: ImportProviderId;
+  sourceIdentifier: string;
+  title: string;
+  contentType: ContentType;
+  targetArticleId?: string;
+  fields: ImportField[];
+  images: ImportImage[];
+  actorId: string;
+  actorName: string;
+}) {
+  const slug = normalizeSlug(input.title);
+  if (!slug) throw new Error("The imported title cannot produce a valid slug.");
+  if (input.fields.some((field) => !field.verified || !field.sourceUrls.length)) throw new Error("Every imported field must be verified and retain at least one source.");
+  if (input.images.some((image) => !image.compatible || !image.creator || !image.license || !image.licenseUrl || !image.attribution || !image.sourcePage || !image.retrievedAt)) throw new Error("Every imported image must have complete compatible reuse metadata.");
+  await ready();
+  const mapping = await row<{article_id:string}>("SELECT article_id FROM article_external_identifiers WHERE provider=$1 AND source_identifier=$2", [input.provider, input.sourceIdentifier]);
+  if (mapping && (!input.targetArticleId || mapping.article_id !== input.targetArticleId)) throw new Error("This provider entity is already linked to another aviation.wiki article.");
+  const slugMatch = await getArticleBySlug(slug, input.contentType);
+  if (!input.targetArticleId && slugMatch) throw new Error("A matching article already exists and must be selected explicitly.");
+  for (const field of input.fields.filter((item) => /code|registration|callsign|designation|iso 3166/i.test(item.key))) {
+    const collision = await row<{id:string;title:string}>(`SELECT DISTINCT a.id,a.title FROM revisions r JOIN articles a ON a.id=r.article_id
+      CROSS JOIN LATERAL jsonb_array_elements(r.fields_json) value
+      WHERE r.status!='rejected' AND lower(value->>'key')=lower($1) AND lower(value->>'value')=lower($2) AND a.id!=$3 LIMIT 1`,
+      [field.key, field.value, input.targetArticleId || ""]);
+    if (collision) throw new Error(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
+  }
+  let article = input.targetArticleId ? await getArticleById(input.targetArticleId) : null;
+  if (input.targetArticleId && !article) throw new Error("Selected target article not found.");
+  if (article && article.contentType !== input.contentType) throw new Error("The target article has a different content type.");
+  if (!article) article = await createOrGetArticle(slug, input.title, input.contentType);
+  const controls = await row<{archived_at:Date|string|null;redirect_to_slug:string|null}>("SELECT archived_at,redirect_to_slug FROM articles WHERE id=$1", [article.id]);
+  if (controls?.archived_at) throw new Error("Archived articles cannot receive imports.");
+  if (controls?.redirect_to_slug) throw new Error("Redirect articles cannot receive imports.");
+  const currentFields = article.liveRevision?.fields || [];
+  const currentByKey = new Map(currentFields.map((field) => [field.key.toLowerCase(), field.value]));
+  for (const field of input.fields) {
+    const current = currentByKey.get(field.key.toLowerCase());
+    if (current && current !== field.value) throw new Error(`Imported field “${field.key}” conflicts with approved information and cannot overwrite it.`);
+  }
+  const addedFields = input.fields.filter((field) => !currentByKey.has(field.key.toLowerCase())).map(({ key, value }) => ({ key, value }));
+  const sources = [...new Map(input.fields.flatMap((field) => field.sourceUrls.map((url) => [url, {
+    title: field.sourceLabel,
+    publisher: input.provider === "wikidata" ? "Wikidata" : input.provider,
+    url,
+    accessedAt: new Date().toISOString().slice(0, 10),
+  }] as const))).values()];
+  const content: RevisionContent = {
+    title: input.title,
+    contentType: input.contentType,
+    markdown: article.liveRevision?.markdown || "",
+    fields: [...currentFields, ...addedFields],
+    sections: article.liveRevision?.sections || [],
+    sources: [...(article.liveRevision?.sources || []), ...sources.filter((source) => !(article.liveRevision?.sources || []).some((current) => current.url === source.url))],
+    relationships: article.liveRevision?.relationships || [],
+  };
+  const revision = await saveDraft({
+    articleId: article.id,
+    proposedSlug: article.slug,
+    contributorId: input.actorId,
+    contributorName: input.actorName,
+    editSummary: `Imported selected structured data from ${input.provider} ${input.sourceIdentifier}`,
+    content,
+    parentRevisionId: article.liveRevisionId,
+  });
+  const now = new Date();
+  await sql.begin(async (transaction) => {
+    await transaction`INSERT INTO article_external_identifiers (provider,source_identifier,article_id,created_at)
+      VALUES (${input.provider},${input.sourceIdentifier},${article.id},${now}) ON CONFLICT (provider,source_identifier) DO NOTHING`;
+    const [currentMapping] = await transaction`SELECT article_id FROM article_external_identifiers WHERE provider=${input.provider} AND source_identifier=${input.sourceIdentifier}`;
+    if (!currentMapping || currentMapping.article_id !== article.id) throw new Error("This provider entity was linked concurrently to another article.");
+    for (const field of input.fields)
+      await transaction`INSERT INTO revision_import_field_sources (revision_id,field_key,field_value,provider,source_identifier,source_urls_json)
+        VALUES (${revision.id},${field.key},${field.value},${input.provider},${input.sourceIdentifier},${transaction.json(field.sourceUrls)})`;
+    for (const image of input.images)
+      await transaction`INSERT INTO revision_import_images (revision_id,file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at)
+        VALUES (${revision.id},${image.fileName},${image.imageUrl},${image.thumbnailUrl},${image.creator},${image.license},${image.licenseUrl},${image.attribution},${image.sourcePage},${image.retrievedAt})`;
+    await transaction`INSERT INTO import_history (id,actor_id,actor_name,provider,source_identifiers_json,article_id,revision_id,created_at)
+      VALUES (${randomUUID()},${input.actorId},${input.actorName},${input.provider},${transaction.json([input.sourceIdentifier, ...input.images.map((image) => image.fileName)])},${article.id},${revision.id},${now})`;
+  });
   return revision;
 }
 

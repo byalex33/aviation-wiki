@@ -19,11 +19,6 @@ import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  getAdminRevision,
-  getLiveRevisionForArticle,
-  listPrivateRevisionNotes,
-} from "@/lib/admin-db";
 import type {
   RevisionContent,
   RevisionStatus,
@@ -57,10 +52,19 @@ export default async function AdminReviewPage({
 }: {
   params: Promise<{ revisionId: string }>;
 }) {
-  const revision = getAdminRevision((await params).revisionId);
+  const {
+    getAdminRevision,
+    getLiveRevisionForArticle,
+    listPrivateRevisionNotes,
+  } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
+  const revision = await getAdminRevision((await params).revisionId);
   if (!revision) notFound();
-  const live = getLiveRevisionForArticle(String(revision.article_id));
-  const notes = listPrivateRevisionNotes(String(revision.id));
+  const [live, notes] = await Promise.all([
+    getLiveRevisionForArticle(String(revision.article_id)),
+    listPrivateRevisionNotes(String(revision.id)),
+  ]);
   const proposed = content(revision);
   const verification = revision.verification_json
     ? (JSON.parse(String(revision.verification_json)) as VerificationResult)

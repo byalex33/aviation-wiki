@@ -3,13 +3,15 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { listAuditLog } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 import { getStaffUser } from "@/lib/wiki-auth";
 
 export default async function AdminAuditPage() {
   if ((await getStaffUser())?.role !== "admin") notFound();
-  const events = listAuditLog();
+  const { listAuditLog } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
+  const events = await listAuditLog();
   return (
     <main>
       <p className="text-sm text-muted-foreground">

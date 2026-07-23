@@ -4,11 +4,13 @@ import { updateSourceCheckAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { listSourceReview } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 
-export default function AdminSourcesPage() {
-  const review = listSourceReview();
+export default async function AdminSourcesPage() {
+  const { listSourceReview } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
+  const review = await listSourceReview();
   return (
     <main>
       <p className="text-sm text-muted-foreground">

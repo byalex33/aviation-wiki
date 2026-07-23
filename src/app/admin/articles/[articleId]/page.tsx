@@ -9,7 +9,6 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getAllRevisionHistory, getArticleAdminById } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 import { getStaffUser } from "@/lib/wiki-auth";
 
@@ -19,9 +18,12 @@ export default async function AdminArticlePage({
   params: Promise<{ articleId: string }>;
 }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
-  const article = getArticleAdminById((await params).articleId);
+  const { getAllRevisionHistory, getArticleAdminById } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
+  const article = await getArticleAdminById((await params).articleId);
   if (!article) notFound();
-  const history = getAllRevisionHistory(String(article.id));
+  const history = await getAllRevisionHistory(String(article.id));
   return (
     <main>
       <nav className="text-sm text-muted-foreground">

@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { listImportHistory } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 import { getImportProvider } from "@/lib/import-providers";
 import { getStaffUser } from "@/lib/wiki-auth";
@@ -16,13 +15,16 @@ function one(value: string | string[] | undefined) { return Array.isArray(value)
 
 export default async function AdminImportPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
+  const { listImportHistory } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
   const params = await searchParams;
   const query = one(params.q).trim().slice(0, 120);
   const rawType = one(params.type);
   const contentType = contentTypes.includes(rawType as ContentType) ? rawType as ContentType : "airline";
   const provider = getImportProvider("wikidata");
   const results = query.length >= 2 ? await provider.search(query, contentType) : [];
-  const history = listImportHistory();
+  const history = await listImportHistory();
   return <main>
     <p className="text-sm text-muted-foreground">Preview external source data before creating a private draft</p>
     <h2 className="mt-1 text-3xl font-bold">Aviation data import</h2>

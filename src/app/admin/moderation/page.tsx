@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { contentTypes } from "@/lib/wiki-types";
-import { listAdminQueue } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 
 type Search = {
@@ -22,8 +21,11 @@ export default async function AdminModerationPage({
 }: {
   searchParams: Promise<Search>;
 }) {
+  const { listAdminQueue } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
   const search = await searchParams;
-  const revisions = listAdminQueue({
+  const revisions = await listAdminQueue({
     ...search,
     conflicting: search.conflicting === "1",
   });

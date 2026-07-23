@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { listAdminUsers } from "@/lib/admin-users";
 import { formatDisplayLabel } from "@/lib/display";
-import { listFailedEmailDeliveries } from "@/lib/notification-db";
 import { getStaffUser } from "@/lib/wiki-auth";
 
 export default async function AdminNotificationDiagnosticsPage({
@@ -18,8 +17,11 @@ export default async function AdminNotificationDiagnosticsPage({
   searchParams: Promise<{ sent?: string }>;
 }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
+  const { listFailedEmailDeliveries } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/notification-db");
   const [failures, users, params] = await Promise.all([
-    Promise.resolve(listFailedEmailDeliveries()),
+    listFailedEmailDeliveries(),
     listAdminUsers(),
     searchParams,
   ]);

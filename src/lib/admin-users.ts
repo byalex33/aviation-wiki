@@ -2,10 +2,6 @@ import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
 
-import {
-  getContributorProfiles,
-  getRevisionCountsByContributor,
-} from "@/lib/admin-db";
 import type { WikiRole } from "@/lib/wiki-auth";
 
 export type AdminUser = {
@@ -38,10 +34,14 @@ export async function listAllClerkUsers() {
 }
 
 export async function listAdminUsers(): Promise<AdminUser[]> {
+  const { getContributorProfiles, getRevisionCountsByContributor } =
+    process.env.DATABASE_URL
+      ? await import("@/lib/wiki-public-db")
+      : await import("@/lib/admin-db");
   const [users, stats, profiles] = await Promise.all([
     listAllClerkUsers(),
-    Promise.resolve(getRevisionCountsByContributor()),
-    Promise.resolve(getContributorProfiles()),
+    getRevisionCountsByContributor(),
+    getContributorProfiles(),
   ]);
   const statMap = new Map(
     stats.map((item) => [String(item.contributor_id), item]),

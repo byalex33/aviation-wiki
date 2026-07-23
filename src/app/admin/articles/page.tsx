@@ -5,7 +5,6 @@ import { Copy, Library } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { findDuplicateArticles, listAdminArticles } from "@/lib/admin-db";
 import { formatDisplayLabel } from "@/lib/display";
 import { getStaffUser } from "@/lib/wiki-auth";
 
@@ -15,9 +14,14 @@ export default async function AdminArticlesPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
+  const { findDuplicateArticles, listAdminArticles } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/admin-db");
   const q = (await searchParams).q || "";
-  const articles = listAdminArticles(q);
-  const duplicates = findDuplicateArticles();
+  const [articles, duplicates] = await Promise.all([
+    listAdminArticles(q),
+    findDuplicateArticles(),
+  ]);
   return (
     <main>
       <p className="text-sm text-muted-foreground">

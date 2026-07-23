@@ -4,38 +4,25 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  addPrivateRevisionNote,
-  assertArticleEditable,
-  assignRevision,
-  getAdminRevision,
-  getArticleAdminById,
-  recordAdminAudit,
-  updateArticleAdmin,
-  updateSourceCheck,
-  upsertContributorProfile,
-} from "@/lib/admin-db";
 import { listAllClerkUsers } from "@/lib/admin-users";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import { verifyRevision } from "@/lib/gemini-verification";
-import {
-  emitCustomNotification,
-  emitRevisionOutcome,
-} from "@/lib/notification-service";
-import {
-  getArticleById,
-  getRevision,
-  normalizeSlug,
-  publishRevision,
-  restoreRevision,
-  transitionRevision,
-} from "@/lib/wiki-db";
 import {
   requireAdmin,
   requireStaff,
   wikiRoles,
   type WikiRole,
 } from "@/lib/wiki-auth";
+
+const adminDatabase = () =>
+  process.env.DATABASE_URL
+    ? import("@/lib/wiki-public-db")
+    : import("@/lib/admin-db");
+
+const wikiDatabase = () =>
+  process.env.DATABASE_URL
+    ? import("@/lib/wiki-public-db")
+    : import("@/lib/wiki-db");
 
 function text(formData: FormData, key: string, max = 2_000) {
   return String(formData.get(key) || "")
@@ -44,35 +31,40 @@ function text(formData: FormData, key: string, max = 2_000) {
 }
 
 export async function adminModerateRevisionAction(formData: FormData) {
+  const [adminDb, wikiDb, notifications] = await Promise.all([
+    adminDatabase(),
+    wikiDatabase(),
+    import("@/lib/notification-service"),
+  ]);
   const actor = await requireStaff();
   const revisionId = text(formData, "revisionId", 100);
   const intent = text(formData, "intent", 40);
   const note = text(formData, "moderatorNote");
-  const before = getRevision(revisionId);
+  const before = await wikiDb.getRevision(revisionId);
   if (!before || !["pending_review", "verifying"].includes(before.status))
     throw new Error("This revision is not awaiting review.");
-  assertArticleEditable(before.articleId, actor.role);
+  await adminDb.assertArticleEditable(before.articleId, actor.role);
   const previousLiveRevision =
-    getArticleById(before.articleId)?.liveRevision || null;
+    (await wikiDb.getArticleById(before.articleId))?.liveRevision || null;
   if (intent === "approve")
-    publishRevision(revisionId, actor.userId, note || null);
+    await wikiDb.publishRevision(revisionId, actor.userId, note || null);
   else if (intent === "request_changes") {
     if (!note)
       throw new Error("A message is required when requesting changes.");
-    transitionRevision(revisionId, actor.userId, "changes_requested", {
+    await wikiDb.transitionRevision(revisionId, actor.userId, "changes_requested", {
       note,
       moderator: true,
     });
   } else if (intent === "reject") {
     if (!note) throw new Error("A rejection reason is required.");
-    transitionRevision(revisionId, actor.userId, "rejected", {
+    await wikiDb.transitionRevision(revisionId, actor.userId, "rejected", {
       note,
       moderator: true,
     });
   } else throw new Error("Invalid moderation decision.");
-  const after = getRevision(revisionId);
+  const after = await wikiDb.getRevision(revisionId);
   if (after && ["approve", "request_changes", "reject"].includes(intent))
-    await emitRevisionOutcome({
+    await notifications.emitRevisionOutcome({
       actorId: actor.userId,
       revision: after,
       outcome:
@@ -84,7 +76,7 @@ export async function adminModerateRevisionAction(formData: FormData) {
       note,
       previousLiveRevision,
     });
-  recordAdminAudit({
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: `revision.${intent}`,
@@ -103,13 +95,14 @@ export async function adminModerateRevisionAction(formData: FormData) {
 }
 
 export async function assignRevisionAction(formData: FormData) {
+  const adminDb = await adminDatabase();
   const actor = await requireStaff();
   const revisionId = text(formData, "revisionId", 100);
-  const revision = getAdminRevision(revisionId);
+  const revision = await adminDb.getAdminRevision(revisionId);
   if (!revision) throw new Error("Revision not found.");
   const assigned = formData.get("assigned") === "self" ? actor.userId : null;
-  assignRevision(revisionId, assigned);
-  recordAdminAudit({
+  await adminDb.assignRevision(revisionId, assigned);
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: assigned ? "revision.assigned" : "revision.unassigned",
@@ -125,18 +118,19 @@ export async function assignRevisionAction(formData: FormData) {
 }
 
 export async function addPrivateNoteAction(formData: FormData) {
+  const adminDb = await adminDatabase();
   const actor = await requireStaff();
   const revisionId = text(formData, "revisionId", 100);
   const note = text(formData, "note", 4_000);
-  if (!note || !getAdminRevision(revisionId))
+  if (!note || !(await adminDb.getAdminRevision(revisionId)))
     throw new Error("A valid revision and note are required.");
-  addPrivateRevisionNote({
+  await adminDb.addPrivateRevisionNote({
     revisionId,
     moderatorId: actor.userId,
     moderatorName: actor.name,
     note,
   });
-  recordAdminAudit({
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "revision.private_note_added",
@@ -149,17 +143,18 @@ export async function addPrivateNoteAction(formData: FormData) {
 }
 
 export async function updateArticleAction(formData: FormData) {
+  const [adminDb, wikiDb] = await Promise.all([adminDatabase(), wikiDatabase()]);
   const actor = await requireAdmin();
   const articleId = text(formData, "articleId", 100);
-  const before = getArticleAdminById(articleId);
+  const before = await adminDb.getArticleAdminById(articleId);
   if (!before) throw new Error("Article not found.");
   const protectionLevel = text(formData, "protectionLevel", 30);
   if (!["open", "trusted", "moderator", "admin"].includes(protectionLevel))
     throw new Error("Invalid editing permission.");
-  const slug = normalizeSlug(text(formData, "slug", 100));
+  const slug = wikiDb.normalizeSlug(text(formData, "slug", 100));
   if (!slug) throw new Error("A valid slug is required.");
   const redirectToSlug =
-    normalizeSlug(text(formData, "redirectToSlug", 100)) || null;
+    wikiDb.normalizeSlug(text(formData, "redirectToSlug", 100)) || null;
   if (redirectToSlug === slug)
     throw new Error("An article cannot redirect to itself.");
   const input = {
@@ -170,9 +165,9 @@ export async function updateArticleAction(formData: FormData) {
     redirectToSlug,
     slug,
   };
-  updateArticleAdmin(input);
-  const after = getArticleAdminById(articleId);
-  recordAdminAudit({
+  await adminDb.updateArticleAdmin(input);
+  const after = await adminDb.getArticleAdminById(articleId);
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "article.controls_updated",
@@ -198,18 +193,19 @@ export async function updateArticleAction(formData: FormData) {
 }
 
 export async function restoreArticleRevisionAction(formData: FormData) {
+  const [adminDb, wikiDb] = await Promise.all([adminDatabase(), wikiDatabase()]);
   const actor = await requireAdmin();
   const revisionId = text(formData, "revisionId", 100);
-  const source = getRevision(revisionId);
+  const source = await wikiDb.getRevision(revisionId);
   if (!source) throw new Error("Revision not found.");
-  assertArticleEditable(source.articleId, actor.role);
-  let restored = restoreRevision(revisionId, actor.userId, actor.name);
-  restored = transitionRevision(restored.id, actor.userId, "pending_review", {
+  await adminDb.assertArticleEditable(source.articleId, actor.role);
+  let restored = await wikiDb.restoreRevision(revisionId, actor.userId, actor.name);
+  restored = await wikiDb.transitionRevision(restored.id, actor.userId, "pending_review", {
     verification: await verifyRevision(restored),
     moderator: true,
   });
-  const article = getArticleById(restored.articleId)!;
-  recordAdminAudit({
+  const article = (await wikiDb.getArticleById(restored.articleId))!;
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "article.restoration_proposed",
@@ -231,6 +227,7 @@ export async function restoreArticleRevisionAction(formData: FormData) {
 }
 
 export async function updateContributorAction(formData: FormData) {
+  const adminDb = await adminDatabase();
   const actor = await requireAdmin();
   const userId = text(formData, "userId", 120);
   const role = text(formData, "role", 40) as WikiRole;
@@ -263,8 +260,8 @@ export async function updateContributorAction(formData: FormData) {
   };
   if (!["none", "read_only", "suspended"].includes(profile.restriction))
     throw new Error("Invalid account restriction.");
-  upsertContributorProfile(profile);
-  recordAdminAudit({
+  await adminDb.upsertContributorProfile(profile);
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "contributor.updated",
@@ -282,6 +279,7 @@ export async function updateContributorAction(formData: FormData) {
 }
 
 export async function updateSourceCheckAction(formData: FormData) {
+  const adminDb = await adminDatabase();
   const actor = await requireStaff();
   const url = text(formData, "url", 2_000);
   const status = text(formData, "status", 30);
@@ -292,14 +290,14 @@ export async function updateSourceCheckAction(formData: FormData) {
     !["strong", "standard", "weak"].includes(strength)
   )
     throw new Error("Invalid source review.");
-  updateSourceCheck({
+  await adminDb.updateSourceCheck({
     url,
     status,
     strength,
     note: text(formData, "note"),
     checkedBy: actor.userId,
   });
-  recordAdminAudit({
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "source.reviewed",
@@ -311,6 +309,10 @@ export async function updateSourceCheckAction(formData: FormData) {
 }
 
 export async function sendCustomNotificationAction(formData: FormData) {
+  const [adminDb, { emitCustomNotification }] = await Promise.all([
+    adminDatabase(),
+    import("@/lib/notification-service"),
+  ]);
   const actor = await requireAdmin();
   const audience = text(formData, "recipientId", 120);
   const title = text(formData, "title", 160);
@@ -349,7 +351,7 @@ export async function sendCustomNotificationAction(formData: FormData) {
   const sentCount = notifications.filter(Boolean).length;
   if (sentCount !== recipients.length)
     throw new Error("One or more notifications could not be created.");
-  recordAdminAudit({
+  await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,
     action: "notification.custom_sent",
