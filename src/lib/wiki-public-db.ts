@@ -12,6 +12,7 @@ import type { WikiRole } from "@/lib/wiki-auth";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, SourceLink, VerificationResult } from "@/lib/wiki-types";
 import type { OpenFlightsAirline } from "@/lib/openflights";
 import type { ImportField, ImportImage, ImportPreview, ImportProviderId } from "@/lib/import-types";
+import type { NotificationRecord, NotificationType } from "@/lib/notification-types";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -235,6 +236,53 @@ export async function listFailedEmailDeliveries(limit = 100) {
   return rows<Record<string, unknown>>(`SELECT d.id,d.notification_id,d.status,d.provider_message_id,d.failure_reason,d.retry_count,d.created_at,d.updated_at,
     n.type,n.article_id,n.revision_id FROM notification_email_deliveries d JOIN notifications n ON n.id=d.notification_id
     WHERE d.status='failed' ORDER BY d.updated_at DESC LIMIT $1`, [Math.min(500, Math.max(1, limit))]);
+}
+
+function mapNotification(value: {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  href: string;
+  article_id: string | null;
+  revision_id: string | null;
+  read_at: Date | string | null;
+  created_at: Date | string;
+}): NotificationRecord {
+  return {
+    id: value.id,
+    userId: value.user_id,
+    type: value.type,
+    title: value.title,
+    message: value.message,
+    href: value.href,
+    articleId: value.article_id,
+    revisionId: value.revision_id,
+    readAt: optionalIso(value.read_at),
+    createdAt: iso(value.created_at),
+  };
+}
+
+export async function getUnreadCount(userId: string) {
+  await ready();
+  return Number((await row<{count:number}>("SELECT COUNT(*)::int count FROM notifications WHERE user_id=$1 AND read_at IS NULL", [userId]))?.count ?? 0);
+}
+
+export async function listNotifications(userId: string, page = 1, pageSize = 20) {
+  await ready();
+  const safePage = Math.max(1, Math.floor(page));
+  const safeSize = Math.min(50, Math.max(1, Math.floor(pageSize)));
+  const [total, values] = await Promise.all([
+    row<{count:number}>("SELECT COUNT(*)::int count FROM notifications WHERE user_id=$1", [userId]),
+    rows<Parameters<typeof mapNotification>[0]>("SELECT id,user_id,type,title,message,href,article_id,revision_id,read_at,created_at FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", [userId, safeSize, (safePage - 1) * safeSize]),
+  ]);
+  return {
+    items: values.map(mapNotification),
+    total: Number(total?.count ?? 0),
+    page: safePage,
+    pages: Math.max(1, Math.ceil(Number(total?.count ?? 0) / safeSize)),
+  };
 }
 
 export async function assignRevision(revisionId: string, moderatorId: string | null) {

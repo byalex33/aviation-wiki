@@ -1,7 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 
-import { getUnreadCount, listNotifications } from "@/lib/notification-db";
-
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -10,10 +8,13 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.userId;
   const url = new URL(request.url);
+  const { getUnreadCount, listNotifications } = process.env.DATABASE_URL
+    ? await import("@/lib/wiki-public-db")
+    : await import("@/lib/notification-db");
   if (url.searchParams.get("stream") !== "1") {
     return Response.json({
-      unreadCount: getUnreadCount(userId),
-      ...listNotifications(userId, 1, 8),
+      unreadCount: await getUnreadCount(userId),
+      ...await listNotifications(userId, 1, 8),
     });
   }
 
@@ -22,13 +23,13 @@ export async function GET(request: Request) {
   const stream = new ReadableStream({
     start(controller) {
       let lastCount = -1;
-      const send = () => {
+      const send = async () => {
         if (request.signal.aborted) {
           if (timer) clearInterval(timer);
           controller.close();
           return;
         }
-        const unreadCount = getUnreadCount(userId);
+        const unreadCount = await getUnreadCount(userId);
         if (unreadCount !== lastCount) {
           lastCount = unreadCount;
           controller.enqueue(
@@ -38,8 +39,8 @@ export async function GET(request: Request) {
           );
         } else controller.enqueue(encoder.encode(": keep-alive\n\n"));
       };
-      send();
-      timer = setInterval(send, 5_000);
+      void send();
+      timer = setInterval(() => void send(), 5_000);
       request.signal.addEventListener("abort", () => {
         if (timer) clearInterval(timer);
         try {
