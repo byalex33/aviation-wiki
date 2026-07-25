@@ -511,7 +511,7 @@ export function restoreRevision(sourceRevisionId: string, moderatorId: string, m
   const restored = saveDraft({ articleId: source.articleId, proposedSlug: article.slug, contributorId: moderatorId, contributorName: moderatorName, editSummary: `Restore revision ${source.id.slice(0, 8)}`, content: source, parentRevisionId: article.liveRevisionId });
   db.prepare(`INSERT INTO revision_import_field_sources SELECT ?,field_key,field_value,provider,source_identifier,source_urls_json FROM revision_import_field_sources WHERE revision_id=?`).run(restored.id, sourceRevisionId);
   db.prepare(`INSERT INTO revision_import_images SELECT ?,file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at FROM revision_import_images WHERE revision_id=?`).run(restored.id, sourceRevisionId);
-  return transitionRevision(restored.id, moderatorId, "verifying", { note: "Proposed restoration of an earlier approved revision.", moderator: true });
+  return transitionRevision(restored.id, moderatorId, "pending_review", { note: "Proposed restoration of an earlier approved revision.", moderator: true });
 }
 
 export function createImportedDraft(input: { provider: ImportProviderId; sourceIdentifier: string; title: string; contentType: ContentType; targetArticleId?: string; fields: ImportField[]; images: ImportImage[]; actorId: string; actorName: string }) {

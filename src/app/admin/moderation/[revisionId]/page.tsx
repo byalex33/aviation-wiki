@@ -1,11 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
-  Sparkles,
-} from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 import {
   addPrivateNoteAction,
@@ -22,9 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   RevisionContent,
   RevisionStatus,
-  VerificationResult,
 } from "@/lib/wiki-types";
-import { formatDisplayLabel } from "@/lib/display";
 import { sourceTitle } from "@/lib/article-citations";
 
 function content(row: Record<string, unknown>): RevisionContent {
@@ -66,9 +59,6 @@ export default async function AdminReviewPage({
     listPrivateRevisionNotes(String(revision.id)),
   ]);
   const proposed = content(revision);
-  const verification = revision.verification_json
-    ? (JSON.parse(String(revision.verification_json)) as VerificationResult)
-    : null;
   return (
     <main>
       <nav className="text-sm text-muted-foreground">
@@ -96,56 +86,6 @@ export default async function AdminReviewPage({
             current={live ? content(live) : null}
             proposed={proposed}
           />
-          <Card>
-            <CardHeader>
-              <CardTitle>Gemini findings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {verification ? (
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    {verification.status === "completed" ? (
-                      <CheckCircle2 className="size-5 text-emerald-600" />
-                    ) : (
-                      <AlertTriangle className="size-5 text-amber-600" />
-                    )}
-                    <div>
-                      <p className="text-sm">{verification.summary}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {verification.model || "No model"} ·{" "}
-                        {new Date(verification.checkedAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  {verification.claims.map((claim, index) => (
-                    <div key={index} className="rounded-lg border p-4 text-sm">
-                      <strong>{formatDisplayLabel(claim.assessment)}</strong>
-                      <p className="mt-2">{claim.claim}</p>
-                      <p className="mt-2 text-muted-foreground">
-                        {claim.notes}
-                      </p>
-                      {claim.sourceUrl && (
-                        <a
-                          href={claim.sourceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="article-link mt-2 inline-flex items-center gap-1"
-                        >
-                          Source
-                          <ExternalLink className="size-3" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Sparkles className="size-4" />
-                  No Gemini result is attached.
-                </p>
-              )}
-            </CardContent>
-          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Sources</CardTitle>

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { verifyRevision } from "@/lib/gemini-verification";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import {
   formActionError,
@@ -290,11 +289,7 @@ export async function submitRevisionAction(formData: FormData) {
     "Too many submission attempts. Wait a few minutes and try again.",
   );
   const revision = await persistFromForm(formData, true, contributor);
-  await transitionPostgresRevision(revision.id, contributor.userId, "verifying");
-  const verification = await verifyRevision(revision);
-  await transitionPostgresRevision(revision.id, contributor.userId, "pending_review", {
-    verification,
-  });
+  await transitionPostgresRevision(revision.id, contributor.userId, "pending_review");
   revalidatePath("/contribute");
   revalidatePath("/moderation");
   if (isStaffRole(contributor.role)) {

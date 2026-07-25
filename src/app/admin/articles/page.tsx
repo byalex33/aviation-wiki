@@ -5,7 +5,6 @@ import { Copy, Library } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatDisplayLabel } from "@/lib/display";
 import { getStaffUser } from "@/lib/wiki-auth";
 
 export default async function AdminArticlesPage({
@@ -60,22 +59,17 @@ export default async function AdminArticlesPage({
         </Card>
       )}
       <div className="mt-6 overflow-hidden rounded-xl border bg-card">
-        <div className="grid grid-cols-[minmax(0,1fr)_120px_120px_100px] gap-3 border-b bg-muted/40 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="grid grid-cols-[minmax(0,1fr)_120px_100px] gap-3 border-b bg-muted/40 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Article</span>
           <span>Publication</span>
-          <span>Verification</span>
           <span></span>
         </div>
         {articles.length ? (
-          articles.map((article) => {
-            const verification = article.verification_json
-              ? JSON.parse(String(article.verification_json))
-              : null;
-            return (
+          articles.map((article) => (
               <Link
                 key={String(article.id)}
                 href={`/admin/articles/${article.id}`}
-                className="grid grid-cols-[minmax(0,1fr)_120px_120px_100px] items-center gap-3 border-b px-5 py-4 text-sm last:border-0 hover:bg-muted/30"
+                className="grid grid-cols-[minmax(0,1fr)_120px_100px] items-center gap-3 border-b px-5 py-4 text-sm last:border-0 hover:bg-muted/30"
               >
                 <div>
                   <p className="font-medium">{String(article.title)}</p>
@@ -93,15 +87,9 @@ export default async function AdminArticlesPage({
                       ? "Published"
                       : "Unpublished"}
                 </Badge>
-                <span className="text-muted-foreground">
-                  {verification?.status
-                    ? formatDisplayLabel(verification.status)
-                    : "Not checked"}
-                </span>
                 <span className="text-right text-primary">Manage</span>
               </Link>
-            );
-          })
+          ))
         ) : (
           <div className="p-12 text-center">
             <Library className="mx-auto size-8 text-muted-foreground" />

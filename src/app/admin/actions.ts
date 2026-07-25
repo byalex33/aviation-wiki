@@ -10,7 +10,6 @@ import {
   formActionError,
   type FormActionState,
 } from "@/lib/form-action-state";
-import { verifyRevision } from "@/lib/gemini-verification";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
   requireAdmin,
@@ -244,11 +243,7 @@ export async function restoreArticleRevisionAction(formData: FormData) {
   const source = await wikiDb.getRevision(revisionId);
   if (!source) throw new UserFacingError("Revision not found.");
   await adminDb.assertArticleEditable(source.articleId, actor.role);
-  let restored = await wikiDb.restoreRevision(revisionId, actor.userId, actor.name);
-  restored = await wikiDb.transitionRevision(restored.id, actor.userId, "pending_review", {
-    verification: await verifyRevision(restored),
-    moderator: true,
-  });
+  const restored = await wikiDb.restoreRevision(revisionId, actor.userId, actor.name);
   const article = (await wikiDb.getArticleById(restored.articleId))!;
   await adminDb.recordAdminAudit({
     actorId: actor.userId,

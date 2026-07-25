@@ -13,7 +13,6 @@ type Search = {
   contentType?: string;
   contributor?: string;
   submittedFrom?: string;
-  verification?: string;
   conflicting?: string;
 };
 export default async function AdminModerationPage({
@@ -41,7 +40,7 @@ export default async function AdminModerationPage({
       </div>
       <Card className="mt-6">
         <CardContent>
-          <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             <select
               name="status"
               defaultValue={search.status || "pending_review"}
@@ -80,17 +79,6 @@ export default async function AdminModerationPage({
               type="date"
               defaultValue={search.submittedFrom}
             />
-            <select
-              name="verification"
-              defaultValue={search.verification || "all"}
-              className="h-9 rounded-lg border bg-background px-3 text-sm"
-            >
-              <option value="all">All Gemini results</option>
-              <option value="completed">Completed</option>
-              <option value="unavailable">Unavailable</option>
-              <option value="error">Error</option>
-              <option value="missing">Missing</option>
-            </select>
             <div className="flex gap-2">
               <label className="flex items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-xs">
                 <input

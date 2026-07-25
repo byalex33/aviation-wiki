@@ -5,7 +5,6 @@ import {
   FilePenLine,
   History,
   MessageSquareWarning,
-  ShieldCheck,
   BookOpenCheck,
   AlertTriangle,
 } from "lucide-react";
@@ -27,7 +26,6 @@ import type {
   RevisionRecord,
   SourceLink,
   StructuredField,
-  VerificationResult,
 } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 
@@ -257,37 +255,6 @@ export async function ArticleSourcePanel({ sources }: { sources: SourceLink[] })
   );
 }
 
-export function VerificationInformation({
-  verification,
-}: {
-  verification: VerificationResult | null;
-}) {
-  if (!verification) return null;
-  return (
-    <Card className="mt-8 gap-0 py-0">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 size-5 text-primary" />
-          <div>
-            <h2 className="font-semibold">Source verification</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {verification.summary}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Advisory check{" "}
-              {verification.status === "completed"
-                ? "completed"
-                : verification.status}{" "}
-              {new Date(verification.checkedAt).toLocaleDateString()}.
-              Publication was decided by a human moderator.
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function MissingArticleState({
   slug,
   contentType,
@@ -370,7 +337,6 @@ export function PublicArticle({
           <ApprovedRelationships article={article} />
           <ImportedRevisionData revisionId={revision.id} />
           <SourceList sources={revision.sources} citations={parsed.citations} />
-          <VerificationInformation verification={revision.verification} />
         </div>
         <aside className="space-y-5 lg:sticky lg:top-20">
           <InformationSidebar

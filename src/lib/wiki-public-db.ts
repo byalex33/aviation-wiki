@@ -642,7 +642,7 @@ export async function restoreRevision(sourceRevisionId: string, moderatorId: str
       SELECT ${restored.id},file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at
       FROM revision_import_images WHERE revision_id=${sourceRevisionId} ON CONFLICT DO NOTHING`;
   });
-  return transitionRevision(restored.id, moderatorId, "verifying", {
+  return transitionRevision(restored.id, moderatorId, "pending_review", {
     note: "Proposed restoration of an earlier approved revision.",
     moderator: true,
   });

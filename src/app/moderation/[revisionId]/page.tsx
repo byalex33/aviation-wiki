@@ -1,11 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
-  Sparkles,
-} from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 import { moderateRevisionFormAction } from "@/app/contribute/actions";
 import { ActionForm } from "@/components/action-form";
@@ -14,7 +9,6 @@ import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDisplayLabel } from "@/lib/display";
 import { sourceTitle } from "@/lib/article-citations";
 import { isModerator } from "@/lib/wiki-auth";
 import { getArticleBySlug, getRevision } from "@/lib/wiki-public-db";
@@ -28,7 +22,6 @@ export default async function ModeratorReviewPage({
   const revision = await getRevision((await params).revisionId);
   if (!revision) notFound();
   const article = await getArticleBySlug(revision.articleSlug, revision.contentType);
-  const verification = revision.verification;
   return (
     <main className="mx-auto max-w-[1150px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="text-sm text-muted-foreground">
@@ -47,75 +40,10 @@ export default async function ModeratorReviewPage({
         <RevisionStatusBadge status={revision.status} />
       </div>
       <div className="mt-8 grid gap-7 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-7">
-          <RevisionComparison
-            current={article?.liveRevision || null}
-            proposed={revision}
-          />
-          <Card className="gap-0 py-0">
-            <div className="border-b px-5 py-4">
-              <h2 className="font-semibold">Gemini verification</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Advisory only — cannot approve or publish.
-              </p>
-            </div>
-            <CardContent className="p-5">
-              {verification ? (
-                <>
-                  <div className="flex items-start gap-3">
-                    {verification.status === "completed" ? (
-                      <CheckCircle2 className="mt-0.5 size-5 text-emerald-600" />
-                    ) : (
-                      <AlertTriangle className="mt-0.5 size-5 text-amber-600" />
-                    )}
-                    <div>
-                      <p className="text-sm leading-6">
-                        {verification.summary}
-                      </p>
-                      <p className="mt-2 font-mono text-xs text-muted-foreground">
-                        {verification.model || "No model"} ·{" "}
-                        {new Date(verification.checkedAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 space-y-3">
-                    {verification.claims.map((claim, index) => (
-                      <div
-                        key={index}
-                        className="rounded-lg border p-4 text-sm"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <strong>
-                            {formatDisplayLabel(claim.assessment)}
-                          </strong>
-                          {claim.sourceUrl && (
-                            <a
-                              href={claim.sourceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="article-link"
-                            >
-                              <ExternalLink className="size-3.5" />
-                            </a>
-                          )}
-                        </div>
-                        <p className="mt-2">{claim.claim}</p>
-                        <p className="mt-2 text-muted-foreground">
-                          {claim.notes}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Sparkles className="size-4" />
-                  No verification result is attached.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <RevisionComparison
+          current={article?.liveRevision || null}
+          proposed={revision}
+        />
         <aside className="space-y-5 lg:sticky lg:top-[76px]">
           <Card className="gap-0 py-0">
             <CardContent className="p-5">
