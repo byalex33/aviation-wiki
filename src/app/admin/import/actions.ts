@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { FormActionState } from "@/lib/form-action-state";
 import { getImportProvider } from "@/lib/import-providers";
 import { requireAdmin } from "@/lib/wiki-auth";
 import { contentTypes, type ContentType } from "@/lib/wiki-types";
@@ -19,11 +20,12 @@ const wikiDatabase = () =>
 
 function selected(formData: FormData, key: string) { return [...new Set(formData.getAll(key).map(String).filter(Boolean))].slice(0, 100); }
 
-type ImportActionState = { status: "error"; message: string } | null;
+function error(message: string): FormActionState { return { error: message }; }
 
-function error(message: string): ImportActionState { return { status: "error", message }; }
-
-export async function importAviationDataAction(_previousState: ImportActionState, formData: FormData) {
+export async function importAviationDataAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
   const [adminDb, wikiDb] = await Promise.all([adminDatabase(), wikiDatabase()]);
   const actor = await requireAdmin();
   const providerId = String(formData.get("provider") || "");

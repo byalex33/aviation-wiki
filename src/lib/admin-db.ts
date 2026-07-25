@@ -7,6 +7,7 @@ import "@/lib/wiki-db";
 import { db } from "@/lib/sqlite";
 import type { ContentType, SourceLink } from "@/lib/wiki-types";
 import type { ImportPreview } from "@/lib/import-types";
+import { UserFacingError } from "@/lib/user-facing-error";
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS contributor_profiles (
@@ -256,28 +257,28 @@ export function updateArticleAdmin(input: {
   const article = db
     .prepare("SELECT * FROM articles WHERE id=?")
     .get(input.articleId) as Record<string, unknown> | undefined;
-  if (!article) throw new Error("Article not found.");
+  if (!article) throw new UserFacingError("Article not found.");
   const slug = input.slug || String(article.slug);
   const contentType = String(article.content_type) as ContentType;
   const now = new Date().toISOString();
   const update = db.transaction(() => {
     const current = db.prepare("SELECT updated_at FROM articles WHERE id=?").get(input.articleId) as { updated_at: string } | undefined;
-    if (!current || current.updated_at !== article.updated_at) throw new Error("This article changed while you were editing it. Reload before saving controls.");
+    if (!current || current.updated_at !== article.updated_at) throw new UserFacingError("This article changed while you were editing it. Reload before saving controls.");
     const collision = db.prepare("SELECT id FROM articles WHERE content_type=? AND slug=? AND id!=?").get(contentType, slug, input.articleId) as { id: string } | undefined;
-    if (collision) throw new Error("That slug is already used by another article of this type.");
+    if (collision) throw new UserFacingError("That slug is already used by another article of this type.");
     const aliasCollision = db.prepare("SELECT article_id FROM article_slug_redirects WHERE content_type=? AND old_slug=? AND article_id!=?").get(contentType, slug, input.articleId) as { article_id: string } | undefined;
-    if (aliasCollision) throw new Error("That slug is reserved by another article redirect.");
+    if (aliasCollision) throw new UserFacingError("That slug is reserved by another article redirect.");
     if (input.archived) {
       const incoming = db.prepare("SELECT COUNT(*) count FROM article_relationships WHERE target_article_id=?").get(input.articleId) as { count: number };
-      if (incoming.count > 0) throw new Error("This entity is referenced by approved relationships. Remove those links through reviewed revisions before archiving it.");
+      if (incoming.count > 0) throw new UserFacingError("This entity is referenced by approved relationships. Remove those links through reviewed revisions before archiving it.");
     }
     if (input.redirectToSlug) {
       const target = db.prepare("SELECT id,redirect_to_slug FROM articles WHERE content_type=? AND slug=?").get(contentType, input.redirectToSlug) as { id: string; redirect_to_slug: string | null } | undefined;
-      if (!target) throw new Error("The redirect target must be an existing article of the same type.");
+      if (!target) throw new UserFacingError("The redirect target must be an existing article of the same type.");
       const visited = new Set([input.articleId]);
       let cursor: { id: string; redirect_to_slug: string | null } | undefined = target;
       while (cursor) {
-        if (visited.has(cursor.id)) throw new Error("That redirect would create a loop.");
+        if (visited.has(cursor.id)) throw new UserFacingError("That redirect would create a loop.");
         visited.add(cursor.id);
         if (!cursor.redirect_to_slug) break;
         cursor = db.prepare("SELECT id,redirect_to_slug FROM articles WHERE content_type=? AND slug=?").get(contentType, cursor.redirect_to_slug) as typeof cursor;
@@ -424,13 +425,13 @@ export function assertArticleEditable(
   restriction = "none",
 ) {
   const article = getArticleAdminById(articleId);
-  if (!article) throw new Error("Article not found.");
+  if (!article) throw new UserFacingError("Article not found.");
   if (restriction === "suspended" || restriction === "read_only")
-    throw new Error("This account is not allowed to submit edits.");
+    throw new UserFacingError("This account is not allowed to submit edits.");
   if (article.archived_at)
-    throw new Error("Archived articles cannot be edited.");
+    throw new UserFacingError("Archived articles cannot be edited.");
   if (article.is_locked && role !== "admin")
-    throw new Error("This article is locked.");
+    throw new UserFacingError("This article is locked.");
   const ranks: Record<string, number> = {
     contributor: 0,
     trusted_contributor: 1,
@@ -444,7 +445,7 @@ export function assertArticleEditable(
     admin: 3,
   };
   if ((ranks[role] ?? 0) < (required[String(article.protection_level)] ?? 0))
-    throw new Error("Your role cannot edit this protected article.");
+    throw new UserFacingError("Your role cannot edit this protected article.");
 }
 
 export function getContributorRestriction(userId: string) {

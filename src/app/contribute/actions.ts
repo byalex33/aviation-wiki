@@ -15,6 +15,8 @@ import {
   parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
 import { reconcileCitationSources } from "@/lib/article-citations";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { UserFacingError } from "@/lib/user-facing-error";
 import { requireContributor, requireModerator } from "@/lib/wiki-auth";
 import {
   assertArticleEditable as assertPostgresArticleEditable,
@@ -46,7 +48,7 @@ function parseArray<T>(formData: FormData, key: string): T[] {
     const value = JSON.parse(String(formData.get(key) || "[]"));
     return Array.isArray(value) ? value : [];
   } catch {
-    throw new Error(`Invalid ${key}.`);
+    throw new UserFacingError(`Invalid ${key}.`);
   }
 }
 
@@ -66,13 +68,13 @@ function parseContent(
     .slice(0, 160);
   const contentType = String(formData.get("contentType") || "") as ContentType;
   if (!title || !contentTypes.includes(contentType))
-    throw new Error("A title and valid content type are required.");
+    throw new UserFacingError("A title and valid content type are required.");
   const markdown = String(formData.get("markdown") || "")
     .trim()
     .slice(0, 250_000);
   const parsedMarkdown = parseArticleMarkdown(markdown);
   if (parsedMarkdown.errors.length)
-    throw new Error(
+    throw new UserFacingError(
       `The Markdown has ${parsedMarkdown.errors.length} syntax ${parsedMarkdown.errors.length === 1 ? "error" : "errors"}.`,
     );
   const fields = parseArray<StructuredField>(formData, "fields")
@@ -88,7 +90,7 @@ function parseContent(
     .slice(0, 60);
   for (const field of fields) {
     const fieldMarkdown = parseStructuredFieldMarkdown(field.value);
-    if (fieldMarkdown.errors.length) throw new Error(`Structured field "${field.key}" has invalid Markdown: ${fieldMarkdown.errors[0].message}`);
+    if (fieldMarkdown.errors.length) throw new UserFacingError(`Structured field "${field.key}" has invalid Markdown: ${fieldMarkdown.errors[0].message}`);
   }
   const sections = parseArray<ArticleSection>(formData, "sections")
     .map((section) => ({
@@ -106,11 +108,11 @@ function parseContent(
     const url = String(source.url || "").trim();
     const archiveUrl = String(source.archiveUrl || "").trim();
     if (url && !isSafeCitationUrl(url))
-      throw new Error(
+      throw new UserFacingError(
         `Unsafe or unsupported source URL: ${url.slice(0, 200)}.`,
       );
     if (archiveUrl && !isSafeCitationUrl(archiveUrl))
-      throw new Error(
+      throw new UserFacingError(
         `Unsafe or unsupported archive URL: ${archiveUrl.slice(0, 200)}.`,
       );
   }
@@ -125,7 +127,7 @@ function parseContent(
     .map((relationship) => {
       const type = String(relationship.type || "");
       if (!relationshipTypes.includes(type as EntityRelationship["type"]))
-        throw new Error("Invalid relationship type.");
+        throw new UserFacingError("Invalid relationship type.");
       return {
         type: type as EntityRelationship["type"],
         targetArticleId: String(relationship.targetArticleId || "")
@@ -149,7 +151,7 @@ function parseContent(
     requireSubmissionFields &&
     (!markdown || !parsedMarkdown.citations.length)
   )
-    throw new Error(
+    throw new UserFacingError(
       "Article Markdown and at least one inline citation are required before submission.",
     );
   return {
@@ -166,34 +168,35 @@ function parseContent(
 async function persistFromForm(
   formData: FormData,
   requireSubmissionFields = false,
+  contributor?: Awaited<ReturnType<typeof requireContributor>>,
 ) {
-  const contributor = await requireContributor();
+  const authenticatedContributor = contributor || await requireContributor();
   const content = parseContent(formData, requireSubmissionFields);
   const slug = normalizeSlug(String(formData.get("slug") || content.title));
-  if (!slug) throw new Error("A valid article slug is required.");
+  if (!slug) throw new UserFacingError("A valid article slug is required.");
   const revisionId = String(formData.get("revisionId") || "") || undefined;
   const submittedArticleId =
     String(formData.get("articleId") || "") || undefined;
   const existingRevision = revisionId ? await getPostgresRevision(revisionId) : null;
-  if (revisionId && !existingRevision) throw new Error("Revision not found.");
+  if (revisionId && !existingRevision) throw new UserFacingError("Revision not found.");
   const existingArticle = existingRevision
     ? await getPostgresArticleById(existingRevision.articleId)
     : submittedArticleId
       ? await getPostgresArticleById(submittedArticleId)
       : await getPostgresArticleBySlug(slug, content.contentType);
-  const restriction = await getPostgresContributorRestriction(contributor.userId);
+  const restriction = await getPostgresContributorRestriction(authenticatedContributor.userId);
   if (restriction === "suspended" || restriction === "read_only")
-    throw new Error("This account is not allowed to submit edits.");
+    throw new UserFacingError("This account is not allowed to submit edits.");
   const article =
     existingArticle ||
     await createOrGetPostgresArticle(slug, content.title, content.contentType);
   if (article.contentType !== content.contentType)
-    throw new Error(
+    throw new UserFacingError(
       "An existing article cannot change content type through an edit.",
     );
   if (existingRevision && existingRevision.articleId !== article.id)
-    throw new Error("The revision does not belong to this article.");
-  await assertPostgresArticleEditable(article.id, contributor.role, restriction);
+    throw new UserFacingError("The revision does not belong to this article.");
+  await assertPostgresArticleEditable(article.id, authenticatedContributor.role, restriction);
   await validatePostgresRelationships(
     article.id,
     content.contentType,
@@ -208,13 +211,13 @@ async function persistFromForm(
     .trim()
     .slice(0, 500);
   if (requireSubmissionFields && !editSummary)
-    throw new Error("An edit summary is required before submission.");
+    throw new UserFacingError("An edit summary is required before submission.");
   return savePostgresDraft({
     revisionId,
     articleId: article.id,
     proposedSlug: slug,
-    contributorId: contributor.userId,
-    contributorName: contributor.name,
+    contributorId: authenticatedContributor.userId,
+    contributorName: authenticatedContributor.name,
     editSummary,
     content,
     parentRevisionId: article.liveRevisionId,
@@ -227,7 +230,7 @@ export async function startArticleAction(formData: FormData) {
   const slug = normalizeSlug(String(formData.get("slug") || title));
   const contentType = String(formData.get("contentType") || "");
   if (!title || !slug || !contentTypes.includes(contentType as ContentType))
-    throw new Error("Title, slug, and content type are required.");
+    throw new UserFacingError("Title, slug, and content type are required.");
   redirect(
     `/contribute/${slug}?title=${encodeURIComponent(title)}&type=${encodeURIComponent(contentType)}`,
   );
@@ -246,7 +249,14 @@ export async function startArticleFormAction(
 }
 
 export async function saveDraftAction(formData: FormData) {
-  const revision = await persistFromForm(formData);
+  const contributor = await requireContributor();
+  await enforceRateLimit({
+    scope: "contribution-draft-write",
+    subject: contributor.userId,
+    limit: 30,
+    windowMs: 60_000,
+  });
+  const revision = await persistFromForm(formData, false, contributor);
   revalidatePath("/contribute");
   const returnTo = safeReturnTo(
     formData,
@@ -269,7 +279,16 @@ export async function saveDraftFormAction(
 
 export async function submitRevisionAction(formData: FormData) {
   const contributor = await requireContributor();
-  const revision = await persistFromForm(formData, true);
+  await enforceRateLimit(
+    {
+      scope: "contribution-submit",
+      subject: contributor.userId,
+      limit: 5,
+      windowMs: 10 * 60_000,
+    },
+    "Too many submission attempts. Wait a few minutes and try again.",
+  );
+  const revision = await persistFromForm(formData, true, contributor);
   await transitionPostgresRevision(revision.id, contributor.userId, "verifying");
   const verification = await verifyRevision(revision);
   await transitionPostgresRevision(revision.id, contributor.userId, "pending_review", {
@@ -298,6 +317,12 @@ export async function submitRevisionFormAction(
 
 export async function moderateRevisionAction(formData: FormData) {
   const moderator = await requireModerator();
+  await enforceRateLimit({
+    scope: "moderation-write",
+    subject: moderator.userId,
+    limit: 20,
+    windowMs: 60_000,
+  });
   const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
     import("@/lib/admin-db"),
     import("@/lib/notification-service"),
@@ -309,7 +334,7 @@ export async function moderateRevisionAction(formData: FormData) {
     .slice(0, 2000);
   const revision = await getPostgresRevision(revisionId);
   if (!revision || !["pending_review", "verifying"].includes(revision.status))
-    throw new Error("This revision is not awaiting review.");
+    throw new UserFacingError("This revision is not awaiting review.");
   await assertPostgresArticleEditable(revision.articleId, moderator.role);
   const beforeStatus = revision.status;
   const previousLiveRevision =
@@ -317,18 +342,18 @@ export async function moderateRevisionAction(formData: FormData) {
   if (intent === "approve")
     await publishPostgresRevision(revisionId, moderator.userId, note || null);
   else if (intent === "request_changes") {
-    if (!note) throw new Error("Explain the requested changes.");
+    if (!note) throw new UserFacingError("Explain the requested changes.");
     await transitionPostgresRevision(revisionId, moderator.userId, "changes_requested", {
       note,
       moderator: true,
     });
   } else if (intent === "reject") {
-    if (!note) throw new Error("Explain why the revision was rejected.");
+    if (!note) throw new UserFacingError("Explain why the revision was rejected.");
     await transitionPostgresRevision(revisionId, moderator.userId, "rejected", {
       note,
       moderator: true,
     });
-  } else throw new Error("Invalid moderation action.");
+  } else throw new UserFacingError("Invalid moderation action.");
   const moderatedRevision = await getPostgresRevision(revisionId);
   if (moderatedRevision)
     await emitRevisionOutcome({
@@ -377,6 +402,12 @@ export async function moderateRevisionFormAction(
 
 export async function editAndApproveAction(formData: FormData) {
   const moderator = await requireModerator();
+  await enforceRateLimit({
+    scope: "moderation-write",
+    subject: moderator.userId,
+    limit: 20,
+    windowMs: 60_000,
+  });
   const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
     import("@/lib/admin-db"),
     import("@/lib/notification-service"),
@@ -388,7 +419,7 @@ export async function editAndApproveAction(formData: FormData) {
     .slice(0, 500);
   const proposedSlug = normalizeSlug(String(formData.get("slug") || ""));
   const before = await getPostgresRevision(revisionId);
-  if (!before) throw new Error("Revision not found.");
+  if (!before) throw new UserFacingError("Revision not found.");
   await assertPostgresArticleEditable(before.articleId, moderator.role);
   const previousLiveRevision =
     (await getPostgresArticleById(before.articleId))?.liveRevision || null;
@@ -450,44 +481,4 @@ export async function editAndApproveFormAction(
   } catch (error) {
     return formActionError(error);
   }
-}
-
-export async function restoreRevisionAction(formData: FormData) {
-  const moderator = await requireModerator();
-  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, restoreRevision, transitionRevision }] = await Promise.all([
-    import("@/lib/admin-db"),
-    import("@/lib/wiki-db"),
-  ]);
-  const sourceRevisionId = String(formData.get("revisionId") || "");
-  const source = getRevision(sourceRevisionId);
-  if (!source) throw new Error("Revision not found.");
-  assertArticleEditable(source.articleId, moderator.role);
-  let restored = restoreRevision(
-    sourceRevisionId,
-    moderator.userId,
-    moderator.name,
-  );
-  restored = transitionRevision(
-    restored.id,
-    moderator.userId,
-    "pending_review",
-    { verification: await verifyRevision(restored), moderator: true },
-  );
-  const article = getArticleById(restored.articleId)!;
-  recordAdminAudit({
-    actorId: moderator.userId,
-    actorName: moderator.name,
-    action: "article.restoration_proposed",
-    entityType: "article",
-    entityId: article.id,
-    articleId: article.id,
-    revisionId: restored.id,
-    after: {
-      sourceRevisionId,
-      proposedRevisionId: restored.id,
-      status: restored.status,
-    },
-  });
-  revalidatePath("/moderation");
-  redirect(`/moderation/${restored.id}`);
 }

@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
+import { UserFacingError } from "@/lib/user-facing-error";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, VerificationResult } from "@/lib/wiki-types";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { articlePath } from "@/lib/article-routes";
@@ -335,13 +336,13 @@ export function validateRelationships(articleId: string, sourceType: ContentType
   const seen = new Set<string>();
   for (const relationship of relationships) {
     const key = relationshipKey(relationship);
-    if (seen.has(key)) throw new Error("Duplicate relationships are not allowed.");
+    if (seen.has(key)) throw new UserFacingError("Duplicate relationships are not allowed.");
     seen.add(key);
     const target = db.prepare(`SELECT a.content_type,a.archived_at,r.status FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id WHERE a.id=?`).get(relationship.targetArticleId) as { content_type: ContentType; archived_at: string | null; status: RevisionStatus | null } | undefined;
-    if (!target || target.status !== "approved" || target.archived_at) throw new Error("Relationships may only target existing approved entities.");
+    if (!target || target.status !== "approved" || target.archived_at) throw new UserFacingError("Relationships may only target existing approved entities.");
     validateRelationshipShape(articleId, sourceType, relationship, target.content_type);
     for (const identifier of relationship.citationIdentifiers) {
-      if (!citationIdentifiers.has(identifier.toLowerCase())) throw new Error(`Relationship citation [^${identifier}] is not defined in the article.`);
+      if (!citationIdentifiers.has(identifier.toLowerCase())) throw new UserFacingError(`Relationship citation [^${identifier}] is not defined in the article.`);
     }
   }
 }
@@ -412,7 +413,7 @@ export function createOrGetArticle(slug: string, title: string, contentType: Con
   const now = new Date().toISOString();
   const create = db.transaction(() => {
     if (getArticleBySlug(slug, contentType)) return;
-    if (getSlugRedirect(contentType, slug)) throw new Error("That slug is reserved by an existing article redirect.");
+    if (getSlugRedirect(contentType, slug)) throw new UserFacingError("That slug is reserved by an existing article redirect.");
     db.prepare("INSERT INTO articles (id, slug, title, content_type, live_revision_id, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, ?)").run(id, slug, title, contentType, now, now);
   });
   create.immediate();
@@ -423,7 +424,7 @@ export function saveDraft(input: { revisionId?: string; articleId: string; propo
   const now = new Date().toISOString();
   if (input.revisionId) {
     const existing = getRevision(input.revisionId);
-    if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new Error("This revision cannot be edited.");
+    if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new UserFacingError("This revision cannot be edited.");
     db.transaction(() => {
       db.prepare(`UPDATE revisions SET status = 'draft', contributor_name = ?, edit_summary = ?, title = ?, content_type = ?, markdown = ?, fields_json = ?, sections_json = ?, sources_json = ?, relationships_json = ?, proposed_slug = ?, verification_json = NULL, moderator_note = NULL, updated_at = ? WHERE id = ?`).run(input.contributorName, input.editSummary, input.content.title, input.content.contentType, input.content.markdown, JSON.stringify(input.content.fields), JSON.stringify(input.content.sections), JSON.stringify(input.content.sources), JSON.stringify(input.content.relationships), input.proposedSlug, now, input.revisionId);
       db.prepare(`DELETE FROM revision_import_field_sources WHERE revision_id=? AND NOT EXISTS (
@@ -449,11 +450,11 @@ export function transitionRevision(id: string, actorId: string, toStatus: Revisi
   };
   const change = db.transaction(() => {
     const revision = getRevision(id);
-    if (!revision) throw new Error("Revision not found.");
-    if (!allowedTransitions[revision.status].includes(toStatus)) throw new Error(`Revision cannot move from ${revision.status} to ${toStatus}.`);
+    if (!revision) throw new UserFacingError("Revision not found.");
+    if (!allowedTransitions[revision.status].includes(toStatus)) throw new UserFacingError(`Revision cannot move from ${revision.status} to ${toStatus}.`);
     const now = new Date().toISOString();
     const result = db.prepare(`UPDATE revisions SET status = ?, verification_json = COALESCE(?, verification_json), moderator_id = CASE WHEN ? THEN ? ELSE moderator_id END, moderator_note = COALESCE(?, moderator_note), submitted_at = CASE WHEN ? IN ('verifying', 'pending_review') THEN COALESCE(submitted_at, ?) ELSE submitted_at END, reviewed_at = CASE WHEN ? IN ('approved', 'rejected', 'changes_requested') THEN ? ELSE reviewed_at END, updated_at = ? WHERE id = ? AND status = ?`).run(toStatus, options.verification ? JSON.stringify(options.verification) : null, options.moderator ? 1 : 0, actorId, options.note ?? null, toStatus, now, toStatus, now, now, id, revision.status);
-    if (result.changes !== 1) throw new Error("The revision changed concurrently. Reload it before taking action.");
+    if (result.changes !== 1) throw new UserFacingError("The revision changed concurrently. Reload it before taking action.");
     db.prepare("INSERT INTO revision_events (id, revision_id, actor_id, from_status, to_status, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(randomUUID(), id, actorId, revision.status, toStatus, options.note ?? null, now);
   });
   change.immediate();
@@ -463,20 +464,20 @@ export function transitionRevision(id: string, actorId: string, toStatus: Revisi
 export function publishRevision(id: string, moderatorId: string, note?: string | null) {
   const transaction = db.transaction(() => {
     const revision = getRevision(id);
-    if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new Error("This revision is no longer awaiting review.");
+    if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("This revision is no longer awaiting review.");
     const article = getArticleById(revision.articleId);
-    if (!article) throw new Error("Article not found.");
+    if (!article) throw new UserFacingError("Article not found.");
     const controls = db.prepare("SELECT archived_at FROM articles WHERE id=?").get(revision.articleId) as { archived_at: string | null };
-    if (controls.archived_at) throw new Error("Archived articles cannot be published.");
-    if (article.liveRevisionId !== revision.parentRevisionId) throw new Error("The live article changed after this revision was created. Rebase and review it again before approval.");
-    if (revision.contentType !== article.contentType) throw new Error("An existing article cannot change content type through a revision.");
+    if (controls.archived_at) throw new UserFacingError("Archived articles cannot be published.");
+    if (article.liveRevisionId !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Rebase and review it again before approval.");
+    if (revision.contentType !== article.contentType) throw new UserFacingError("An existing article cannot change content type through a revision.");
     const parsedMarkdown = parseArticleMarkdown(revision.markdown);
-    if (parsedMarkdown.errors.length) throw new Error("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
     validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
     const conflicting = getArticleBySlug(revision.proposedSlug, revision.contentType);
-    if (conflicting && conflicting.id !== revision.articleId) throw new Error("That slug is already used by another article of this type.");
+    if (conflicting && conflicting.id !== revision.articleId) throw new UserFacingError("That slug is already used by another article of this type.");
     const aliasedArticleId = getSlugRedirectArticleId(revision.contentType, revision.proposedSlug);
-    if (aliasedArticleId && aliasedArticleId !== revision.articleId) throw new Error("That slug is reserved by another article redirect.");
+    if (aliasedArticleId && aliasedArticleId !== revision.articleId) throw new UserFacingError("That slug is reserved by another article redirect.");
     transitionRevision(id, moderatorId, "approved", { note, moderator: true });
     const now = new Date().toISOString();
     if (revision.proposedSlug !== revision.articleSlug) {
@@ -494,7 +495,7 @@ export function publishRevision(id: string, moderatorId: string, note?: string |
 
 export function moderatorEditRevision(id: string, content: RevisionContent, proposedSlug: string, editSummary: string, moderatorId: string) {
   const revision = getRevision(id);
-  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new Error("Revision is not awaiting review.");
+  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("Revision is not awaiting review.");
   const now = new Date().toISOString();
   db.prepare("UPDATE revisions SET title = ?, content_type = ?, markdown = ?, fields_json = ?, sections_json = ?, sources_json = ?, relationships_json = ?, proposed_slug = ?, edit_summary = ?, moderator_id = ?, updated_at = ? WHERE id = ?").run(content.title, content.contentType, content.markdown, JSON.stringify(content.fields), JSON.stringify(content.sections), JSON.stringify(content.sources), JSON.stringify(content.relationships), proposedSlug || revision.proposedSlug, editSummary, moderatorId, now, id);
   db.prepare(`DELETE FROM revision_import_field_sources WHERE revision_id=? AND NOT EXISTS (
@@ -505,7 +506,7 @@ export function moderatorEditRevision(id: string, content: RevisionContent, prop
 
 export function restoreRevision(sourceRevisionId: string, moderatorId: string, moderatorName: string) {
   const source = getRevision(sourceRevisionId);
-  if (!source || source.status !== "approved") throw new Error("Only approved revisions can be restored.");
+  if (!source || source.status !== "approved") throw new UserFacingError("Only approved revisions can be restored.");
   const article = getArticleById(source.articleId)!;
   const restored = saveDraft({ articleId: source.articleId, proposedSlug: article.slug, contributorId: moderatorId, contributorName: moderatorName, editSummary: `Restore revision ${source.id.slice(0, 8)}`, content: source, parentRevisionId: article.liveRevisionId });
   db.prepare(`INSERT INTO revision_import_field_sources SELECT ?,field_key,field_value,provider,source_identifier,source_urls_json FROM revision_import_field_sources WHERE revision_id=?`).run(restored.id, sourceRevisionId);
@@ -515,34 +516,34 @@ export function restoreRevision(sourceRevisionId: string, moderatorId: string, m
 
 export function createImportedDraft(input: { provider: ImportProviderId; sourceIdentifier: string; title: string; contentType: ContentType; targetArticleId?: string; fields: ImportField[]; images: ImportImage[]; actorId: string; actorName: string }) {
   const slug = normalizeSlug(input.title);
-  if (!slug) throw new Error("The imported title cannot produce a valid slug.");
+  if (!slug) throw new UserFacingError("The imported title cannot produce a valid slug.");
   const existingMapping = db.prepare("SELECT article_id FROM article_external_identifiers WHERE provider=? AND source_identifier=?").get(input.provider, input.sourceIdentifier) as { article_id: string } | undefined;
-  if (existingMapping && (!input.targetArticleId || existingMapping.article_id !== input.targetArticleId)) throw new Error("This provider entity is already linked to another aviation.wiki article.");
-  if (input.fields.some((field) => !field.verified || !field.sourceUrls.length)) throw new Error("Every imported field must be verified and retain at least one source.");
-  if (input.images.some((image) => !image.compatible || !image.creator || !image.license || !image.licenseUrl || !image.attribution || !image.sourcePage || !image.retrievedAt)) throw new Error("Every imported image must have complete compatible reuse metadata.");
+  if (existingMapping && (!input.targetArticleId || existingMapping.article_id !== input.targetArticleId)) throw new UserFacingError("This provider entity is already linked to another aviation.wiki article.");
+  if (input.fields.some((field) => !field.verified || !field.sourceUrls.length)) throw new UserFacingError("Every imported field must be verified and retain at least one source.");
+  if (input.images.some((image) => !image.compatible || !image.creator || !image.license || !image.licenseUrl || !image.attribution || !image.sourcePage || !image.retrievedAt)) throw new UserFacingError("Every imported image must have complete compatible reuse metadata.");
   const slugMatch = getArticleBySlug(slug, input.contentType);
-  if (!input.targetArticleId && slugMatch) throw new Error("A matching article already exists and must be selected explicitly.");
+  if (!input.targetArticleId && slugMatch) throw new UserFacingError("A matching article already exists and must be selected explicitly.");
   for (const field of input.fields.filter((item) => /code|registration|callsign|designation|iso 3166/i.test(item.key))) {
     const collision = db.prepare(`SELECT DISTINCT a.id,a.title FROM revisions r JOIN articles a ON a.id=r.article_id,json_each(r.fields_json) f
       WHERE r.status!='rejected' AND lower(json_extract(f.value,'$.key'))=lower(?) AND lower(json_extract(f.value,'$.value'))=lower(?) AND a.id!=? LIMIT 1`).get(field.key, field.value, input.targetArticleId || "") as { id: string; title: string } | undefined;
-    if (collision) throw new Error(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
+    if (collision) throw new UserFacingError(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
   }
   let article = input.targetArticleId ? getArticleById(input.targetArticleId) : null;
-  if (input.targetArticleId && !article) throw new Error("Selected target article not found.");
-  if (article && article.contentType !== input.contentType) throw new Error("The target article has a different content type.");
+  if (input.targetArticleId && !article) throw new UserFacingError("Selected target article not found.");
+  if (article && article.contentType !== input.contentType) throw new UserFacingError("The target article has a different content type.");
   if (!article) article = createOrGetArticle(slug, input.title, input.contentType);
   const controls = db.prepare("SELECT archived_at,redirect_to_slug FROM articles WHERE id=?").get(article.id) as { archived_at: string | null; redirect_to_slug: string | null };
-  if (controls.archived_at) throw new Error("Archived articles cannot receive imports.");
-  if (controls.redirect_to_slug) throw new Error("Redirect articles cannot receive imports.");
+  if (controls.archived_at) throw new UserFacingError("Archived articles cannot receive imports.");
+  if (controls.redirect_to_slug) throw new UserFacingError("Redirect articles cannot receive imports.");
   const currentFields = article.liveRevision?.fields || [];
   const currentByKey = new Map(currentFields.map((field) => [field.key.toLowerCase(), field.value]));
   for (const field of input.fields) {
     const current = currentByKey.get(field.key.toLowerCase());
-    if (current && current !== field.value) throw new Error(`Imported field “${field.key}” conflicts with approved information and cannot overwrite it.`);
+    if (current && current !== field.value) throw new UserFacingError(`Imported field “${field.key}” conflicts with approved information and cannot overwrite it.`);
     if (/code|registration|callsign|designation|iso 3166/i.test(field.key)) {
       const collision = db.prepare(`SELECT DISTINCT a.id,a.title FROM revisions r JOIN articles a ON a.id=r.article_id,json_each(r.fields_json) f
         WHERE r.status!='rejected' AND lower(json_extract(f.value,'$.key'))=lower(?) AND lower(json_extract(f.value,'$.value'))=lower(?) AND a.id!=? LIMIT 1`).get(field.key, field.value, article.id) as { id: string; title: string } | undefined;
-      if (collision) throw new Error(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
+      if (collision) throw new UserFacingError(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
     }
   }
   const addedFields = input.fields.filter((field) => !currentByKey.has(field.key.toLowerCase())).map(({ key, value }) => ({ key, value }));
@@ -553,7 +554,7 @@ export function createImportedDraft(input: { provider: ImportProviderId; sourceI
   db.transaction(() => {
     db.prepare("INSERT INTO article_external_identifiers (provider,source_identifier,article_id,created_at) VALUES (?,?,?,?) ON CONFLICT(provider,source_identifier) DO NOTHING").run(input.provider, input.sourceIdentifier, article.id, now);
     const mapping = db.prepare("SELECT article_id FROM article_external_identifiers WHERE provider=? AND source_identifier=?").get(input.provider, input.sourceIdentifier) as { article_id: string };
-    if (mapping.article_id !== article.id) throw new Error("This provider entity was linked concurrently to another article.");
+    if (mapping.article_id !== article.id) throw new UserFacingError("This provider entity was linked concurrently to another article.");
     const insertField = db.prepare("INSERT INTO revision_import_field_sources (revision_id,field_key,field_value,provider,source_identifier,source_urls_json) VALUES (?,?,?,?,?,?)");
     for (const field of input.fields) insertField.run(revision.id, field.key, field.value, input.provider, input.sourceIdentifier, JSON.stringify(field.sourceUrls));
     const insertImage = db.prepare("INSERT INTO revision_import_images (revision_id,file_name,image_url,thumbnail_url,creator,license,license_url,attribution,source_page,retrieved_at) VALUES (?,?,?,?,?,?,?,?,?,?)");

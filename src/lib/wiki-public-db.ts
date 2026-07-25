@@ -7,6 +7,7 @@ import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
+import { UserFacingError } from "@/lib/user-facing-error";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import type { WikiRole } from "@/lib/wiki-auth";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, SourceLink, VerificationResult } from "@/lib/wiki-types";
@@ -354,23 +355,23 @@ export async function updateArticleAdmin(input: {
   await ready();
   await sql.begin(async (transaction) => {
     const [article] = await transaction`SELECT * FROM articles WHERE id=${input.articleId} FOR UPDATE`;
-    if (!article) throw new Error("Article not found.");
+    if (!article) throw new UserFacingError("Article not found.");
     const slug = input.slug || String(article.slug);
     const [collision] = await transaction`SELECT id FROM articles WHERE content_type=${String(article.content_type)} AND slug=${slug} AND id!=${input.articleId}`;
-    if (collision) throw new Error("That slug is already used by another article of this type.");
+    if (collision) throw new UserFacingError("That slug is already used by another article of this type.");
     const [aliasCollision] = await transaction`SELECT article_id FROM article_slug_redirects WHERE content_type=${String(article.content_type)} AND old_slug=${slug} AND article_id!=${input.articleId}`;
-    if (aliasCollision) throw new Error("That slug is reserved by another article redirect.");
+    if (aliasCollision) throw new UserFacingError("That slug is reserved by another article redirect.");
     if (input.archived) {
       const [incoming] = await transaction`SELECT COUNT(*)::int count FROM article_relationships WHERE target_article_id=${input.articleId}`;
-      if (Number(incoming.count)) throw new Error("This entity is referenced by approved relationships. Remove those links through reviewed revisions before archiving it.");
+      if (Number(incoming.count)) throw new UserFacingError("This entity is referenced by approved relationships. Remove those links through reviewed revisions before archiving it.");
     }
     if (input.redirectToSlug) {
       const [target] = await transaction`SELECT id,redirect_to_slug FROM articles WHERE content_type=${String(article.content_type)} AND slug=${input.redirectToSlug}`;
-      if (!target) throw new Error("The redirect target must be an existing article of the same type.");
+      if (!target) throw new UserFacingError("The redirect target must be an existing article of the same type.");
       const visited = new Set([input.articleId]);
       let cursor = target;
       while (cursor) {
-        if (visited.has(String(cursor.id))) throw new Error("That redirect would create a loop.");
+        if (visited.has(String(cursor.id))) throw new UserFacingError("That redirect would create a loop.");
         visited.add(String(cursor.id));
         if (!cursor.redirect_to_slug) break;
         [cursor] = await transaction`SELECT id,redirect_to_slug FROM articles WHERE content_type=${String(article.content_type)} AND slug=${String(cursor.redirect_to_slug)}`;
@@ -471,6 +472,11 @@ export async function getEditableRevision(articleId: string, contributorId: stri
   return value ? mapRevision(value) : null;
 }
 
+export async function listContributorRevisions(contributorId: string) {
+  await ready();
+  return (await rows<RevisionRow>(`${revisionSelect} WHERE r.contributor_id=$1 ORDER BY r.updated_at DESC`, [contributorId])).map(mapRevision);
+}
+
 export async function getContributorRestriction(userId: string) {
   await ready();
   return (await row<{restriction:string}>("SELECT restriction FROM contributor_profiles WHERE user_id=$1", [userId]))?.restriction ?? "none";
@@ -479,13 +485,13 @@ export async function getContributorRestriction(userId: string) {
 export async function assertArticleEditable(articleId: string, role: WikiRole, restriction = "none") {
   await ready();
   const article = await row<{archived_at:Date|string|null;protection_level:string;is_locked:boolean}>("SELECT archived_at,protection_level,is_locked FROM articles WHERE id=$1", [articleId]);
-  if (!article) throw new Error("Article not found.");
-  if (restriction === "suspended" || restriction === "read_only") throw new Error("This account is not allowed to submit edits.");
-  if (article.archived_at) throw new Error("Archived articles cannot be edited.");
-  if (article.is_locked && role !== "admin") throw new Error("This article is locked.");
+  if (!article) throw new UserFacingError("Article not found.");
+  if (restriction === "suspended" || restriction === "read_only") throw new UserFacingError("This account is not allowed to submit edits.");
+  if (article.archived_at) throw new UserFacingError("Archived articles cannot be edited.");
+  if (article.is_locked && role !== "admin") throw new UserFacingError("This article is locked.");
   const ranks: Record<string, number> = { contributor: 0, trusted_contributor: 1, moderator: 2, admin: 3 };
   const required: Record<string, number> = { open: 0, trusted: 1, moderator: 2, admin: 3 };
-  if ((ranks[role] ?? 0) < (required[article.protection_level] ?? 0)) throw new Error("Your role cannot edit this protected article.");
+  if ((ranks[role] ?? 0) < (required[article.protection_level] ?? 0)) throw new UserFacingError("Your role cannot edit this protected article.");
 }
 
 export async function validateRelationships(articleId: string, sourceType: ContentType, relationships: EntityRelationship[], citationIdentifiers: Set<string>) {
@@ -497,12 +503,12 @@ export async function validateRelationships(articleId: string, sourceType: Conte
   const seen = new Set<string>();
   for (const relationship of relationships) {
     const key = relationshipKey(relationship);
-    if (seen.has(key)) throw new Error("Duplicate relationships are not allowed.");
+    if (seen.has(key)) throw new UserFacingError("Duplicate relationships are not allowed.");
     seen.add(key);
     const target = targets.get(relationship.targetArticleId);
-    if (!target || target.status !== "approved" || target.archived_at) throw new Error("Relationships may only target existing approved entities.");
+    if (!target || target.status !== "approved" || target.archived_at) throw new UserFacingError("Relationships may only target existing approved entities.");
     validateRelationshipShape(articleId, sourceType, relationship, target.content_type);
-    for (const identifier of relationship.citationIdentifiers) if (!citationIdentifiers.has(identifier.toLowerCase())) throw new Error(`Relationship citation [^${identifier}] is not defined in the article.`);
+    for (const identifier of relationship.citationIdentifiers) if (!citationIdentifiers.has(identifier.toLowerCase())) throw new UserFacingError(`Relationship citation [^${identifier}] is not defined in the article.`);
   }
 }
 
@@ -514,11 +520,11 @@ export async function createOrGetArticle(slug: string, title: string, contentTyp
   const now = new Date();
   await sql.begin(async (transaction) => {
     const reserved = await transaction`SELECT 1 FROM article_slug_redirects WHERE content_type=${contentType} AND old_slug=${slug} LIMIT 1`;
-    if (reserved.length) throw new Error("That slug is reserved by an existing article redirect.");
+    if (reserved.length) throw new UserFacingError("That slug is reserved by an existing article redirect.");
     await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${id},${slug},${title},${contentType},NULL,${now},${now}) ON CONFLICT (content_type,slug) DO NOTHING`;
   });
   const article = await getArticleBySlug(slug, contentType);
-  if (!article) throw new Error("Article could not be created.");
+  if (!article) throw new UserFacingError("Article could not be created.");
   return article;
 }
 
@@ -530,7 +536,7 @@ export async function saveDraft(input: { revisionId?: string; articleId: string;
     if (input.revisionId) {
       const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [input.revisionId]) as unknown as RevisionRow[];
       const existing = values[0] ? mapRevision(values[0]) : null;
-      if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new Error("This revision cannot be edited.");
+      if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new UserFacingError("This revision cannot be edited.");
       await transaction`UPDATE revisions SET status='draft',contributor_name=${input.contributorName},edit_summary=${input.editSummary},title=${input.content.title},content_type=${input.content.contentType},markdown=${input.content.markdown},fields_json=${transaction.json(input.content.fields)},sections_json=${transaction.json(input.content.sections)},sources_json=${transaction.json(input.content.sources)},relationships_json=${transaction.json(input.content.relationships)},proposed_slug=${input.proposedSlug},verification_json=NULL,moderator_note=NULL,updated_at=${now} WHERE id=${input.revisionId}`;
       await transaction`DELETE FROM revision_import_field_sources s WHERE s.revision_id=${input.revisionId} AND NOT EXISTS (SELECT 1 FROM jsonb_to_recordset(${transaction.json(input.content.fields)}::jsonb) AS f(key text,value text) WHERE f.key=s.field_key AND f.value=s.field_value)`;
       if (existing.status === "changes_requested") await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${input.revisionId},${input.contributorId},${existing.status},'draft','Contributor resumed the requested changes.',${now})`;
@@ -539,7 +545,7 @@ export async function saveDraft(input: { revisionId?: string; articleId: string;
     await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at) VALUES (${id},${input.articleId},'draft',${input.contributorId},${input.contributorName},${input.editSummary},${input.content.title},${input.content.contentType},${input.content.markdown},${transaction.json(input.content.fields)},${transaction.json(input.content.sections)},${transaction.json(input.content.sources)},${transaction.json(input.content.relationships)},${input.proposedSlug},${input.parentRevisionId},${now},${now})`;
   });
   const revision = await getRevision(id);
-  if (!revision) throw new Error("Draft could not be saved.");
+  if (!revision) throw new UserFacingError("Draft could not be saved.");
   return revision;
 }
 
@@ -549,14 +555,14 @@ export async function transitionRevision(id: string, actorId: string, toStatus: 
   await sql.begin(async (transaction) => {
     const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [id]) as unknown as RevisionRow[];
     const revision = values[0] ? mapRevision(values[0]) : null;
-    if (!revision) throw new Error("Revision not found.");
-    if (!allowedTransitions[revision.status].includes(toStatus)) throw new Error(`Revision cannot move from ${revision.status} to ${toStatus}.`);
+    if (!revision) throw new UserFacingError("Revision not found.");
+    if (!allowedTransitions[revision.status].includes(toStatus)) throw new UserFacingError(`Revision cannot move from ${revision.status} to ${toStatus}.`);
     const now = new Date();
     await transaction`UPDATE revisions SET status=${toStatus},verification_json=CASE WHEN ${Boolean(options.verification)} THEN ${options.verification ? transaction.json(options.verification) : null} ELSE verification_json END,moderator_id=CASE WHEN ${Boolean(options.moderator)} THEN ${actorId} ELSE moderator_id END,moderator_note=COALESCE(${options.note ?? null},moderator_note),submitted_at=CASE WHEN ${toStatus} IN ('verifying','pending_review') THEN COALESCE(submitted_at,${now}) ELSE submitted_at END,reviewed_at=CASE WHEN ${toStatus} IN ('approved','rejected','changes_requested') THEN ${now} ELSE reviewed_at END,updated_at=${now} WHERE id=${id}`;
     await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${id},${actorId},${revision.status},${toStatus},${options.note ?? null},${now})`;
   });
   const revision = await getRevision(id);
-  if (!revision) throw new Error("Revision not found.");
+  if (!revision) throw new UserFacingError("Revision not found.");
   return revision;
 }
 
@@ -569,33 +575,33 @@ export async function moderatorEditRevision(id: string, content: RevisionContent
   await ready();
   const now = new Date();
   const updated = await sql`UPDATE revisions SET title=${content.title},content_type=${content.contentType},markdown=${content.markdown},fields_json=${sql.json(content.fields)},sections_json=${sql.json(content.sections)},sources_json=${sql.json(content.sources)},relationships_json=${sql.json(content.relationships)},proposed_slug=${proposedSlug},edit_summary=${editSummary},moderator_id=${moderatorId},updated_at=${now} WHERE id=${id} AND status IN ('pending_review','verifying') RETURNING id`;
-  if (updated.length !== 1) throw new Error("Revision is not awaiting review.");
+  if (updated.length !== 1) throw new UserFacingError("Revision is not awaiting review.");
   await sql`DELETE FROM revision_import_field_sources s WHERE s.revision_id=${id} AND NOT EXISTS (SELECT 1 FROM jsonb_to_recordset(${sql.json(content.fields)}::jsonb) AS f(key text,value text) WHERE f.key=s.field_key AND f.value=s.field_value)`;
   const revision = await getRevision(id);
-  if (!revision) throw new Error("Revision not found.");
+  if (!revision) throw new UserFacingError("Revision not found.");
   return revision;
 }
 
 export async function publishRevision(id: string, moderatorId: string, note?: string | null) {
   const revision = await getRevision(id);
-  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new Error("This revision is no longer awaiting review.");
+  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("This revision is no longer awaiting review.");
   const article = await getArticleById(revision.articleId);
-  if (!article) throw new Error("Article not found.");
-  if (article.liveRevisionId !== revision.parentRevisionId) throw new Error("The live article changed after this revision was created. Rebase and review it again before approval.");
-  if (revision.contentType !== article.contentType) throw new Error("An existing article cannot change content type through a revision.");
+  if (!article) throw new UserFacingError("Article not found.");
+  if (article.liveRevisionId !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Rebase and review it again before approval.");
+  if (revision.contentType !== article.contentType) throw new UserFacingError("An existing article cannot change content type through a revision.");
   const parsedMarkdown = parseArticleMarkdown(revision.markdown);
-  if (parsedMarkdown.errors.length) throw new Error("This revision contains invalid or unsafe Markdown and cannot be approved.");
+  if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
   await validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
   await sql.begin(async (transaction) => {
     const [currentRevision] = await transaction`SELECT status FROM revisions WHERE id=${id} FOR UPDATE`;
     const [currentArticle] = await transaction`SELECT slug,live_revision_id,archived_at FROM articles WHERE id=${revision.articleId} FOR UPDATE`;
-    if (!currentRevision || !["pending_review", "verifying"].includes(String(currentRevision.status))) throw new Error("This revision is no longer awaiting review.");
-    if (!currentArticle || currentArticle.archived_at) throw new Error("Archived articles cannot be published.");
-    if (currentArticle.live_revision_id !== revision.parentRevisionId) throw new Error("The live article changed after this revision was created. Rebase and review it again before approval.");
+    if (!currentRevision || !["pending_review", "verifying"].includes(String(currentRevision.status))) throw new UserFacingError("This revision is no longer awaiting review.");
+    if (!currentArticle || currentArticle.archived_at) throw new UserFacingError("Archived articles cannot be published.");
+    if (currentArticle.live_revision_id !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Rebase and review it again before approval.");
     const [collision] = await transaction`SELECT id FROM articles WHERE content_type=${revision.contentType} AND slug=${revision.proposedSlug} AND id!=${revision.articleId}`;
-    if (collision) throw new Error("That slug is already used by another article of this type.");
+    if (collision) throw new UserFacingError("That slug is already used by another article of this type.");
     const [aliasCollision] = await transaction`SELECT article_id FROM article_slug_redirects WHERE content_type=${revision.contentType} AND old_slug=${revision.proposedSlug} AND article_id!=${revision.articleId}`;
-    if (aliasCollision) throw new Error("That slug is reserved by another article redirect.");
+    if (aliasCollision) throw new UserFacingError("That slug is reserved by another article redirect.");
     const now = new Date();
     await transaction`UPDATE revisions SET status='approved',moderator_id=${moderatorId},moderator_note=COALESCE(${note ?? null},moderator_note),reviewed_at=${now},updated_at=${now} WHERE id=${id}`;
     await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at)
@@ -616,9 +622,9 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
 
 export async function restoreRevision(sourceRevisionId: string, moderatorId: string, moderatorName: string) {
   const source = await getRevision(sourceRevisionId);
-  if (!source || source.status !== "approved") throw new Error("Only approved revisions can be restored.");
+  if (!source || source.status !== "approved") throw new UserFacingError("Only approved revisions can be restored.");
   const article = await getArticleById(source.articleId);
-  if (!article) throw new Error("Article not found.");
+  if (!article) throw new UserFacingError("Article not found.");
   const restored = await saveDraft({
     articleId: source.articleId,
     proposedSlug: article.slug,
@@ -654,33 +660,33 @@ export async function createImportedDraft(input: {
   actorName: string;
 }) {
   const slug = normalizeSlug(input.title);
-  if (!slug) throw new Error("The imported title cannot produce a valid slug.");
-  if (input.fields.some((field) => !field.verified || !field.sourceUrls.length)) throw new Error("Every imported field must be verified and retain at least one source.");
-  if (input.images.some((image) => !image.compatible || !image.creator || !image.license || !image.licenseUrl || !image.attribution || !image.sourcePage || !image.retrievedAt)) throw new Error("Every imported image must have complete compatible reuse metadata.");
+  if (!slug) throw new UserFacingError("The imported title cannot produce a valid slug.");
+  if (input.fields.some((field) => !field.verified || !field.sourceUrls.length)) throw new UserFacingError("Every imported field must be verified and retain at least one source.");
+  if (input.images.some((image) => !image.compatible || !image.creator || !image.license || !image.licenseUrl || !image.attribution || !image.sourcePage || !image.retrievedAt)) throw new UserFacingError("Every imported image must have complete compatible reuse metadata.");
   await ready();
   const mapping = await row<{article_id:string}>("SELECT article_id FROM article_external_identifiers WHERE provider=$1 AND source_identifier=$2", [input.provider, input.sourceIdentifier]);
-  if (mapping && (!input.targetArticleId || mapping.article_id !== input.targetArticleId)) throw new Error("This provider entity is already linked to another aviation.wiki article.");
+  if (mapping && (!input.targetArticleId || mapping.article_id !== input.targetArticleId)) throw new UserFacingError("This provider entity is already linked to another aviation.wiki article.");
   const slugMatch = await getArticleBySlug(slug, input.contentType);
-  if (!input.targetArticleId && slugMatch) throw new Error("A matching article already exists and must be selected explicitly.");
+  if (!input.targetArticleId && slugMatch) throw new UserFacingError("A matching article already exists and must be selected explicitly.");
   for (const field of input.fields.filter((item) => /code|registration|callsign|designation|iso 3166/i.test(item.key))) {
     const collision = await row<{id:string;title:string}>(`SELECT DISTINCT a.id,a.title FROM revisions r JOIN articles a ON a.id=r.article_id
       CROSS JOIN LATERAL jsonb_array_elements(r.fields_json) value
       WHERE r.status!='rejected' AND lower(value->>'key')=lower($1) AND lower(value->>'value')=lower($2) AND a.id!=$3 LIMIT 1`,
       [field.key, field.value, input.targetArticleId || ""]);
-    if (collision) throw new Error(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
+    if (collision) throw new UserFacingError(`Imported identifier “${field.key}: ${field.value}” already belongs to ${collision.title}.`);
   }
   let article = input.targetArticleId ? await getArticleById(input.targetArticleId) : null;
-  if (input.targetArticleId && !article) throw new Error("Selected target article not found.");
-  if (article && article.contentType !== input.contentType) throw new Error("The target article has a different content type.");
+  if (input.targetArticleId && !article) throw new UserFacingError("Selected target article not found.");
+  if (article && article.contentType !== input.contentType) throw new UserFacingError("The target article has a different content type.");
   if (!article) article = await createOrGetArticle(slug, input.title, input.contentType);
   const controls = await row<{archived_at:Date|string|null;redirect_to_slug:string|null}>("SELECT archived_at,redirect_to_slug FROM articles WHERE id=$1", [article.id]);
-  if (controls?.archived_at) throw new Error("Archived articles cannot receive imports.");
-  if (controls?.redirect_to_slug) throw new Error("Redirect articles cannot receive imports.");
+  if (controls?.archived_at) throw new UserFacingError("Archived articles cannot receive imports.");
+  if (controls?.redirect_to_slug) throw new UserFacingError("Redirect articles cannot receive imports.");
   const currentFields = article.liveRevision?.fields || [];
   const currentByKey = new Map(currentFields.map((field) => [field.key.toLowerCase(), field.value]));
   for (const field of input.fields) {
     const current = currentByKey.get(field.key.toLowerCase());
-    if (current && current !== field.value) throw new Error(`Imported field “${field.key}” conflicts with approved information and cannot overwrite it.`);
+    if (current && current !== field.value) throw new UserFacingError(`Imported field “${field.key}” conflicts with approved information and cannot overwrite it.`);
   }
   const addedFields = input.fields.filter((field) => !currentByKey.has(field.key.toLowerCase())).map(({ key, value }) => ({ key, value }));
   const sources = [...new Map(input.fields.flatMap((field) => field.sourceUrls.map((url) => [url, {
@@ -712,7 +718,7 @@ export async function createImportedDraft(input: {
     await transaction`INSERT INTO article_external_identifiers (provider,source_identifier,article_id,created_at)
       VALUES (${input.provider},${input.sourceIdentifier},${article.id},${now}) ON CONFLICT (provider,source_identifier) DO NOTHING`;
     const [currentMapping] = await transaction`SELECT article_id FROM article_external_identifiers WHERE provider=${input.provider} AND source_identifier=${input.sourceIdentifier}`;
-    if (!currentMapping || currentMapping.article_id !== article.id) throw new Error("This provider entity was linked concurrently to another article.");
+    if (!currentMapping || currentMapping.article_id !== article.id) throw new UserFacingError("This provider entity was linked concurrently to another article.");
     for (const field of input.fields)
       await transaction`INSERT INTO revision_import_field_sources (revision_id,field_key,field_value,provider,source_identifier,source_urls_json)
         VALUES (${revision.id},${field.key},${field.value},${input.provider},${input.sourceIdentifier},${transaction.json(field.sourceUrls)})`;

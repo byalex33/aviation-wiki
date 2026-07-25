@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
-  restoreArticleRevisionAction,
+  restoreArticleRevisionFormAction,
   updateArticleFormAction,
 } from "@/app/admin/actions";
 import { ActionForm } from "@/components/action-form";
@@ -168,7 +168,7 @@ export default async function AdminArticlePage({
                 </div>
                 {revision.status === "approved" &&
                   revision.id !== article.live_revision_id && (
-                    <form action={restoreArticleRevisionAction}>
+                    <ActionForm action={restoreArticleRevisionFormAction}>
                       <input
                         type="hidden"
                         name="revisionId"
@@ -181,7 +181,7 @@ export default async function AdminArticlePage({
                       >
                         Restore
                       </ConfirmSubmitButton>
-                    </form>
+                    </ActionForm>
                   )}
               </div>
             ))

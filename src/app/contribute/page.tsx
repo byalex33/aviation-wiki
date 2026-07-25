@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDisplayLabel } from "@/lib/display";
-import { listContributorRevisions } from "@/lib/wiki-db";
+import { listContributorRevisions } from "@/lib/wiki-public-db";
 import { contentTypes } from "@/lib/wiki-types";
 
 export default async function ContributePage() {
@@ -37,7 +37,7 @@ export default async function ContributePage() {
     );
   }
 
-  const revisions = listContributorRevisions(session.userId);
+  const revisions = await listContributorRevisions(session.userId);
   return (
     <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-5">

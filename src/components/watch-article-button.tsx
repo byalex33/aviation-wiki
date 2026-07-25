@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Bell, BellOff, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { togglePublicArticleWatchAction } from "@/app/public-actions";
 import { buttonVariants } from "@/components/ui/button";
+import { initialFormActionState } from "@/lib/form-action-state";
 
 export function WatchArticleButton({
   articleId,
@@ -16,19 +17,30 @@ export function WatchArticleButton({
   returnTo: string;
   watching: boolean;
 }) {
+  const submittedWatching = useRef<boolean | null>(null);
   const [state, formAction, pending] = useActionState(
     togglePublicArticleWatchAction,
-    null,
+    initialFormActionState,
   );
 
   useEffect(() => {
-    if (!state) return;
-    if (state.status === "success") toast.success(state.message);
-    else toast.error(state.message);
+    if (state === initialFormActionState) return;
+    if (state.error) toast.error(state.error);
+    else
+      toast.success(
+        submittedWatching.current
+          ? "Article added to your watchlist."
+          : "Article removed from your watchlist.",
+      );
   }, [state]);
 
   return (
-    <form action={formAction}>
+    <form
+      action={formAction}
+      onSubmit={() => {
+        submittedWatching.current = !watching;
+      }}
+    >
       <input type="hidden" name="articleId" value={articleId} />
       <input
         type="hidden"

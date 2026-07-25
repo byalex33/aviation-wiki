@@ -1,6 +1,9 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import { ensureSchema, sql } from "@/lib/postgres";
+import { UserFacingError } from "@/lib/user-facing-error";
 
 type RateLimitOptions = {
   scope: string;
@@ -15,6 +18,16 @@ export type RateLimitResult = {
   remaining: number;
   retryAfterSeconds: number;
 };
+
+export function anonymousRateLimitSubject(request: Request) {
+  const forwardedFor = process.env.VERCEL
+    ? request.headers.get("x-vercel-forwarded-for")
+    : null;
+  const clientIp = forwardedFor?.split(",", 1)[0]?.trim() || "unknown";
+  const digest = createHash("sha256").update(clientIp).digest("hex");
+
+  return `ip:${digest}`;
+}
 
 export async function consumeRateLimit({
   scope,
@@ -58,6 +71,15 @@ export async function consumeRateLimit({
     remaining: requestCount === undefined ? 0 : Math.max(0, limit - requestCount),
     retryAfterSeconds: Math.ceil(windowMs / 1000),
   };
+}
+
+export async function enforceRateLimit(
+  options: RateLimitOptions,
+  message = "Too many requests. Wait a moment and try again.",
+) {
+  const result = await consumeRateLimit(options);
+  if (!result.allowed) throw new UserFacingError(message);
+  return result;
 }
 
 export function rateLimitHeaders(result: RateLimitResult) {

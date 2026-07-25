@@ -1,4 +1,5 @@
 import type { ContentType, EntityRelationship, RelationshipType } from "@/lib/wiki-types";
+import { UserFacingError } from "@/lib/user-facing-error";
 
 export const relationshipLabels: Record<RelationshipType, string> = {
   operates_aircraft: "Operates aircraft",
@@ -33,10 +34,10 @@ export function relationshipTargetType(type: RelationshipType) {
 }
 
 export function validateRelationshipShape(sourceId: string, sourceType: ContentType, relationship: EntityRelationship, targetType: ContentType) {
-  if (relationship.targetArticleId === sourceId) throw new Error("An article cannot relate to itself.");
+  if (relationship.targetArticleId === sourceId) throw new UserFacingError("An article cannot relate to itself.");
   const combination = combinations[relationship.type];
   if (!combination || combination[0] !== sourceType || combination[1] !== targetType) {
-    throw new Error(`Invalid relationship combination: ${sourceType} ${relationship.type} ${targetType}.`);
+    throw new UserFacingError(`Invalid relationship combination: ${sourceType} ${relationship.type} ${targetType}.`);
   }
 }
 

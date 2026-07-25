@@ -3,12 +3,16 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
+import {
+  formActionError,
+  type FormActionState,
+} from "@/lib/form-action-state";
 import { ensureSchema, sql } from "@/lib/postgres";
 
 export async function togglePublicArticleWatchAction(
-  _previousState: { status: "success" | "error"; message: string } | null,
+  _previousState: FormActionState,
   formData: FormData,
-) {
+): Promise<FormActionState> {
   try {
     const session = await auth();
     if (!session.isAuthenticated || !session.userId)
@@ -23,17 +27,8 @@ export async function togglePublicArticleWatchAction(
       await sql`DELETE FROM article_watches WHERE user_id=${session.userId} AND article_id=${articleId}`;
     }
     revalidatePath(String(formData.get("returnTo") || "/notifications"));
-    return {
-      status: "success" as const,
-      message: watching
-        ? "Article added to your watchlist."
-        : "Article removed from your watchlist.",
-    };
+    return { error: null };
   } catch (error) {
-    return {
-      status: "error" as const,
-      message:
-        error instanceof Error ? error.message : "Could not update watchlist.",
-    };
+    return formActionError(error);
   }
 }

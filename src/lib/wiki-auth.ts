@@ -2,6 +2,8 @@ import "server-only";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 
+import { UserFacingError } from "@/lib/user-facing-error";
+
 export const wikiRoles = ["contributor", "trusted_contributor", "moderator", "admin"] as const;
 export type WikiRole = (typeof wikiRoles)[number];
 
@@ -20,19 +22,19 @@ export async function getStaffUser() {
 
 export async function requireStaff() {
   const staff = await getStaffUser();
-  if (!staff) throw new Error("Moderator access is required.");
+  if (!staff) throw new UserFacingError("Moderator access is required.");
   return staff;
 }
 
 export async function requireAdmin() {
   const staff = await requireStaff();
-  if (staff.role !== "admin") throw new Error("Administrator access is required.");
+  if (staff.role !== "admin") throw new UserFacingError("Administrator access is required.");
   return staff;
 }
 
 export async function requireContributor() {
   const session = await auth();
-  if (!session.isAuthenticated || !session.userId) throw new Error("You must be signed in to contribute.");
+  if (!session.isAuthenticated || !session.userId) throw new UserFacingError("You must be signed in to contribute.");
   const user = await currentUser();
   return {
     userId: session.userId,
