@@ -3,9 +3,9 @@ import "server-only";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { UserFacingError } from "@/lib/user-facing-error";
+import { isStaffRole, wikiRoles, type WikiRole } from "@/lib/wiki-roles";
 
-export const wikiRoles = ["contributor", "trusted_contributor", "moderator", "admin"] as const;
-export type WikiRole = (typeof wikiRoles)[number];
+export { isStaffRole, wikiRoles, type WikiRole } from "@/lib/wiki-roles";
 
 function normalizeRole(value: unknown): WikiRole {
   return wikiRoles.includes(value as WikiRole) ? value as WikiRole : "contributor";
@@ -16,7 +16,7 @@ export async function getStaffUser() {
   if (!session.isAuthenticated || !session.userId) return null;
   const user = await currentUser();
   const role = normalizeRole(user?.publicMetadata.role);
-  if (role !== "moderator" && role !== "admin") return null;
+  if (!isStaffRole(role)) return null;
   return { userId: session.userId, name: user?.username || user?.fullName || user?.primaryEmailAddress?.emailAddress || "Staff", role };
 }
 

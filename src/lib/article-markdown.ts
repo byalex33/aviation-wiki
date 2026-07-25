@@ -30,10 +30,12 @@ export type MarkdownNode = {
   name?: string | null;
   attributes?: Array<{ type: string; name?: string; value?: unknown }>;
   children?: MarkdownNode[];
-  position?: { start: { line: number; column: number } };
+  position?: { start: { line: number; column: number }; end: { line: number; column: number } };
 };
 
 export type MarkdownRoot = MarkdownNode & { type: "root"; children: MarkdownNode[] };
+
+export type SidebarField = { key: string; value: string };
 
 export type MarkdownError = {
   line: number;
@@ -105,7 +107,7 @@ export function getBlockAttributes(node: MarkdownNode) {
   );
 }
 
-export function parseArticleMarkdown(source: string): { root: MarkdownRoot; errors: MarkdownError[]; warnings: MarkdownWarning[]; citations: Citation[] } {
+export function parseArticleMarkdown(source: string): { root: MarkdownRoot; errors: MarkdownError[]; warnings: MarkdownWarning[]; citations: Citation[]; sidebarFields: SidebarField[] | null } {
   let root: MarkdownRoot;
 
   try {
@@ -114,7 +116,7 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
     const parseError = error as Error & { line?: number; column?: number };
     return {
       root: { type: "root", children: [] },
-      errors: [{ line: parseError.line ?? 1, column: parseError.column ?? 1, message: parseError.message }], warnings: [], citations: [],
+      errors: [{ line: parseError.line ?? 1, column: parseError.column ?? 1, message: parseError.message }], warnings: [], citations: [], sidebarFields: null,
     };
   }
 
@@ -255,13 +257,33 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
   };
 
   validate(root);
+  const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
+  let sidebarFields: SidebarField[] | null = null;
+  if (sidebarNodes.length > 1) report(sidebarNodes[1], "Only one <Sidebar> block is allowed.");
+  if (sidebarNodes.length) {
+    sidebarFields = [];
+    const lines = source.split(/\r?\n/);
+    const sidebar = sidebarNodes[0];
+    const start = sidebar.position?.start.line ?? 1;
+    const end = sidebar.position?.end.line ?? start;
+    for (const [index, rawLine] of lines.slice(start, end - 1).entries()) {
+      const line = rawLine.trim().replace(/^-\s+/, "");
+      if (!line) continue;
+      const separator = line.indexOf(":");
+      const key = line.slice(0, separator).trim();
+      const value = line.slice(separator + 1).trim();
+      if (separator < 1 || !value) errors.push({ line: start + index + 1, column: 1, message: "Sidebar fields use “Label: value” on one line." });
+      else if (sidebarFields.some((field) => field.key.toLowerCase() === key.toLowerCase())) errors.push({ line: start + index + 1, column: 1, message: `Duplicate sidebar field: ${key}.` });
+      else sidebarFields.push({ key, value });
+    }
+  }
   const citations = citationOrder.flatMap((identifier, index) => {
     const definition = definitions.get(identifier);
     return definition?.url && isSafeCitationUrl(definition.url)
       ? [{ identifier, number: index + 1, url: definition.url, occurrences: citationCounts.get(identifier) ?? 1 }]
       : [];
   });
-  return { root, errors, warnings, citations };
+  return { root, errors, warnings, citations, sidebarFields };
 }
 
 export function parseStructuredFieldMarkdown(source: string) {

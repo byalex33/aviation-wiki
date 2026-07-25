@@ -130,8 +130,8 @@ export default async function ModeratorReviewPage({
             <CardContent className="p-5">
               <h2 className="font-semibold">Sources</h2>
               <ul className="mt-3 space-y-3 text-sm">
-                {revision.sources.map((source) => (
-                  <li key={source.url}>
+                {revision.sources.map((source, index) => (
+                  <li key={`${source.identifier || source.url}-${index}`}>
                     <a
                       href={source.url}
                       target="_blank"

@@ -29,4 +29,21 @@ assert.match(parseArticleMarkdown("f![greece]").errors[0]?.message || "", /Unkno
 assert.match(parseStructuredFieldMarkdown("![Logo](https://example.com/logo.png)").errors[0]?.message || "", /only support inline Markdown/);
 assert.match(parseStructuredFieldMarkdown("## Heading").errors[0]?.message || "", /only support inline Markdown/);
 
+const sidebar = parseArticleMarkdown(`<Sidebar>
+IATA code: A3
+ICAO code: AEE
+Callsign: AEGEAN
+Country: f![gr] Greece
+Status: Active
+</Sidebar>`);
+assert.deepEqual(sidebar.errors, []);
+assert.deepEqual(sidebar.sidebarFields, [
+  { key: "IATA code", value: "A3" },
+  { key: "ICAO code", value: "AEE" },
+  { key: "Callsign", value: "AEGEAN" },
+  { key: "Country", value: "f![gr] Greece" },
+  { key: "Status", value: "Active" },
+]);
+assert.match(parseArticleMarkdown("<Sidebar>\nBroken field\n</Sidebar>").errors[0]?.message || "", /Label: value/);
+
 console.log("Citation parser tests passed");

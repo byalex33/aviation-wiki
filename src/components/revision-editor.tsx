@@ -54,12 +54,11 @@ export function RevisionEditor({
   moderatorAction,
 }: RevisionEditorProps) {
   const [contentType, setContentType] = useState(initialContent.contentType);
-  const [markdown, setMarkdown] = useState(initialContent.markdown);
-  const [fields, setFields] = useState(
-    initialContent.fields.length
-      ? initialContent.fields
-      : [{ key: "", value: "" }],
-  );
+  const [markdown, setMarkdown] = useState(() => {
+    if (!initialContent.fields.length || parseArticleMarkdown(initialContent.markdown).sidebarFields) return initialContent.markdown;
+    const sidebar = initialContent.fields.map((field) => `${field.key}: ${field.value.replace(/\s*\n\s*/g, " ")}`).join("\n");
+    return `<Sidebar>\n${sidebar}\n</Sidebar>\n\n${initialContent.markdown}`;
+  });
   const [sections] = useState(initialContent.sections);
   const [sources, setSources] = useState<SourceLink[]>(
     initialContent.sources.length
@@ -76,6 +75,7 @@ export function RevisionEditor({
     initialFormActionState,
   );
   const parsed = useMemo(() => parseArticleMarkdown(markdown), [markdown]);
+  const fields = useMemo(() => parsed.sidebarFields ?? [], [parsed.sidebarFields]);
   const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
   const unusedMetadata = sources.filter((source) => source.url && !parsed.citations.some((citation) => citation.url === source.url || citation.identifier === source.identifier?.toLowerCase()));
 
@@ -139,6 +139,7 @@ export function RevisionEditor({
             <p className="mt-1 text-sm text-muted-foreground">
               The same safe parser and component registry are used for preview and
               publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
+              Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one <code>Label: value</code> per line.
             </p>
           </div>
           <MarkdownHelpDialog />
@@ -205,77 +206,7 @@ export function RevisionEditor({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">Structured fields</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Key facts appropriate to this {formatDisplayLabel(contentType)}{" "}
-              article. Values support inline Markdown, including the flag syntax shown above.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setFields([...fields, { key: "", value: "" }])}
-          >
-            <Plus />
-            Add field
-          </Button>
-        </div>
-        <div className="mt-4 space-y-3">
-          {fields.map((field, index) => (
-            <div
-              key={index}
-              className="grid gap-2 sm:grid-cols-[220px_1fr_auto]"
-            >
-              <Input
-                aria-label={`Field ${index + 1} name`}
-                placeholder="Field name"
-                value={field.key}
-                onChange={(event) =>
-                  setFields(
-                    fields.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? { ...item, key: event.target.value }
-                        : item,
-                    ),
-                  )
-                }
-              />
-              <Input
-                aria-label={`Field ${index + 1} value`}
-                placeholder="Value"
-                value={field.value}
-                onChange={(event) =>
-                  setFields(
-                    fields.map((item, itemIndex) =>
-                      itemIndex === index
-                        ? { ...item, value: event.target.value }
-                        : item,
-                    ),
-                  )
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Remove field"
-                onClick={() =>
-                  setFields(
-                    fields.filter((_, itemIndex) => itemIndex !== index),
-                  )
-                }
-              >
-                <Trash2 />
-              </Button>
-            </div>
-          ))}
-        </div>
-        {fieldErrors.length > 0 && <ul className="mt-3 space-y-1 text-xs text-destructive">{fieldErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
-      </section>
+      {fieldErrors.length > 0 && <ul className="space-y-1 text-xs text-destructive">{fieldErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
 
       <section className="rounded-xl border bg-card p-5 shadow-xs">
         <div className="flex items-center justify-between">
@@ -392,7 +323,7 @@ export function RevisionEditor({
                 formAction={submitFormAction}
                 disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction || primaryPending || submitPending}
               >
-                {submitPending ? "Submitting…" : "Submit for review"}
+                {submitPending ? "Submitting…" : "Submit"}
               </Button>
             </>
           ) : (

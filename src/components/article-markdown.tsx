@@ -66,7 +66,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
       return citation ? <sup key={key} className="ml-0.5 align-super text-[0.72em]"><a href={`#source-${citation.number}`} id={`citation-${citation.number}`} className="font-semibold text-primary hover:underline" aria-label={`Citation ${citation.number}`}>[{citation.number}]</a></sup> : null;
     }
     case "footnoteDefinition": return null;
-    case "table": return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm">{children}</table></div>;
+    case "table": return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm"><tbody>{children}</tbody></table></div>;
     case "tableRow": return <tr key={key} className="border-b last:border-0">{children}</tr>;
     case "tableCell": return <td key={key} className="border-r px-3 py-2.5 align-top last:border-0 first:font-medium">{children}</td>;
     case "mdxJsxFlowElement": return <ArticleBlock key={key} name={node.name as ArticleBlockName} attributes={getBlockAttributes(node)}>{children}</ArticleBlock>;
@@ -75,7 +75,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
   }
 }
 
-export function ArticleMarkdown({ root, citations = [], compact = false }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean }) {
+export function ArticleMarkdown({ root, citations = [], compact = false, hideSidebar = false }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean; hideSidebar?: boolean }) {
   const definitions: Definitions = new Map();
   for (const node of root.children) {
     if (node.type === "definition" && node.identifier && node.url) {
@@ -86,11 +86,12 @@ export function ArticleMarkdown({ root, citations = [], compact = false }: { roo
   const citationMap = new Map(citations.map((citation) => [citation.identifier, citation]));
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   const mainNodes = root.children.filter((node) => !sidebarNodes.includes(node));
+  const showSidebar = !compact && !hideSidebar && sidebarNodes.length > 0;
 
   return (
-    <div className={compact ? "" : sidebarNodes.length ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
+    <div className={compact ? "" : showSidebar ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
       <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, compact))}</article>
-      {!compact && sidebarNodes.length > 0 && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap))}</aside>}
+      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap))}</aside>}
     </div>
   );
 }

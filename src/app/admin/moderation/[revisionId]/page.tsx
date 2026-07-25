@@ -153,9 +153,9 @@ export default async function AdminReviewPage({
             <CardContent>
               {proposed.sources.length ? (
                 <ul className="space-y-3">
-                  {proposed.sources.map((source) => (
+                  {proposed.sources.map((source, index) => (
                     <li
-                      key={source.url}
+                      key={`${source.identifier || source.url}-${index}`}
                       className="rounded-lg border p-3 text-sm"
                     >
                       <a

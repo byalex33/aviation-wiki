@@ -365,7 +365,7 @@ export function PublicArticle({
               This approved revision cannot be rendered safely.
             </p>
           ) : (
-            <ArticleMarkdown root={parsed.root} citations={parsed.citations} />
+            <ArticleMarkdown root={parsed.root} citations={parsed.citations} hideSidebar />
           )}
           <ApprovedRelationships article={article} />
           <ImportedRevisionData revisionId={revision.id} />

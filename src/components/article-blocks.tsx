@@ -61,6 +61,7 @@ export function ArticleBlock({ name, attributes, children }: ArticleBlockProps) 
         data-markdown-children
         className={cn(
           "pt-4 text-sm leading-6 text-foreground/80",
+          name === "Sidebar" && "[&_p]:whitespace-pre-line",
           (name === "FleetTable" || name === "Specifications") && "overflow-x-auto",
           name === "Gallery" && "grid gap-3 [&_p]:m-0 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:rounded-lg [&_img]:object-cover",
           name === "Sources" && "[&_ol]:space-y-2",

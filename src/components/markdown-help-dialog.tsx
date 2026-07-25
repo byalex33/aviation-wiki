@@ -46,6 +46,17 @@ This information may change as new sources become available.
 
 </Notice>`,
   },
+  {
+    title: "Sidebar card",
+    description: "Put the article’s key facts in one Sidebar block. Each line becomes a row in the published sidebar card.",
+    source: `<Sidebar>
+IATA code: A3
+ICAO code: AEE
+Callsign: AEGEAN
+Country: f![gr] Greece
+Status: Active
+</Sidebar>`,
+  },
 ] as const;
 
 function MarkdownExample({ example }: { example: (typeof examples)[number] }) {

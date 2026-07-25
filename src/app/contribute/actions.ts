@@ -17,7 +17,7 @@ import {
 import { reconcileCitationSources } from "@/lib/article-citations";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { UserFacingError } from "@/lib/user-facing-error";
-import { requireContributor, requireModerator } from "@/lib/wiki-auth";
+import { isStaffRole, requireContributor, requireModerator } from "@/lib/wiki-auth";
 import {
   assertArticleEditable as assertPostgresArticleEditable,
   createOrGetArticle as createOrGetPostgresArticle,
@@ -28,6 +28,7 @@ import {
   moderatorEditRevision as moderatorEditPostgresRevision,
   normalizeSlug,
   publishRevision as publishPostgresRevision,
+  recordAdminAudit as recordPostgresAdminAudit,
   saveDraft as savePostgresDraft,
   transitionRevision as transitionPostgresRevision,
   validateRelationships as validatePostgresRelationships,
@@ -77,7 +78,7 @@ function parseContent(
     throw new UserFacingError(
       `The Markdown has ${parsedMarkdown.errors.length} syntax ${parsedMarkdown.errors.length === 1 ? "error" : "errors"}.`,
     );
-  const fields = parseArray<StructuredField>(formData, "fields")
+  const fields = (parsedMarkdown.sidebarFields ?? parseArray<StructuredField>(formData, "fields"))
     .map((field) => ({
       key: String(field.key || "")
         .trim()
@@ -296,6 +297,42 @@ export async function submitRevisionAction(formData: FormData) {
   });
   revalidatePath("/contribute");
   revalidatePath("/moderation");
+  if (isStaffRole(contributor.role)) {
+    const previousLiveRevision =
+      (await getPostgresArticleById(revision.articleId))?.liveRevision || null;
+    const note = "Published directly by staff submitter.";
+    const article = await publishPostgresRevision(
+      revision.id,
+      contributor.userId,
+      note,
+    );
+    const approvedRevision = await getPostgresRevision(revision.id);
+    if (approvedRevision) {
+      const { emitRevisionOutcome } = await import("@/lib/notification-service");
+      await emitRevisionOutcome({
+        actorId: contributor.userId,
+        revision: approvedRevision,
+        outcome: "approved",
+        note,
+        previousLiveRevision,
+      });
+    }
+    await recordPostgresAdminAudit({
+      actorId: contributor.userId,
+      actorName: contributor.name,
+      action: "revision.staff_publish",
+      entityType: "revision",
+      entityId: revision.id,
+      articleId: article.id,
+      revisionId: revision.id,
+      before: { status: "pending_review" },
+      after: { status: "approved", note },
+    });
+    revalidatePath(articlePath(article.contentType, revision.articleSlug));
+    revalidatePath(articlePath(article.contentType, article.slug));
+    revalidatePath(articleHistoryPath(article.contentType, article.slug));
+    redirect(articlePath(article.contentType, article.slug));
+  }
   const returnTo = safeReturnTo(
     formData,
     `/contribute/${revision.articleSlug}`,

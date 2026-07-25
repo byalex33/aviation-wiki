@@ -1,13 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, Plane, Search } from "lucide-react";
+import { ArrowRight, Plane, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatDisplayLabel } from "@/lib/display";
 import type { SearchDocument } from "@/lib/search-types";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
@@ -51,7 +50,6 @@ export default async function Home() {
     if (category)
       categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
   }
-  const featured = documents.find((document) => document.slug === "f-15-eagle") || documents[0];
   return (
     <main className="home-background relative mx-auto max-w-[1200px] overflow-hidden px-5 pb-20 sm:px-6">
       <div className="pointer-events-none absolute inset-0 text-muted-foreground" aria-hidden="true">
@@ -103,26 +101,6 @@ export default async function Home() {
           ))}
         </div>
       </section>
-
-      {featured && <section className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="gap-0 overflow-hidden py-0 shadow-xs">
-          <div className="aircraft-placeholder relative flex aspect-[16/8] items-center justify-center">
-            <Plane className="size-14 -rotate-12 text-muted-foreground/35" strokeWidth={1.25} />
-            <Badge className="absolute left-3.5 top-3.5 rounded-full">Approved article</Badge>
-          </div>
-          <CardContent className="p-6">
-            <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{formatDisplayLabel(featured.contentType)}</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight"><Link href={featured.href}>{featured.title}</Link></h2>
-            <p className="mt-2.5 text-[15px] leading-6 text-muted-foreground">{featured.description}</p>
-            <Link href={featured.href} className={cn(buttonVariants({ variant: "outline", size: "lg" }), "mt-5")}>Read article <ArrowRight data-icon="inline-end" /></Link>
-          </CardContent>
-        </Card>
-
-        <Card className="gap-0 overflow-hidden py-0 shadow-xs">
-          <div className="flex items-center justify-between border-b px-5 py-4"><h2 className="text-[15px] font-semibold">Public data only</h2><BookOpen className="size-4 text-muted-foreground" /></div>
-          <CardContent className="p-5 text-sm leading-6 text-muted-foreground">Search and discovery use only live, approved revisions and verified entity relationships. Drafts, pending work, archives, and private moderation details stay private.</CardContent>
-        </Card>
-      </section>}
     </main>
   );
 }
