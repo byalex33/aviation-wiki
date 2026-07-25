@@ -5,8 +5,6 @@ import {
   FilePenLine,
   History,
   MessageSquareWarning,
-  BookOpenCheck,
-  AlertTriangle,
 } from "lucide-react";
 
 import { ArticleMarkdown } from "@/components/article-markdown";
@@ -16,9 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WatchArticleButton } from "@/components/watch-article-button";
-import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
+import { getArticleHeadings, parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
-import { getSourceHealth } from "@/lib/wiki-public-db";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import type {
   ArticleRecord,
@@ -169,12 +166,12 @@ export function SourceList({
                 href={source.url}
                 target="_blank"
                 rel="noreferrer"
-                className="article-link"
+                className="article-link [overflow-wrap:anywhere]"
               >
                 {sourceTitle(source)}
                 <ExternalLink className="ml-1 inline size-3.5" />
               </a>
-              {source.publisher && <span> — {source.publisher}</span>}
+              {source.publisher && <span>. {source.publisher}</span>}
               {source.accessedAt && (
                 <span>
                   . Accessed{" "}
@@ -211,47 +208,6 @@ export function SourceList({
         </p>
       )}
     </section>
-  );
-}
-
-export async function ArticleSourcePanel({ sources }: { sources: SourceLink[] }) {
-  const health = await getSourceHealth(sources);
-  return (
-    <Card className="gap-0 py-0">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2">
-          <BookOpenCheck className="size-5 text-primary" />
-          <h2 className="font-semibold">Article sources</h2>
-        </div>
-        <p className="mt-3 text-2xl font-bold">{health.citedCount}</p>
-        <p className="text-xs text-muted-foreground">
-          cited {health.citedCount === 1 ? "source" : "sources"}
-        </p>
-        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-          <p>
-            {health.lastReviewedAt
-              ? `Last source review ${new Date(health.lastReviewedAt).toLocaleDateString()}`
-              : "Sources have not been reviewed yet"}
-          </p>
-          {health.broken > 0 && (
-            <p className="flex items-center gap-1.5 text-destructive">
-              <AlertTriangle className="size-3.5" />
-              {health.broken} broken source{" "}
-              {health.broken === 1 ? "warning" : "warnings"}
-            </p>
-          )}
-          {health.stale > 0 && (
-            <p className="flex items-center gap-1.5 text-amber-700">
-              <AlertTriangle className="size-3.5" />
-              {health.stale} stale or unchecked
-            </p>
-          )}
-        </div>
-        <a href="#sources" className="article-link mt-4 inline-block text-sm">
-          View all sources
-        </a>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -300,11 +256,9 @@ export function PublicArticle({
   signedIn: boolean;
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
-  const publicSources = citedSources(parsed.citations, revision.sources).map(
-    ({ source }) => source,
-  );
+  const headings = getArticleHeadings(parsed.root);
   return (
-    <main className="mx-auto max-w-[1180px] px-5 pb-20 pt-8 sm:px-6">
+    <main className="mx-auto max-w-[1380px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="mb-7 text-sm text-muted-foreground">
         <Link href="/" className="article-link">
           aviation.wiki
@@ -325,7 +279,23 @@ export function PublicArticle({
       <div className="mt-5">
         <ArticleMetadata revision={revision} />
       </div>
-      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className={`mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] ${headings.length ? "xl:grid-cols-[190px_minmax(0,1fr)_320px]" : ""}`}>
+        {headings.length > 0 && (
+          <aside className="hidden xl:sticky xl:top-20 xl:block">
+            <nav aria-label="On this page">
+              <p className="text-sm font-semibold">On this page</p>
+              <ul className="mt-3 space-y-2 border-l text-sm text-muted-foreground">
+                {headings.map((heading) => (
+                  <li key={heading.id} className={heading.depth === 3 ? "pl-6" : "pl-3"}>
+                    <a href={`#${heading.id}`} className="block leading-5 hover:text-primary">
+                      {heading.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </aside>
+        )}
         <div className="min-w-0">
           {parsed.errors.length ? (
             <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -344,7 +314,6 @@ export function PublicArticle({
             contentType={revision.contentType}
             fields={revision.fields}
           />
-          <ArticleSourcePanel sources={publicSources} />
         </aside>
       </div>
     </main>

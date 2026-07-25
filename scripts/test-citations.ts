@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
+import { getArticleHeadings, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
 assert.deepEqual(valid.errors, []);
@@ -45,5 +45,12 @@ assert.deepEqual(sidebar.sidebarFields, [
   { key: "Status", value: "Active" },
 ]);
 assert.match(parseArticleMarkdown("<Sidebar>\nBroken field\n</Sidebar>").errors[0]?.message || "", /Label: value/);
+
+const headings = getArticleHeadings(parseArticleMarkdown("## Fleet\n\n### Current fleet\n\n## Fleet").root);
+assert.deepEqual(headings.map(({ id, text, depth }) => ({ id, text, depth })), [
+  { id: "section-fleet", text: "Fleet", depth: 2 },
+  { id: "section-current-fleet", text: "Current fleet", depth: 3 },
+  { id: "section-fleet-2", text: "Fleet", depth: 2 },
+]);
 
 console.log("Citation parser tests passed");

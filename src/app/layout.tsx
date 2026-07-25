@@ -27,7 +27,7 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "aviation.wiki", template: "%s — aviation.wiki" },
+  title: { default: "aviation.wiki", template: "%s | aviation.wiki" },
   description:
     "The free encyclopedia of aircraft, engines, airports, and aviation history.",
 };
@@ -70,7 +70,7 @@ export default function RootLayout({
               >
                 <AviationLogo className="size-7" />
                 <span>
-                  aviation<span className="text-primary">.wiki</span>
+                  Aviation<span className="text-primary">.wiki</span>
                 </span>
               </Link>
               <div className="absolute left-1/2 hidden w-[min(36vw,440px)] -translate-x-1/2 md:block">

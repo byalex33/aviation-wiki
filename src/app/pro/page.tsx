@@ -93,7 +93,7 @@ export default function ProPage() {
           <Link href="/" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "mt-9 h-11 w-full")}>Continue with Free</Link>
         </article>
 
-        <article className="relative flex flex-col rounded-[1.75rem] border border-primary/40 bg-card p-7 shadow-2xl shadow-primary/10 ring-1 ring-primary/15 sm:p-9">
+        <article className="pro-card relative flex flex-col rounded-[1.75rem] border border-primary/40 bg-card p-7 shadow-2xl shadow-primary/10 ring-1 ring-primary/15 sm:p-9">
           <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
           <div className="flex items-center justify-between gap-4">
             <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"><Crown className="size-6" /></span>

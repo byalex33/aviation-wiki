@@ -41,7 +41,7 @@ export const f15Article: RevisionContent & { slug: string } = {
     { heading: "Operational history", body: "Entering U.S. service in 1976, the Eagle became the backbone of American air defense and has been exported to several allied nations. It saw extensive combat from the 1980s onward." },
   ],
   sources: [
-    { label: "United States Air Force — F-15 Eagle Fact Sheet", url: "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104501/f-15-eagle/" },
+    { label: "United States Air Force: F-15 Eagle Fact Sheet", url: "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104501/f-15-eagle/" },
   ],
   relationships: [],
 };

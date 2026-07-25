@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { ArticleBlock } from "@/components/article-blocks";
-import { getBlockAttributes, resolveFlagCode, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
+import { getArticleHeadings, getBlockAttributes, resolveFlagCode, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
 import { cn } from "@/lib/utils";
 
 type Definitions = Map<string, { url: string; title?: string | null }>;
@@ -19,19 +19,19 @@ function renderText(value: string, key: string, compact: boolean) {
   });
 }
 
-function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, compact: boolean): ReactNode {
-  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, compact));
+function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact: boolean): ReactNode {
+  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, headingIds, compact));
 }
 
-function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, compact = false): ReactNode {
-  const children = renderChildren(node, definitions, citations, compact);
+function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact = false): ReactNode {
+  const children = renderChildren(node, definitions, citations, headingIds, compact);
   switch (node.type) {
     case "text": return renderText(node.value ?? "", key, compact);
     case "paragraph": return <p key={key} className={compact ? "leading-normal" : "mb-4 leading-7 text-foreground/80"}>{children}</p>;
     case "heading": {
       const Heading = `h${node.depth}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
-      return <Heading key={key} className={cn(
-        "mb-3 mt-8 font-bold tracking-tight first:mt-0",
+      return <Heading key={key} id={headingIds.get(node)} className={cn(
+        "mb-3 mt-8 scroll-mt-24 font-bold tracking-tight first:mt-0",
         node.depth === 1 && "text-3xl",
         node.depth === 2 && "text-2xl",
         node.depth === 3 && "text-xl",
@@ -84,14 +84,15 @@ export function ArticleMarkdown({ root, citations = [], compact = false, hideSid
   }
 
   const citationMap = new Map(citations.map((citation) => [citation.identifier, citation]));
+  const headingIds = new Map(getArticleHeadings(root).map((heading) => [heading.node, heading.id]));
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   const mainNodes = root.children.filter((node) => !sidebarNodes.includes(node));
   const showSidebar = !compact && !hideSidebar && sidebarNodes.length > 0;
 
   return (
     <div className={compact ? "" : showSidebar ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
-      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, compact))}</article>
-      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap))}</aside>}
+      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, headingIds, compact))}</article>
+      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, headingIds))}</aside>}
     </div>
   );
 }

@@ -58,7 +58,7 @@ export default async function AdminAuditPage() {
                               null,
                               2,
                             )
-                          : "—"}
+                          : "Not available"}
                       </pre>
                       <pre className="overflow-auto whitespace-pre-wrap">
                         After\n
@@ -68,7 +68,7 @@ export default async function AdminAuditPage() {
                               null,
                               2,
                             )
-                          : "—"}
+                          : "Not available"}
                       </pre>
                     </div>
                   </details>

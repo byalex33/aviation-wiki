@@ -37,6 +37,13 @@ export type MarkdownRoot = MarkdownNode & { type: "root"; children: MarkdownNode
 
 export type SidebarField = { key: string; value: string };
 
+export type ArticleHeading = {
+  node: MarkdownNode;
+  id: string;
+  text: string;
+  depth: 2 | 3;
+};
+
 export type MarkdownError = {
   line: number;
   column: number;
@@ -105,6 +112,24 @@ export function getBlockAttributes(node: MarkdownNode) {
   return Object.fromEntries(
     (node.attributes ?? []).map((attribute) => [attribute.name ?? "", String(attribute.value ?? "")]),
   );
+}
+
+function markdownText(node: MarkdownNode): string {
+  return node.value ?? node.alt ?? node.children?.map(markdownText).join("") ?? "";
+}
+
+export function getArticleHeadings(root: MarkdownRoot): ArticleHeading[] {
+  const counts = new Map<string, number>();
+  return root.children.flatMap((node) => {
+    if (node.type !== "heading" || (node.depth !== 2 && node.depth !== 3)) return [];
+    const text = markdownText(node).trim();
+    if (!text) return [];
+    const slug = text.toLocaleLowerCase("en").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    const base = `section-${slug || "section"}`;
+    const count = (counts.get(base) ?? 0) + 1;
+    counts.set(base, count);
+    return [{ node, id: count === 1 ? base : `${base}-${count}`, text, depth: node.depth }];
+  });
 }
 
 export function parseArticleMarkdown(source: string): { root: MarkdownRoot; errors: MarkdownError[]; warnings: MarkdownWarning[]; citations: Citation[]; sidebarFields: SidebarField[] | null } {
