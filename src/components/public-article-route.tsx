@@ -30,6 +30,10 @@ export async function PublicArticleRoute({
   params: Promise<{ slug: string }>;
   contentType: ContentType;
 }) {
+  // Initialize Clerk's request context before Next can transfer rendering to a
+  // not-found boundary. Calling auth() after notFound() branches may lose the
+  // middleware chain when Next renders the boundary as an internal /_not-found.
+  const session = await auth();
   const slug = normalizeSlug((await params).slug);
   if (!slug) notFound();
   const controls = await getArticlePublicationControls(contentType, slug);
@@ -43,7 +47,6 @@ export async function PublicArticleRoute({
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     return <MissingArticleState slug={slug} contentType={contentType} />;
-  const session = await auth();
   const watching = session.userId
     ? await isWatchingArticle(session.userId, article.id)
     : false;

@@ -7,7 +7,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { moderateRevisionAction } from "@/app/contribute/actions";
+import { moderateRevisionFormAction } from "@/app/contribute/actions";
+import { ActionForm } from "@/components/action-form";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDisplayLabel } from "@/lib/display";
 import { sourceTitle } from "@/lib/article-citations";
 import { isModerator } from "@/lib/wiki-auth";
-import { getArticleBySlug, getRevision } from "@/lib/wiki-db";
+import { getArticleBySlug, getRevision } from "@/lib/wiki-public-db";
 
 export default async function ModeratorReviewPage({
   params,
@@ -24,9 +25,9 @@ export default async function ModeratorReviewPage({
   params: Promise<{ revisionId: string }>;
 }) {
   if (!(await isModerator())) notFound();
-  const revision = getRevision((await params).revisionId);
+  const revision = await getRevision((await params).revisionId);
   if (!revision) notFound();
-  const article = getArticleBySlug(revision.articleSlug, revision.contentType);
+  const article = await getArticleBySlug(revision.articleSlug, revision.contentType);
   const verification = revision.verification;
   return (
     <main className="mx-auto max-w-[1150px] px-5 pb-20 pt-8 sm:px-6">
@@ -150,7 +151,7 @@ export default async function ModeratorReviewPage({
           <Card className="gap-0 py-0">
             <CardContent className="p-5">
               <h2 className="font-semibold">Decision</h2>
-              <form action={moderateRevisionAction} className="mt-4 space-y-3">
+              <ActionForm action={moderateRevisionFormAction} className="mt-4 space-y-3">
                 <input type="hidden" name="revisionId" value={revision.id} />
                 <Textarea
                   name="moderatorNote"
@@ -189,7 +190,7 @@ export default async function ModeratorReviewPage({
                 >
                   Reject
                 </Button>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
         </aside>

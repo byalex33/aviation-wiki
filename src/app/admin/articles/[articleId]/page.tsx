@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 
 import {
   restoreArticleRevisionAction,
-  updateArticleAction,
+  updateArticleFormAction,
 } from "@/app/admin/actions";
+import { ActionForm } from "@/components/action-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,7 @@ export default async function AdminArticlePage({
             <CardTitle>Page controls</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={updateArticleAction} className="space-y-5">
+            <ActionForm action={updateArticleFormAction} className="space-y-5">
               <input
                 type="hidden"
                 name="articleId"
@@ -101,7 +102,7 @@ export default async function AdminArticlePage({
               >
                 Save page controls
               </ConfirmSubmitButton>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
         <Card>

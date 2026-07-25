@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { Eye, Plus, Trash2 } from "lucide-react";
 
 import { ArticleMarkdown } from "@/components/article-markdown";
+import { MarkdownHelpDialog } from "@/components/markdown-help-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { contentTypes, type EntityOption, type EntityRelationship, type RevisionContent, type SourceLink } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
+import {
+  initialFormActionState,
+  type FormActionState,
+} from "@/lib/form-action-state";
 import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { allowedRelationshipTypes, relationshipLabels, relationshipTargetType } from "@/lib/relationship-rules";
 
@@ -21,10 +26,19 @@ type RevisionEditorProps = {
   initialSummary?: string;
   mode?: "contributor" | "moderator";
   returnTo?: string;
-  saveAction?: (formData: FormData) => void | Promise<void>;
-  submitAction?: (formData: FormData) => void | Promise<void>;
-  moderatorAction?: (formData: FormData) => void | Promise<void>;
+  saveAction?: FormStateAction;
+  submitAction?: FormStateAction;
+  moderatorAction?: FormStateAction;
 };
+
+type FormStateAction = (
+  previousState: FormActionState,
+  formData: FormData,
+) => Promise<FormActionState>;
+
+async function unavailableAction(): Promise<FormActionState> {
+  return { error: "This action is not available." };
+}
 
 export function RevisionEditor({
   slug,
@@ -53,13 +67,21 @@ export function RevisionEditor({
       : [{ identifier: "", title: "", publisher: "", url: "", accessedAt: "", archiveUrl: "" }],
   );
   const [relationships, setRelationships] = useState<EntityRelationship[]>(initialContent.relationships || []);
+  const [primaryState, primaryAction, primaryPending] = useActionState(
+    (mode === "moderator" ? moderatorAction : saveAction) ?? unavailableAction,
+    initialFormActionState,
+  );
+  const [submitState, submitFormAction, submitPending] = useActionState(
+    submitAction ?? unavailableAction,
+    initialFormActionState,
+  );
   const parsed = useMemo(() => parseArticleMarkdown(markdown), [markdown]);
   const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
   const unusedMetadata = sources.filter((source) => source.url && !parsed.citations.some((citation) => citation.url === source.url || citation.identifier === source.identifier?.toLowerCase()));
 
   return (
     <form
-      action={mode === "moderator" ? moderatorAction : saveAction}
+      action={primaryAction}
       className="space-y-8"
     >
       <input type="hidden" name="markdown" value={markdown} />
@@ -111,12 +133,15 @@ export function RevisionEditor({
       </section>
 
       <section className="overflow-hidden rounded-xl border bg-card shadow-xs">
-        <div className="border-b p-5">
-          <h2 className="font-semibold">Article Markdown</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The same safe parser and component registry are used for preview and
-            publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">
+          <div>
+            <h2 className="font-semibold">Article Markdown</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The same safe parser and component registry are used for preview and
+              publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
+            </p>
+          </div>
+          <MarkdownHelpDialog />
         </div>
         <div className="grid lg:grid-cols-2">
           <div className="border-b p-5 lg:border-b-0 lg:border-r">
@@ -343,27 +368,36 @@ export function RevisionEditor({
             maxLength={500}
           />
         </label>
+        {(primaryState.error || submitState.error) && (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {submitState.error || primaryState.error}
+          </p>
+        )}
         <div className="mt-5 flex flex-wrap justify-end gap-3">
           {mode === "contributor" ? (
             <>
               <Button
                 type="submit"
                 variant="outline"
-                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !saveAction}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !saveAction || primaryPending || submitPending}
               >
-                Save draft
+                {primaryPending ? "Saving…" : "Save draft"}
               </Button>
               <Button
                 type="submit"
-                formAction={submitAction}
-                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction}
+                formAction={submitFormAction}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction || primaryPending || submitPending}
               >
-                Submit for review
+                {submitPending ? "Submitting…" : "Submit for review"}
               </Button>
             </>
           ) : (
-            <Button type="submit" disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !moderatorAction}>
-              Save edits and approve
+            <Button type="submit" disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !moderatorAction || primaryPending}>
+              {primaryPending ? "Saving and approving…" : "Save edits and approve"}
             </Button>
           )}
         </div>

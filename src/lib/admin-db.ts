@@ -1,22 +1,12 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
 
 // The core schema and versioned migrations must exist before admin extensions.
 import "@/lib/wiki-db";
+import { db } from "@/lib/sqlite";
 import type { ContentType, SourceLink } from "@/lib/wiki-types";
 import type { ImportPreview } from "@/lib/import-types";
-
-const databasePath =
-  process.env.AVIATION_WIKI_DB_PATH ||
-  path.join(process.cwd(), ".data", "aviation-wiki.db");
-mkdirSync(path.dirname(databasePath), { recursive: true });
-const db = new Database(databasePath, { timeout: 5_000 });
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS contributor_profiles (

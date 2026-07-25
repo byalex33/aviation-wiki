@@ -138,7 +138,7 @@ const after = db
 assert.equal(
   after,
   before + 1,
-  "the SSE polling signal changes when a notification arrives",
+  "the polling response changes when a notification arrives",
 );
 
 db.prepare(
@@ -157,5 +157,5 @@ assert.throws(
 
 db.close();
 console.log(
-  "Notification, real-time signal, email preference, scoping, and deduplication checks passed.",
+  "Notification polling, email preference, scoping, and deduplication checks passed.",
 );

@@ -1,9 +1,6 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
 
 import {
   notificationTypes,
@@ -12,14 +9,7 @@ import {
   type NotificationRecord,
   type NotificationType,
 } from "@/lib/notification-types";
-
-const databasePath =
-  process.env.AVIATION_WIKI_DB_PATH ||
-  path.join(process.cwd(), ".data", "aviation-wiki.db");
-mkdirSync(path.dirname(databasePath), { recursive: true });
-const db = new Database(databasePath, { timeout: 5_000 });
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+import { db } from "@/lib/sqlite";
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS notifications (

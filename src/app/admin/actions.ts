@@ -6,6 +6,10 @@ import { redirect } from "next/navigation";
 
 import { listAllClerkUsers } from "@/lib/admin-users";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import {
+  formActionError,
+  type FormActionState,
+} from "@/lib/form-action-state";
 import { verifyRevision } from "@/lib/gemini-verification";
 import {
   requireAdmin,
@@ -190,6 +194,18 @@ export async function updateArticleAction(formData: FormData) {
       slug,
     ),
   );
+}
+
+export async function updateArticleFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await updateArticleAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
 }
 
 export async function restoreArticleRevisionAction(formData: FormData) {

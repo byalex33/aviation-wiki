@@ -560,6 +560,22 @@ export async function transitionRevision(id: string, actorId: string, toStatus: 
   return revision;
 }
 
+export async function listReviewQueue() {
+  await ready();
+  return (await rows<RevisionRow>(`${revisionSelect} WHERE r.status IN ('verifying','pending_review') ORDER BY r.submitted_at ASC,r.updated_at ASC`)).map(mapRevision);
+}
+
+export async function moderatorEditRevision(id: string, content: RevisionContent, proposedSlug: string, editSummary: string, moderatorId: string) {
+  await ready();
+  const now = new Date();
+  const updated = await sql`UPDATE revisions SET title=${content.title},content_type=${content.contentType},markdown=${content.markdown},fields_json=${sql.json(content.fields)},sections_json=${sql.json(content.sections)},sources_json=${sql.json(content.sources)},relationships_json=${sql.json(content.relationships)},proposed_slug=${proposedSlug},edit_summary=${editSummary},moderator_id=${moderatorId},updated_at=${now} WHERE id=${id} AND status IN ('pending_review','verifying') RETURNING id`;
+  if (updated.length !== 1) throw new Error("Revision is not awaiting review.");
+  await sql`DELETE FROM revision_import_field_sources s WHERE s.revision_id=${id} AND NOT EXISTS (SELECT 1 FROM jsonb_to_recordset(${sql.json(content.fields)}::jsonb) AS f(key text,value text) WHERE f.key=s.field_key AND f.value=s.field_value)`;
+  const revision = await getRevision(id);
+  if (!revision) throw new Error("Revision not found.");
+  return revision;
+}
+
 export async function publishRevision(id: string, moderatorId: string, note?: string | null) {
   const revision = await getRevision(id);
   if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new Error("This revision is no longer awaiting review.");

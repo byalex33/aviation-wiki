@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDisplayLabel } from "@/lib/display";
 import type { SearchDocument } from "@/lib/search-types";
+import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 const categories = [
   { name: "Commercial", description: "Airlines, flag carriers & low-cost operators", glyph: "AIR", href: "/commercial" },
@@ -43,10 +44,6 @@ const commercialTailLogos = [
 ];
 
 export default async function Home() {
-  // ponytail: local SQLite fallback; use DATABASE_URL when shared Postgres data matters.
-  const { listPublicSearchDocuments } = process.env.DATABASE_URL
-    ? await import("@/lib/wiki-public-db")
-    : await import("@/lib/wiki-db");
   const documents = await listPublicSearchDocuments();
   const categoryCounts = new Map<string, number>();
   for (const document of documents) {

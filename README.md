@@ -47,4 +47,4 @@ Moderator access is granted through Clerk user public metadata:
 
 Gemini verification is advisory and requires the server-only `GEMINI_API_KEY` variable. It stores claim/source checks for moderators but has no publishing authority. Copy `.env.example` for the complete environment contract.
 
-Public article and search data use Neon Postgres through the server-only `DATABASE_URL` variable. Local SQLite remains available for the legacy moderation test harness while those authenticated write paths are migrated.
+Public article and search data use Neon Postgres through the server-only `DATABASE_URL` variable. Local SQLite remains available for the legacy moderation test harness while those authenticated write paths are migrated. On Vercel, unset `AVIATION_WIKI_DB_PATH` uses writable `/tmp` storage to prevent import-time filesystem failures; that SQLite data is ephemeral and must not be treated as durable.

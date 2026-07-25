@@ -1,9 +1,6 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
 
 import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
@@ -12,13 +9,7 @@ import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption,
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { articlePath } from "@/lib/article-routes";
 import type { ImportField, ImportImage, ImportProviderId } from "@/lib/import-types";
-
-const databasePath = process.env.AVIATION_WIKI_DB_PATH || path.join(process.cwd(), ".data", "aviation-wiki.db");
-mkdirSync(path.dirname(databasePath), { recursive: true });
-
-const db = new Database(databasePath, { timeout: 5_000 });
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+import { db } from "@/lib/sqlite";
 db.exec(`
   CREATE TABLE IF NOT EXISTS articles (
     id TEXT PRIMARY KEY,

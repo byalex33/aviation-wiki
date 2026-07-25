@@ -3,7 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { SignInButton } from "@clerk/nextjs";
 import { FilePlus2, PencilLine } from "lucide-react";
 
-import { startArticleAction } from "@/app/contribute/actions";
+import { startArticleFormAction } from "@/app/contribute/actions";
+import { ActionForm } from "@/components/action-form";
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -99,7 +100,7 @@ export default async function ContributePage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Use this only when an article does not already exist.
             </p>
-            <form action={startArticleAction} className="mt-5 space-y-4">
+            <ActionForm action={startArticleFormAction} className="mt-5 space-y-4">
               <label className="grid gap-2 text-sm font-medium">
                 Title
                 <Input name="title" required placeholder="Article title" />
@@ -129,7 +130,7 @@ export default async function ContributePage() {
               <Button type="submit" className="w-full">
                 Create this article
               </Button>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>

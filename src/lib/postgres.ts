@@ -74,6 +74,84 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS article_slug_redirects (content_type text NOT NULL, old_slug text NOT NULL, article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY(content_type,old_slug));
     CREATE TABLE IF NOT EXISTS article_relationships (source_article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, target_article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, relationship_type text NOT NULL, approved_revision_id text NOT NULL REFERENCES revisions(id), created_at timestamptz NOT NULL, PRIMARY KEY(source_article_id,relationship_type,target_article_id), CHECK(source_article_id<>target_article_id));
     CREATE INDEX IF NOT EXISTS article_relationships_target_idx ON article_relationships(target_article_id,relationship_type);
+    DO $migration$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'article_relationships'::regclass
+          AND conname = 'article_relationships_type_check'
+      ) THEN
+        ALTER TABLE article_relationships
+          ADD CONSTRAINT article_relationships_type_check
+          CHECK (relationship_type IN (
+            'operates_aircraft',
+            'hub_at_airport',
+            'manufactured_by',
+            'uses_engine',
+            'variant_of',
+            'located_in_country',
+            'produces_aircraft',
+            'produces_engine'
+          ));
+      END IF;
+    END
+    $migration$;
+    CREATE OR REPLACE FUNCTION validate_article_relationship_insert()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $relationship_guard$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM articles source
+        JOIN articles target
+          ON target.id = NEW.target_article_id
+        JOIN revisions target_revision
+          ON target_revision.id = target.live_revision_id
+        JOIN revisions approved_revision
+          ON approved_revision.id = NEW.approved_revision_id
+        WHERE source.id = NEW.source_article_id
+          AND target_revision.status = 'approved'
+          AND target.archived_at IS NULL
+          AND approved_revision.article_id = source.id
+          AND approved_revision.status = 'approved'
+          AND (
+            (NEW.relationship_type = 'operates_aircraft' AND source.content_type = 'airline' AND target.content_type = 'aircraft')
+            OR (NEW.relationship_type = 'hub_at_airport' AND source.content_type = 'airline' AND target.content_type = 'airport')
+            OR (NEW.relationship_type = 'manufactured_by' AND source.content_type = 'aircraft' AND target.content_type = 'manufacturer')
+            OR (NEW.relationship_type = 'uses_engine' AND source.content_type = 'aircraft' AND target.content_type = 'engine')
+            OR (NEW.relationship_type = 'variant_of' AND source.content_type = 'aircraft' AND target.content_type = 'aircraft')
+            OR (NEW.relationship_type = 'located_in_country' AND source.content_type = 'airport' AND target.content_type = 'country')
+            OR (NEW.relationship_type = 'produces_aircraft' AND source.content_type = 'manufacturer' AND target.content_type = 'aircraft')
+            OR (NEW.relationship_type = 'produces_engine' AND source.content_type = 'manufacturer' AND target.content_type = 'engine')
+          )
+      ) THEN
+        RAISE EXCEPTION 'invalid or unverified relationship'
+          USING ERRCODE = '23514';
+      END IF;
+      RETURN NEW;
+    END
+    $relationship_guard$;
+    DROP TRIGGER IF EXISTS relationships_insert_guard ON article_relationships;
+    CREATE TRIGGER relationships_insert_guard
+      BEFORE INSERT ON article_relationships
+      FOR EACH ROW
+      EXECUTE FUNCTION validate_article_relationship_insert();
+    CREATE OR REPLACE FUNCTION reject_article_relationship_update()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $relationship_update_guard$
+    BEGIN
+      RAISE EXCEPTION 'published relationships are immutable; replace them through an approved revision'
+        USING ERRCODE = '55000';
+    END
+    $relationship_update_guard$;
+    DROP TRIGGER IF EXISTS relationships_update_guard ON article_relationships;
+    CREATE TRIGGER relationships_update_guard
+      BEFORE UPDATE ON article_relationships
+      FOR EACH ROW
+      EXECUTE FUNCTION reject_article_relationship_update();
     CREATE TABLE IF NOT EXISTS article_external_identifiers (provider text NOT NULL, source_identifier text NOT NULL, article_id text NOT NULL REFERENCES articles(id), created_at timestamptz NOT NULL, PRIMARY KEY(provider,source_identifier));
     CREATE TABLE IF NOT EXISTS import_history (id text PRIMARY KEY, actor_id text NOT NULL, actor_name text NOT NULL, provider text NOT NULL, source_identifiers_json jsonb NOT NULL, article_id text NOT NULL REFERENCES articles(id), revision_id text NOT NULL REFERENCES revisions(id), created_at timestamptz NOT NULL);
     CREATE TABLE IF NOT EXISTS revision_import_field_sources (revision_id text NOT NULL REFERENCES revisions(id) ON DELETE CASCADE, field_key text NOT NULL, field_value text NOT NULL, provider text NOT NULL, source_identifier text NOT NULL, source_urls_json jsonb NOT NULL, PRIMARY KEY(revision_id,field_key));
@@ -86,6 +164,7 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS notification_preferences (user_id text PRIMARY KEY, email_frequency text NOT NULL DEFAULT 'in_app', enabled_types_json jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL);
     CREATE TABLE IF NOT EXISTS article_watches (user_id text NOT NULL, article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY(user_id,article_id));
     CREATE TABLE IF NOT EXISTS notification_email_deliveries (id text PRIMARY KEY, notification_id text NOT NULL UNIQUE REFERENCES notifications(id) ON DELETE CASCADE, user_id text NOT NULL, status text NOT NULL, provider_message_id text, failure_reason text, retry_count integer NOT NULL DEFAULT 0, next_attempt_at timestamptz, created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL);
+    CREATE TABLE IF NOT EXISTS request_rate_limits (scope text NOT NULL, subject text NOT NULL, window_started_at timestamptz NOT NULL, request_count integer NOT NULL, PRIMARY KEY(scope,subject));
   `);
 }
 

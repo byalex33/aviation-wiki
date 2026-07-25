@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Menu } from "@base-ui/react/menu";
 import { Bell } from "lucide-react";
@@ -10,28 +10,51 @@ import type { NotificationRecord } from "@/lib/notification-types";
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [items, setItems] = useState<NotificationRecord[]>([]);
+  const requestRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/notifications", { cache: "no-store" });
-    if (!response.ok) return;
-    const data = (await response.json()) as {
-      unreadCount: number;
-      items: NotificationRecord[];
-    };
-    setUnreadCount(data.unreadCount);
-    setItems(data.items);
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+
+    try {
+      const response = await fetch("/api/notifications", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        unreadCount: number;
+        items: NotificationRecord[];
+      };
+      setUnreadCount(data.unreadCount);
+      setItems(data.items);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        console.error("Failed to refresh notifications", error);
+      }
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
-    const events = new EventSource("/api/notifications?stream=1");
-    events.addEventListener("notifications", (event) => {
-      const data = JSON.parse((event as MessageEvent).data) as {
-        unreadCount: number;
-      };
-      setUnreadCount(data.unreadCount);
-      void refresh();
-    });
-    return () => events.close();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+
+    refreshWhenVisible();
+    const timer = window.setInterval(refreshWhenVisible, 30_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      requestRef.current?.abort();
+      requestRef.current = null;
+    };
   }, [refresh]);
 
   return (

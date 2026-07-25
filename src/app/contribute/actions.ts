@@ -6,6 +6,10 @@ import { redirect } from "next/navigation";
 import { verifyRevision } from "@/lib/gemini-verification";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import {
+  formActionError,
+  type FormActionState,
+} from "@/lib/form-action-state";
+import {
   isSafeCitationUrl,
   parseArticleMarkdown,
   parseStructuredFieldMarkdown,
@@ -19,7 +23,9 @@ import {
   getArticleBySlug as getPostgresArticleBySlug,
   getContributorRestriction as getPostgresContributorRestriction,
   getRevision as getPostgresRevision,
+  moderatorEditRevision as moderatorEditPostgresRevision,
   normalizeSlug,
+  publishRevision as publishPostgresRevision,
   saveDraft as savePostgresDraft,
   transitionRevision as transitionPostgresRevision,
   validateRelationships as validatePostgresRelationships,
@@ -227,6 +233,18 @@ export async function startArticleAction(formData: FormData) {
   );
 }
 
+export async function startArticleFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await startArticleAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
+}
+
 export async function saveDraftAction(formData: FormData) {
   const revision = await persistFromForm(formData);
   revalidatePath("/contribute");
@@ -235,6 +253,18 @@ export async function saveDraftAction(formData: FormData) {
     `/contribute/${revision.articleSlug}`,
   );
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`);
+}
+
+export async function saveDraftFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await saveDraftAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
 }
 
 export async function submitRevisionAction(formData: FormData) {
@@ -254,11 +284,22 @@ export async function submitRevisionAction(formData: FormData) {
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}submitted=1`);
 }
 
+export async function submitRevisionFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await submitRevisionAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
+}
+
 export async function moderateRevisionAction(formData: FormData) {
   const moderator = await requireModerator();
-  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, publishRevision, transitionRevision }, { emitRevisionOutcome }] = await Promise.all([
+  const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
     import("@/lib/admin-db"),
-    import("@/lib/wiki-db"),
     import("@/lib/notification-service"),
   ]);
   const revisionId = String(formData.get("revisionId") || "");
@@ -266,29 +307,29 @@ export async function moderateRevisionAction(formData: FormData) {
   const note = String(formData.get("moderatorNote") || "")
     .trim()
     .slice(0, 2000);
-  const revision = getRevision(revisionId);
+  const revision = await getPostgresRevision(revisionId);
   if (!revision || !["pending_review", "verifying"].includes(revision.status))
     throw new Error("This revision is not awaiting review.");
-  assertArticleEditable(revision.articleId, moderator.role);
+  await assertPostgresArticleEditable(revision.articleId, moderator.role);
   const beforeStatus = revision.status;
   const previousLiveRevision =
-    getArticleById(revision.articleId)?.liveRevision || null;
+    (await getPostgresArticleById(revision.articleId))?.liveRevision || null;
   if (intent === "approve")
-    publishRevision(revisionId, moderator.userId, note || null);
+    await publishPostgresRevision(revisionId, moderator.userId, note || null);
   else if (intent === "request_changes") {
     if (!note) throw new Error("Explain the requested changes.");
-    transitionRevision(revisionId, moderator.userId, "changes_requested", {
+    await transitionPostgresRevision(revisionId, moderator.userId, "changes_requested", {
       note,
       moderator: true,
     });
   } else if (intent === "reject") {
     if (!note) throw new Error("Explain why the revision was rejected.");
-    transitionRevision(revisionId, moderator.userId, "rejected", {
+    await transitionPostgresRevision(revisionId, moderator.userId, "rejected", {
       note,
       moderator: true,
     });
   } else throw new Error("Invalid moderation action.");
-  const moderatedRevision = getRevision(revisionId);
+  const moderatedRevision = await getPostgresRevision(revisionId);
   if (moderatedRevision)
     await emitRevisionOutcome({
       actorId: moderator.userId,
@@ -311,7 +352,7 @@ export async function moderateRevisionAction(formData: FormData) {
     articleId: revision.articleId,
     revisionId,
     before: { status: beforeStatus },
-    after: { status: getRevision(revisionId)?.status, note },
+    after: { status: (await getPostgresRevision(revisionId))?.status, note },
   });
   revalidatePath("/moderation");
   revalidatePath(articlePath(revision.contentType, revision.articleSlug));
@@ -322,11 +363,22 @@ export async function moderateRevisionAction(formData: FormData) {
   redirect("/moderation");
 }
 
+export async function moderateRevisionFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await moderateRevisionAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
+}
+
 export async function editAndApproveAction(formData: FormData) {
   const moderator = await requireModerator();
-  const [{ assertArticleEditable, recordAdminAudit }, { getArticleById, getRevision, moderatorEditRevision, publishRevision, validateRelationships }, { emitRevisionOutcome }] = await Promise.all([
+  const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
     import("@/lib/admin-db"),
-    import("@/lib/wiki-db"),
     import("@/lib/notification-service"),
   ]);
   const revisionId = String(formData.get("revisionId") || "");
@@ -335,12 +387,12 @@ export async function editAndApproveAction(formData: FormData) {
     .trim()
     .slice(0, 500);
   const proposedSlug = normalizeSlug(String(formData.get("slug") || ""));
-  const before = getRevision(revisionId);
+  const before = await getPostgresRevision(revisionId);
   if (!before) throw new Error("Revision not found.");
-  assertArticleEditable(before.articleId, moderator.role);
+  await assertPostgresArticleEditable(before.articleId, moderator.role);
   const previousLiveRevision =
-    getArticleById(before.articleId)?.liveRevision || null;
-  validateRelationships(
+    (await getPostgresArticleById(before.articleId))?.liveRevision || null;
+  await validatePostgresRelationships(
     before.articleId,
     content.contentType,
     content.relationships,
@@ -350,19 +402,19 @@ export async function editAndApproveAction(formData: FormData) {
       ),
     ),
   );
-  moderatorEditRevision(
+  await moderatorEditPostgresRevision(
     revisionId,
     content,
     proposedSlug,
     editSummary || "Moderator edits before approval",
     moderator.userId,
   );
-  const article = publishRevision(
+  const article = await publishPostgresRevision(
     revisionId,
     moderator.userId,
     "Edited and approved by moderator.",
   );
-  const approvedRevision = getRevision(revisionId);
+  const approvedRevision = await getPostgresRevision(revisionId);
   if (approvedRevision)
     await emitRevisionOutcome({
       actorId: moderator.userId,
@@ -380,12 +432,24 @@ export async function editAndApproveAction(formData: FormData) {
     articleId: article.id,
     revisionId,
     before,
-    after: getRevision(revisionId),
+    after: await getPostgresRevision(revisionId),
   });
   revalidatePath(articlePath(article.contentType, article.slug));
   revalidatePath(articleHistoryPath(article.contentType, article.slug));
   revalidatePath("/moderation");
   redirect(articlePath(article.contentType, article.slug));
+}
+
+export async function editAndApproveFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await editAndApproveAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
 }
 
 export async function restoreRevisionAction(formData: FormData) {

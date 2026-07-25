@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDisplayLabel } from "@/lib/display";
 import { getImportProvider } from "@/lib/import-providers";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { searchPublicArticles } from "@/lib/wiki-search";
 import { getStaffUser } from "@/lib/wiki-auth";
 import { contentTypes, type ContentType } from "@/lib/wiki-types";
@@ -16,7 +17,11 @@ import { contentTypes, type ContentType } from "@/lib/wiki-types";
 function one(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] || "" : value || ""; }
 
 export default async function ImportPreviewPage({ params, searchParams }: { params: Promise<{ provider: string; sourceId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  if ((await getStaffUser())?.role !== "admin") notFound();
+  const staff = await getStaffUser();
+  if (staff?.role !== "admin") notFound();
+  const rateLimit = await consumeRateLimit({ scope: "admin-import", subject: staff.userId, limit: 12, windowMs: 60_000 });
+  if (!rateLimit.allowed)
+    return <main><p className="rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">Too many import requests. Wait a minute and try again.</p></main>;
   const { assessImportPreview } = process.env.DATABASE_URL
     ? await import("@/lib/wiki-public-db")
     : await import("@/lib/admin-db");
