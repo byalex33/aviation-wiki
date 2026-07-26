@@ -48,6 +48,16 @@ export type MarkdownRoot = MarkdownNode & { type: "root"; children: MarkdownNode
 
 export type SidebarField = { key: string; value: string };
 
+export type ArticleImage = {
+  url: string;
+  credit: string | null;
+};
+
+export type ArticleImageShorthandMatch = {
+  value: string;
+  index: number;
+};
+
 export type ArticleHeading = {
   node: MarkdownNode;
   id: string;
@@ -102,6 +112,66 @@ export function isSafeUrl(value: string) {
   const url = value.trim().toLowerCase();
   return url.startsWith("/") || url.startsWith("#") || url.startsWith("https://") ||
     url.startsWith("http://") || url.startsWith("mailto:");
+}
+
+export function isSafeImageUrl(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+export function parseArticleImageShorthand(value: string): ArticleImage | null {
+  const shorthand = value.trim();
+  if (!shorthand.startsWith("![") || !shorthand.endsWith("]")) return null;
+
+  const body = shorthand.slice(2, -1);
+  const separator = /\s+\|\s+/.exec(body);
+  const url = (separator ? body.slice(0, separator.index) : body).trim();
+  const credit = separator
+    ? body.slice(separator.index + separator[0].length).trim()
+    : "";
+  if (!url || /\s/.test(url) || (separator && !credit)) return null;
+
+  return {
+    url,
+    credit: credit || null,
+  };
+}
+
+export function getArticleImageShorthandMatches(
+  value: string,
+): ArticleImageShorthandMatch[] {
+  const matches: ArticleImageShorthandMatch[] = [];
+
+  for (let start = 0; start < value.length - 1; start += 1) {
+    if (value[start] !== "!" || value[start + 1] !== "[" || value[start - 1] === "f") {
+      continue;
+    }
+
+    let depth = 1;
+    for (let end = start + 2; end < value.length; end += 1) {
+      if (value[end] === "[") depth += 1;
+      else if (value[end] === "]") depth -= 1;
+      if (depth !== 0) continue;
+
+      if (value[end + 1] !== "(") {
+        matches.push({ value: value.slice(start, end + 1), index: start });
+      }
+      start = end;
+      break;
+    }
+  }
+
+  return matches;
+}
+
+export function getArticleImageShorthands(value: string) {
+  return getArticleImageShorthandMatches(value).map((match) => match.value);
 }
 
 export function isSafeCitationUrl(value: string) {
@@ -180,6 +250,7 @@ export type ParsedArticleMarkdown = {
   warnings: MarkdownWarning[];
   citations: Citation[];
   sidebarFields: SidebarField[] | null;
+  sidebarImages: ArticleImage[];
   charts: ChartDefinition[];
 };
 
@@ -210,6 +281,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       warnings: [],
       citations: [],
       sidebarFields: null,
+      sidebarImages: [],
       charts: [],
     };
   }
@@ -318,6 +390,11 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       for (const match of node.value?.matchAll(/f!\[([^\]]+)\]/g) ?? []) {
         if (!resolveFlagCode(match[1])) report(node, `Unknown flag code: ${match[1]}. Use a two-letter country code.`);
       }
+      for (const shorthand of getArticleImageShorthands(node.value ?? "")) {
+        const image = parseArticleImageShorthand(shorthand);
+        if (!image) report(node, "Images use ![https://example.com/photo.jpg] or ![https://example.com/photo.jpg | Photo credit].");
+        else if (!isSafeImageUrl(image.url)) report(node, `Unsafe or unsupported image URL: ${image.url}. Use HTTPS or a local path.`);
+      }
     }
 
     if (node.type === "mdxJsxFlowElement") {
@@ -378,6 +455,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
   }
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   let sidebarFields: SidebarField[] | null = null;
+  const sidebarImages: ArticleImage[] = [];
   if (sidebarNodes.length > 1) report(sidebarNodes[1], "Only one <Sidebar> block is allowed.");
   if (sidebarNodes.length) {
     sidebarFields = [];
@@ -388,6 +466,12 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
     for (const [index, rawLine] of lines.slice(start, end - 1).entries()) {
       const line = rawLine.trim().replace(/^-\s+/, "");
       if (!line) continue;
+      const image = parseArticleImageShorthand(line);
+      if (image) {
+        if (isSafeImageUrl(image.url)) sidebarImages.push(image);
+        continue;
+      }
+      if (getArticleImageShorthands(line).length) continue;
       const separator = line.indexOf(":");
       const key = line.slice(0, separator).trim();
       const value = line.slice(separator + 1).trim();
@@ -402,7 +486,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       ? [{ identifier, number: index + 1, url: definition.url, occurrences: citationCounts.get(identifier) ?? 1 }]
       : [];
   });
-  return { root, errors, warnings, citations, sidebarFields, charts };
+  return { root, errors, warnings, citations, sidebarFields, sidebarImages, charts };
 }
 
 export function parseStructuredFieldMarkdown(source: string) {
@@ -413,5 +497,8 @@ export function parseStructuredFieldMarkdown(source: string) {
     node.children?.forEach(validate);
   };
   validate(parsed.root);
+  if (getArticleImageShorthands(source).length) {
+    parsed.errors.push({ line: 1, column: 1, message: "Structured fields only support inline Markdown." });
+  }
   return parsed;
 }

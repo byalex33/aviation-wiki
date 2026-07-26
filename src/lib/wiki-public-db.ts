@@ -3,7 +3,11 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { articlePath } from "@/lib/article-routes";
-import { parseArticleMarkdown } from "@/lib/article-markdown";
+import {
+  isSafeImageUrl,
+  parseArticleImageShorthand,
+  parseArticleMarkdown,
+} from "@/lib/article-markdown";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
@@ -14,6 +18,7 @@ import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption,
 import type { OpenFlightsAirline } from "@/lib/openflights";
 import type { ImportField, ImportImage, ImportPreview, ImportProviderId } from "@/lib/import-types";
 import type { NotificationRecord, NotificationType } from "@/lib/notification-types";
+import type { PublicContributorActivity, PublicContribution } from "@/lib/public-profile-types";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -477,6 +482,68 @@ export async function listContributorRevisions(contributorId: string) {
   return (await rows<RevisionRow>(`${revisionSelect} WHERE r.contributor_id=$1 ORDER BY r.updated_at DESC`, [contributorId])).map(mapRevision);
 }
 
+export async function getPublicContributorActivity(
+  contributorId: string,
+): Promise<PublicContributorActivity> {
+  await ready();
+  const [summary, activity] = await Promise.all([
+    row<{
+      approved_count: number;
+      article_count: number;
+      first_contribution_at: Date | string | null;
+    }>(
+      `SELECT
+        COUNT(*)::int approved_count,
+        COUNT(DISTINCT r.article_id)::int article_count,
+        MIN(COALESCE(r.reviewed_at,r.created_at)) first_contribution_at
+      FROM revisions r
+      JOIN articles a ON a.id=r.article_id
+      WHERE r.contributor_id=$1 AND r.status='approved' AND a.archived_at IS NULL`,
+      [contributorId],
+    ),
+    rows<{
+      id: string;
+      article_slug: string;
+      title: string;
+      content_type: ContentType;
+      edit_summary: string;
+      contributed_at: Date | string;
+    }>(
+      `SELECT
+        r.id,
+        a.slug article_slug,
+        r.title,
+        r.content_type,
+        r.edit_summary,
+        COALESCE(r.reviewed_at,r.created_at) contributed_at
+      FROM revisions r
+      JOIN articles a ON a.id=r.article_id
+      WHERE r.contributor_id=$1 AND r.status='approved' AND a.archived_at IS NULL
+      ORDER BY COALESCE(r.reviewed_at,r.created_at) DESC
+      LIMIT 12`,
+      [contributorId],
+    ),
+  ]);
+
+  const contributions: PublicContribution[] = activity.map((item) => ({
+    id: item.id,
+    articleSlug: item.article_slug,
+    title: item.title,
+    contentType: item.content_type,
+    editSummary: item.edit_summary,
+    contributedAt: iso(item.contributed_at),
+  }));
+
+  return {
+    approvedCount: Number(summary?.approved_count ?? 0),
+    articleCount: Number(summary?.article_count ?? 0),
+    firstContributionAt: summary?.first_contribution_at
+      ? iso(summary.first_contribution_at)
+      : null,
+    contributions,
+  };
+}
+
 export async function getContributorRestriction(userId: string) {
   await ready();
   return (await row<{restriction:string}>("SELECT restriction FROM contributor_profiles WHERE user_id=$1", [userId]))?.restriction ?? "none";
@@ -771,6 +838,22 @@ export async function getSourceHealth(sources: SourceLink[]) {
 const searchableFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign|country|country of origin|manufacturer|engine|alias|aliases|abbreviation|abbreviations|acronym)(\b|$)/i;
 const codeFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign)(\b|$)/i;
 
+function firstSidebarImageUrl(markdown: string) {
+  const opening = /<Sidebar(?:\s[^>]*)?>/.exec(markdown);
+  if (opening?.index === undefined) return undefined;
+  const bodyStart = opening.index + opening[0].length;
+  const closing = markdown.indexOf("</Sidebar>", bodyStart);
+  if (closing < 0) return undefined;
+
+  for (const rawLine of markdown.slice(bodyStart, closing).split(/\r?\n/)) {
+    const image = parseArticleImageShorthand(
+      rawLine.trim().replace(/^-\s+/, ""),
+    );
+    if (image && isSafeImageUrl(image.url)) return image.url;
+  }
+  return undefined;
+}
+
 export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
@@ -789,7 +872,7 @@ export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
-    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:item.markdown.replace(/\[\^[^\]]+\]/g,"").replace(/[#*_>`\[\]()]/g," ").replace(/\s+/g," ").trim().slice(0,180),countries,terms};
+    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:item.markdown.replace(/\[\^[^\]]+\]/g,"").replace(/[#*_>`\[\]()]/g," ").replace(/\s+/g," ").trim().slice(0,180),imageUrl:firstSidebarImageUrl(item.markdown),countries,terms};
   });
 }
 

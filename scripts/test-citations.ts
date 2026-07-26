@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { getArticleHeadings, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
+import { getArticleHeadings, parseArticleImageShorthand, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
 assert.deepEqual(valid.errors, []);
@@ -29,7 +29,21 @@ assert.match(parseArticleMarkdown("f![greece]").errors[0]?.message || "", /Unkno
 assert.match(parseStructuredFieldMarkdown("![Logo](https://example.com/logo.png)").errors[0]?.message || "", /only support inline Markdown/);
 assert.match(parseStructuredFieldMarkdown("## Heading").errors[0]?.message || "", /only support inline Markdown/);
 
+assert.deepEqual(parseArticleImageShorthand("![https://example.com/photo.jpg | Photo by Jane Smith]"), {
+  url: "https://example.com/photo.jpg",
+  credit: "Photo by Jane Smith",
+});
+const linkedImageCredit = "![https://cdn.jetphotos.com/full/6/example.jpg | Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)]";
+assert.deepEqual(parseArticleImageShorthand(linkedImageCredit), {
+  url: "https://cdn.jetphotos.com/full/6/example.jpg",
+  credit: "Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)",
+});
+assert.deepEqual(parseArticleMarkdown("![https://example.com/photo.jpg]").errors, []);
+assert.match(parseArticleMarkdown("![javascript:alert(1)]").errors[0]?.message || "", /unsupported image URL/);
+assert.match(parseStructuredFieldMarkdown("![https://example.com/photo.jpg]").errors[0]?.message || "", /only support inline Markdown/);
+
 const sidebar = parseArticleMarkdown(`<Sidebar>
+![https://example.com/aircraft.jpg | Photo by Jane Smith]
 IATA code: A3
 ICAO code: AEE
 Callsign: AEGEAN
@@ -43,6 +57,26 @@ assert.deepEqual(sidebar.sidebarFields, [
   { key: "Callsign", value: "AEGEAN" },
   { key: "Country", value: "f![gr] Greece" },
   { key: "Status", value: "Active" },
+]);
+assert.deepEqual(sidebar.sidebarImages, [
+  {
+    url: "https://example.com/aircraft.jpg",
+    credit: "Photo by Jane Smith",
+  },
+]);
+const linkedCreditSidebar = parseArticleMarkdown(`<Sidebar>
+${linkedImageCredit}
+Name: DHL Aviation
+</Sidebar>`);
+assert.deepEqual(linkedCreditSidebar.errors, []);
+assert.deepEqual(linkedCreditSidebar.sidebarFields, [
+  { key: "Name", value: "DHL Aviation" },
+]);
+assert.deepEqual(linkedCreditSidebar.sidebarImages, [
+  {
+    url: "https://cdn.jetphotos.com/full/6/example.jpg",
+    credit: "Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)",
+  },
 ]);
 assert.match(parseArticleMarkdown("<Sidebar>\nBroken field\n</Sidebar>").errors[0]?.message || "", /Label: value/);
 

@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Network } from "lucide-react";
 
+import { ArticleCardBackdrop } from "@/components/article-card-backdrop";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { listApprovedEntityOptions } from "@/lib/wiki-public-db";
+import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Airline alliances",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AlliancesPage() {
-  const alliances = (await listApprovedEntityOptions()).filter(
+  const alliances = (await listPublicSearchDocuments()).filter(
     (article) => article.contentType === "alliance",
   );
 
@@ -40,9 +41,10 @@ export default async function AlliancesPage() {
       {alliances.length ? (
         <section className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Airline alliances">
           {alliances.map((alliance) => (
-            <Link key={alliance.id} href={`/alliances/${alliance.slug}`} className="block">
-              <Card className="h-full gap-0 py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md">
-                <CardContent className="p-5">
+            <Link key={alliance.id} href={alliance.href} className="group block">
+              <Card className="relative h-full gap-0 overflow-hidden py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md">
+                <ArticleCardBackdrop imageUrl={alliance.imageUrl} />
+                <CardContent className="relative z-10 p-5">
                   <Network className="size-6 text-primary" />
                   <h2 className="mt-4 text-lg font-semibold">{alliance.title}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">View alliance article</p>

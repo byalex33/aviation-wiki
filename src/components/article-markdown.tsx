@@ -6,7 +6,19 @@ import {
   ArticleChart,
   UnavailableArticleChart,
 } from "@/components/article-chart";
-import { getArticleHeadings, getBlockAttributes, resolveFlagCode, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
+import {
+  getArticleHeadings,
+  getArticleImageShorthandMatches,
+  getBlockAttributes,
+  parseArticleImageShorthand,
+  parseStructuredFieldMarkdown,
+  resolveFlagCode,
+  type ArticleBlockName,
+  type ArticleImage,
+  type Citation,
+  type MarkdownNode,
+  type MarkdownRoot,
+} from "@/lib/article-markdown";
 import { cn } from "@/lib/utils";
 
 type Definitions = Map<string, { url: string; title?: string | null }>;
@@ -15,12 +27,94 @@ type CitationMap = Map<string, Citation>;
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 
+export function ArticleImageDisplay({
+  image,
+  alt = "",
+  flush = false,
+}: {
+  image: ArticleImage;
+  alt?: string;
+  flush?: boolean;
+}) {
+  const credit = image.credit
+    ? parseStructuredFieldMarkdown(image.credit)
+    : null;
+
+  return (
+    <figure
+      className={cn(
+        "my-5 block overflow-hidden rounded-xl border bg-muted/30",
+        flush && "my-0 rounded-none border-x-0 border-t-0",
+      )}
+    >
+      <Image
+        src={image.url}
+        alt={alt}
+        width={1200}
+        height={800}
+        sizes="(min-width: 1280px) 760px, (min-width: 1024px) 60vw, 100vw"
+        unoptimized
+        className="h-auto w-full"
+      />
+      {image.credit && (
+        <figcaption className="border-t px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+          {credit?.errors.length
+            ? image.credit
+            : credit && <ArticleMarkdown root={credit.root} compact />}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 function renderText(value: string, key: string, compact: boolean) {
-  return value.split(/(f!\[[^\]]+\])/g).map((part, index) => {
-    const code = /^f!\[([^\]]+)\]$/.exec(part)?.[1];
-    const flagCode = code ? resolveFlagCode(code) : null;
-    return flagCode ? <Image key={`${key}-${index}`} src={`https://flagcdn.com/w40/${flagCode}.png`} alt={`Flag of ${regionNames.of(flagCode.toUpperCase()) ?? flagCode.toUpperCase()}`} width={40} height={30} unoptimized className={`${compact ? "w-6" : "w-10"} mr-1 inline-block h-auto rounded-xs align-middle`} /> : part;
-  });
+  const tokens = [
+    ...[...value.matchAll(/f!\[[^\]]+\]/g)].map((match) => ({
+      index: match.index ?? 0,
+      value: match[0],
+      kind: "flag" as const,
+    })),
+    ...getArticleImageShorthandMatches(value).map((match) => ({
+      ...match,
+      kind: "image" as const,
+    })),
+  ].sort((left, right) => left.index - right.index);
+  const rendered: ReactNode[] = [];
+  let offset = 0;
+
+  for (const [index, token] of tokens.entries()) {
+    if (token.index < offset) continue;
+    if (token.index > offset) rendered.push(value.slice(offset, token.index));
+
+    if (token.kind === "flag") {
+      const code = /^f!\[([^\]]+)\]$/.exec(token.value)?.[1];
+      const flagCode = code ? resolveFlagCode(code) : null;
+      rendered.push(
+        flagCode ? (
+          <Image
+            key={`${key}-${index}`}
+            src={`https://flagcdn.com/w40/${flagCode}.png`}
+            alt={`Flag of ${regionNames.of(flagCode.toUpperCase()) ?? flagCode.toUpperCase()}`}
+            width={40}
+            height={30}
+            unoptimized
+            className={`${compact ? "w-6" : "w-10"} mr-1 inline-block h-auto rounded-xs align-middle`}
+          />
+        ) : token.value,
+      );
+    } else {
+      const image = parseArticleImageShorthand(token.value);
+      rendered.push(
+        image
+          ? <ArticleImageDisplay key={`${key}-${index}`} image={image} />
+          : token.value,
+      );
+    }
+    offset = token.index + token.value.length;
+  }
+
+  if (offset < value.length) rendered.push(value.slice(offset));
+  return rendered;
 }
 
 function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact: boolean): ReactNode {
@@ -31,7 +125,16 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
   const children = renderChildren(node, definitions, citations, headingIds, compact);
   switch (node.type) {
     case "text": return renderText(node.value ?? "", key, compact);
-    case "paragraph": return <p key={key} className={compact ? "leading-normal" : "mb-4 leading-7 text-foreground/80"}>{children}</p>;
+    case "paragraph": {
+      const onlyChild = node.children?.length === 1 ? node.children[0] : null;
+      if (onlyChild?.type === "image") return renderNode(onlyChild, key, definitions, citations, headingIds, compact);
+      if (onlyChild?.type === "imageReference") return renderNode(onlyChild, key, definitions, citations, headingIds, compact);
+      if (onlyChild?.type === "text") {
+        const image = parseArticleImageShorthand(onlyChild.value ?? "");
+        if (image) return <ArticleImageDisplay key={key} image={image} />;
+      }
+      return <p key={key} className={compact ? "leading-normal" : "mb-4 leading-7 text-foreground/80"}>{children}</p>;
+    }
     case "heading": {
       const Heading = `h${node.depth}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
       return <Heading key={key} id={headingIds.get(node)} className={cn(
@@ -56,14 +159,14 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     }
     case "listItem": return <li key={key} className="pl-1">{children}</li>;
     case "link": return <a key={key} href={node.url} className="font-medium text-primary underline-offset-4 hover:underline" rel={node.url?.startsWith("http") ? "noreferrer" : undefined}>{children}</a>;
-    case "image": return <Image key={key} src={node.url ?? ""} alt={node.alt ?? ""} title={node.title ?? undefined} width={1200} height={800} unoptimized className="my-4 h-auto max-w-full rounded-lg" />;
+    case "image": return <ArticleImageDisplay key={key} image={{ url: node.url ?? "", credit: node.title ?? null }} alt={node.alt ?? ""} />;
     case "linkReference": {
       const definition = definitions.get(node.identifier?.toLowerCase() ?? "");
       return definition ? <a key={key} href={definition.url} className="font-medium text-primary hover:underline">{children}</a> : children;
     }
     case "imageReference": {
       const definition = definitions.get(node.identifier?.toLowerCase() ?? "");
-      return definition ? <Image key={key} src={definition.url} alt={node.alt ?? ""} width={1200} height={800} unoptimized className="my-4 h-auto max-w-full rounded-lg" /> : null;
+      return definition ? <ArticleImageDisplay key={key} image={{ url: definition.url, credit: definition.title ?? null }} alt={node.alt ?? ""} /> : null;
     }
     case "footnoteReference": {
       const citation = citations.get(node.identifier?.toLowerCase() ?? "");

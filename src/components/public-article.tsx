@@ -7,14 +7,14 @@ import {
   MessageSquareWarning,
 } from "lucide-react";
 
+import { InformationSidebar } from "@/components/article-information-sidebar";
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { ApprovedRelationships } from "@/components/entity-relationships";
 import { ImportedRevisionData } from "@/components/imported-revision-data";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WatchArticleButton } from "@/components/watch-article-button";
-import { getArticleHeadings, parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
+import { getArticleHeadings, parseArticleMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
 import type {
@@ -22,7 +22,6 @@ import type {
   ContentType,
   RevisionRecord,
   SourceLink,
-  StructuredField,
 } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 
@@ -76,53 +75,6 @@ export function ArticleHeader({
         </Link>
       </div>
     </header>
-  );
-}
-
-export function InformationSidebar({
-  title,
-  contentType,
-  fields,
-}: {
-  title: string;
-  contentType: ContentType;
-  fields: StructuredField[];
-}) {
-  return (
-    <Card className="min-w-0 gap-0 overflow-hidden py-0 shadow-md">
-      <CardHeader className="border-b bg-primary/5 py-5">
-        <CardTitle>{title}</CardTitle>
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">
-          {formatDisplayLabel(contentType)}
-        </p>
-      </CardHeader>
-      <CardContent className="p-0">
-        <dl className="divide-y">
-          {fields.length ? (
-            fields.map((field, index) => {
-              const parsed = parseStructuredFieldMarkdown(field.value);
-              return (
-                <div
-                  key={`${field.key}-${index}`}
-                  className="grid grid-cols-[42%_1fr] gap-3 px-5 py-3 text-sm"
-                >
-                  <dt className="min-w-0 break-words font-medium text-muted-foreground">
-                    {field.key}
-                  </dt>
-                  <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
-                    {parsed.errors.length ? field.value : <ArticleMarkdown root={parsed.root} compact />}
-                  </dd>
-                </div>
-              );
-            })
-          ) : (
-            <p className="px-5 py-4 text-sm text-muted-foreground">
-              No structured information has been added.
-            </p>
-          )}
-        </dl>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -312,11 +264,15 @@ export function PublicArticle({
           <ImportedRevisionData revisionId={revision.id} />
           <SourceList sources={revision.sources} citations={parsed.citations} />
         </div>
-        <aside className="space-y-5 lg:sticky lg:top-20">
+        <aside
+          className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
+          aria-label="Article information"
+        >
           <InformationSidebar
             title={revision.title}
             contentType={revision.contentType}
-            fields={revision.fields}
+            fields={parsed.sidebarFields ?? revision.fields}
+            images={parsed.sidebarImages}
           />
         </aside>
       </div>

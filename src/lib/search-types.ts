@@ -9,6 +9,7 @@ export type SearchDocument = {
   contentType: ContentType;
   href: string;
   description: string;
+  imageUrl?: string;
   countries: string[];
   terms: Array<{ value: string; kind: SearchTermKind; label?: string }>;
 };
@@ -20,6 +21,7 @@ export type SearchHit = {
   contentType: ContentType;
   href: string;
   description: string;
+  imageUrl?: string;
   countries: string[];
   matchedTerm: string;
   matchedLabel?: string;

@@ -10,6 +10,7 @@ import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption,
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { articlePath } from "@/lib/article-routes";
 import type { ImportField, ImportImage, ImportProviderId } from "@/lib/import-types";
+import type { PublicContributorActivity, PublicContribution } from "@/lib/public-profile-types";
 import { db } from "@/lib/sqlite";
 db.exec(`
   CREATE TABLE IF NOT EXISTS articles (
@@ -386,6 +387,61 @@ export function getEditableRevision(articleId: string, contributorId: string) {
 
 export function listContributorRevisions(contributorId: string) {
   return (db.prepare(`${revisionSelect} WHERE r.contributor_id = ? ORDER BY r.updated_at DESC`).all(contributorId) as RevisionRow[]).map(mapRevision);
+}
+
+export function getPublicContributorActivity(
+  contributorId: string,
+): PublicContributorActivity {
+  const summary = db.prepare(
+    `SELECT
+      COUNT(*) approved_count,
+      COUNT(DISTINCT r.article_id) article_count,
+      MIN(COALESCE(r.reviewed_at,r.created_at)) first_contribution_at
+    FROM revisions r
+    JOIN articles a ON a.id=r.article_id
+    WHERE r.contributor_id=? AND r.status='approved' AND a.archived_at IS NULL`,
+  ).get(contributorId) as {
+    approved_count: number;
+    article_count: number;
+    first_contribution_at: string | null;
+  };
+  const activity = db.prepare(
+    `SELECT
+      r.id,
+      a.slug article_slug,
+      r.title,
+      r.content_type,
+      r.edit_summary,
+      COALESCE(r.reviewed_at,r.created_at) contributed_at
+    FROM revisions r
+    JOIN articles a ON a.id=r.article_id
+    WHERE r.contributor_id=? AND r.status='approved' AND a.archived_at IS NULL
+    ORDER BY COALESCE(r.reviewed_at,r.created_at) DESC
+    LIMIT 12`,
+  ).all(contributorId) as Array<{
+    id: string;
+    article_slug: string;
+    title: string;
+    content_type: ContentType;
+    edit_summary: string;
+    contributed_at: string;
+  }>;
+
+  const contributions: PublicContribution[] = activity.map((item) => ({
+    id: item.id,
+    articleSlug: item.article_slug,
+    title: item.title,
+    contentType: item.content_type,
+    editSummary: item.edit_summary,
+    contributedAt: item.contributed_at,
+  }));
+
+  return {
+    approvedCount: Number(summary.approved_count),
+    articleCount: Number(summary.article_count),
+    firstContributionAt: summary.first_contribution_at,
+    contributions,
+  };
 }
 
 export function listReviewQueue() {

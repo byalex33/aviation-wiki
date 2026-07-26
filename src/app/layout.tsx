@@ -4,7 +4,7 @@ import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import { Analytics } from "@vercel/analytics/next";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { Toaster } from "sonner";
 
 import { AccountMenu } from "@/components/account-menu";
@@ -65,12 +65,19 @@ export default function RootLayout({
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-6 px-5 sm:px-6">
               <Link
                 href="/"
-                className="flex shrink-0 items-center gap-2.5 text-[17px] font-semibold tracking-tight"
+                className="group flex shrink-0 items-center gap-2.5 text-[17px] font-semibold tracking-tight"
                 aria-label="aviation.wiki home"
               >
                 <AviationLogo className="size-7" />
                 <span>
                   Aviation<span className="text-primary">.wiki</span>
+                </span>
+                <span
+                  className="-ml-1 inline-flex h-5 -rotate-3 items-center gap-1 rounded-full border border-primary/20 bg-accent px-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary shadow-sm transition-transform group-hover:rotate-0"
+                  aria-label="Beta version"
+                >
+                  <Sparkles className="size-2.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Beta</span>
                 </span>
               </Link>
               <div className="absolute left-1/2 hidden w-[min(36vw,440px)] -translate-x-1/2 md:block">

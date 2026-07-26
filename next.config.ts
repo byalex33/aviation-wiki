@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.kiwi.com", pathname: "/airlines/64/**" },
       { protocol: "https", hostname: "flagcdn.com", pathname: "/w40/**" },
       { protocol: "https", hostname: "upload.wikimedia.org", pathname: "/**" },
+      { protocol: "https", hostname: "cdn.jetphotos.com", pathname: "/**" },
     ],
   },
 };

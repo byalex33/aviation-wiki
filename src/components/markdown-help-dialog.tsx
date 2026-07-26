@@ -31,6 +31,11 @@ Read the [manufacturer website](https://www.boeing.com).
 [^service]: https://example.com/aircraft-history`,
   },
   {
+    title: "Images and photo credits",
+    description: "Put an HTTPS image URL inside ![ ]. Add a pipe and credit text to show a small caption. The same syntax works on its own line inside a Sidebar block.",
+    source: `![/aviation-wiki-logo.svg | Image credit: aviation.wiki]`,
+  },
+  {
     title: "Tables and flags",
     description: "Tables are useful for compact facts. Flags use a two-letter country code (or usa).",
     source: `| Country | Operator |
@@ -49,8 +54,9 @@ This information may change as new sources become available.
   },
   {
     title: "Sidebar card",
-    description: "Put the article’s key facts in one Sidebar block. Each line becomes a row in the published sidebar card.",
+    description: "Put the article’s key facts in one Sidebar block. Each Label: value line becomes a row; an image shortcode on its own line appears above the facts.",
     source: `<Sidebar>
+![https://example.com/aircraft.jpg | Photo by Jane Smith]
 IATA code: A3
 ICAO code: AEE
 Callsign: AEGEAN

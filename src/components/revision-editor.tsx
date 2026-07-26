@@ -6,10 +6,12 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ChartNoAxesCombined, Eye, Plus, Trash2 } from "lucide-react";
+import { ChartNoAxesCombined, Plus, Trash2 } from "lucide-react";
 
+import { InformationSidebar } from "@/components/article-information-sidebar";
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { MarkdownHelpDialog } from "@/components/markdown-help-dialog";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,9 @@ type FormStateAction = (
   previousState: FormActionState,
   formData: FormData,
 ) => Promise<FormActionState>;
+
+const editorTabs = ["editor", "preview"] as const;
+type EditorTab = (typeof editorTabs)[number];
 
 async function unavailableAction(): Promise<FormActionState> {
   return { error: "This action is not available." };
@@ -152,7 +157,9 @@ export function RevisionEditor({
 }: RevisionEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
+  const [title, setTitle] = useState(initialContent.title);
   const [contentType, setContentType] = useState(initialContent.contentType);
+  const [activeTab, setActiveTab] = useState<EditorTab>("editor");
   const [markdown, setMarkdown] = useState(() => {
     if (!initialContent.fields.length || parseArticleMarkdown(initialContent.markdown).sidebarFields) return initialContent.markdown;
     const sidebar = initialContent.fields.map((field) => `${field.key}: ${field.value.replace(/\s*\n\s*/g, " ")}`).join("\n");
@@ -177,6 +184,27 @@ export function RevisionEditor({
   const fields = useMemo(() => parsed.sidebarFields ?? [], [parsed.sidebarFields]);
   const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
   const unusedMetadata = sources.filter((source) => source.url && !parsed.citations.some((citation) => citation.url === source.url || citation.identifier === source.identifier?.toLowerCase()));
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: EditorTab,
+  ) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+
+    event.preventDefault();
+    const currentIndex = editorTabs.indexOf(currentTab);
+    const nextTab =
+      event.key === "Home"
+        ? editorTabs[0]
+        : event.key === "End"
+          ? editorTabs[editorTabs.length - 1]
+          : editorTabs[
+              (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + editorTabs.length)
+              % editorTabs.length
+            ];
+
+    setActiveTab(nextTab);
+    document.getElementById(`article-markdown-${nextTab}-tab`)?.focus();
+  };
   const insertChart = () => {
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? markdown.length;
@@ -224,7 +252,8 @@ export function RevisionEditor({
           Article title
           <Input
             name="title"
-            defaultValue={initialContent.title}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
             required
             maxLength={160}
           />
@@ -265,24 +294,61 @@ export function RevisionEditor({
             <p className="mt-1 text-sm text-muted-foreground">
               The same safe parser and component registry are used for preview and
               publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
-              Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one <code>Label: value</code> per line.
+              Add photos with <code>![https://example.com/photo.jpg]</code>, or add a small credit with <code>![https://example.com/photo.jpg | Photo by Jane Smith]</code>.
+              Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one image shortcode or <code>Label: value</code> per line.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={insertChart}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              role="tablist"
+              aria-label="Article Markdown view"
+              className="inline-flex rounded-full border bg-muted/60 p-1"
             >
-              <ChartNoAxesCombined />
-              Insert chart
-            </Button>
+              {editorTabs.map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    id={`article-markdown-${tab}-tab`}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={`article-markdown-${tab}-panel`}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => setActiveTab(tab)}
+                    onKeyDown={(event) => handleTabKeyDown(event, tab)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      isActive
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tab === "editor" ? "Editor" : "Preview"}
+                  </button>
+                );
+              })}
+            </div>
+            {activeTab === "editor" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={insertChart}
+              >
+                <ChartNoAxesCombined />
+                Insert chart
+              </Button>
+            )}
             <MarkdownHelpDialog />
           </div>
         </div>
-        <div className="grid lg:grid-cols-2">
-          <div className="border-b p-5 lg:border-b-0 lg:border-r">
+        {activeTab === "editor" ? (
+          <div
+            id="article-markdown-editor-panel"
+            role="tabpanel"
+            aria-labelledby="article-markdown-editor-tab"
+            className="p-5"
+          >
             <div className="relative">
               <pre
                 ref={highlightRef}
@@ -303,7 +369,7 @@ export function RevisionEditor({
                   highlightRef.current.scrollLeft =
                     event.currentTarget.scrollLeft;
                 }}
-                className="relative min-h-[520px] resize-y bg-transparent font-mono text-[13px] leading-6 text-transparent caret-foreground selection:bg-primary/20"
+                className="relative min-h-[640px] resize-y bg-transparent font-mono text-[13px] leading-6 text-transparent caret-foreground selection:bg-primary/20"
                 spellCheck={false}
                 placeholder="Write the article in Markdown…"
               />
@@ -325,20 +391,41 @@ export function RevisionEditor({
               </ul>
             )}
           </div>
-          <div className="min-h-[520px] p-5">
-            <h3 className="mb-5 flex items-center gap-2 text-sm font-semibold">
-              <Eye className="size-4 text-primary" />
-              Preview
-            </h3>
+        ) : (
+          <div
+            id="article-markdown-preview-panel"
+            role="tabpanel"
+            aria-labelledby="article-markdown-preview-tab"
+            className="min-h-[640px] p-5 sm:p-8"
+          >
             {markdown.trim() && !parsed.errors.length ? (
-              <ArticleMarkdown root={parsed.root} citations={parsed.citations} />
+              <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="min-w-0">
+                  <ArticleMarkdown
+                    root={parsed.root}
+                    citations={parsed.citations}
+                    hideSidebar
+                  />
+                </div>
+                <aside
+                  className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
+                  aria-label="Article information"
+                >
+                  <InformationSidebar
+                    title={title || "Untitled article"}
+                    contentType={contentType}
+                    fields={fields}
+                    images={parsed.sidebarImages}
+                  />
+                </aside>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 A valid Markdown preview will appear here.
               </p>
             )}
           </div>
-        </div>
+        )}
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-xs">

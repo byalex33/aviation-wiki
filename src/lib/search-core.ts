@@ -47,7 +47,7 @@ function scoreTerm(query: string, rawTerm: string, kind: SearchTermKind) {
 }
 
 function hitFor(document: SearchDocument, query: string): SearchHit | null {
-  if (query === "*") return { id: document.id, title: document.title, slug: document.slug, contentType: document.contentType, href: document.href, description: document.description, countries: document.countries, matchedTerm: document.title, score: 1, exact: false };
+  if (query === "*") return { id: document.id, title: document.title, slug: document.slug, contentType: document.contentType, href: document.href, description: document.description, imageUrl: document.imageUrl, countries: document.countries, matchedTerm: document.title, score: 1, exact: false };
   let best: SearchDocument["terms"][number] | null = null;
   let score = 0;
   for (const term of document.terms) {
@@ -59,7 +59,7 @@ function hitFor(document: SearchDocument, query: string): SearchHit | null {
   }
   if (!best || !score) return null;
   const exact = compact(best.value) === compact(query);
-  return { id: document.id, title: document.title, slug: document.slug, contentType: document.contentType, href: document.href, description: document.description, countries: document.countries, matchedTerm: best.value, matchedLabel: best.label, score, exact };
+  return { id: document.id, title: document.title, slug: document.slug, contentType: document.contentType, href: document.href, description: document.description, imageUrl: document.imageUrl, countries: document.countries, matchedTerm: best.value, matchedLabel: best.label, score, exact };
 }
 
 export class InMemorySearchProvider implements SearchProvider {
