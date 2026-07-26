@@ -7,7 +7,6 @@ export const relationshipLabels: Record<RelationshipType, string> = {
   manufactured_by: "Manufactured by",
   uses_engine: "Uses engine",
   variant_of: "Variant of",
-  located_in_country: "Located in",
   produces_aircraft: "Produces aircraft",
   produces_engine: "Produces engines",
 };
@@ -18,7 +17,6 @@ const combinations: Record<RelationshipType, readonly [ContentType, ContentType]
   manufactured_by: ["aircraft", "manufacturer"],
   uses_engine: ["aircraft", "engine"],
   variant_of: ["aircraft", "aircraft"],
-  located_in_country: ["airport", "country"],
   produces_aircraft: ["manufacturer", "aircraft"],
   produces_engine: ["manufacturer", "engine"],
 };

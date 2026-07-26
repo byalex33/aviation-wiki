@@ -1,6 +1,13 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, Plane, Search } from "lucide-react";
+import {
+  ArrowUpRight,
+  Compass,
+  Network,
+  Plane,
+  PlaneTakeoff,
+  Search,
+  Shield,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,36 +18,23 @@ import type { SearchDocument } from "@/lib/search-types";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 const categories = [
-  { name: "Commercial", description: "Airlines, flag carriers & low-cost operators", glyph: "AIR", href: "/commercial" },
-  { name: "Military", description: "Fighters, bombers, transports & UAVs", glyph: "MIL", href: "#" },
-  { name: "General aviation", description: "Light aircraft, jets & rotorcraft", glyph: "GEN", href: "#" },
-  { name: "Historic", description: "Pioneers, warbirds & retired types", glyph: "HIS", href: "#" },
+  { name: "Commercial", label: "Air transport", description: "Airlines, flag carriers and low-cost operators from around the world.", glyph: "AIR", href: "/commercial", icon: PlaneTakeoff, cardClass: "from-sky-500/15 via-card to-card", iconClass: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+  { name: "Alliances", label: "Global networks", description: "The partnerships connecting carriers, routes and frequent flyers.", glyph: "ALL", href: "/alliances", icon: Network, cardClass: "from-violet-500/15 via-card to-card", iconClass: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  { name: "Military", label: "Defence aviation", description: "Fighters, bombers, transports, trainers and unmanned aircraft.", glyph: "MIL", href: "/search?q=military&type=aircraft", icon: Shield, cardClass: "from-amber-500/15 via-card to-card", iconClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  { name: "General aviation", label: "Civil aircraft", description: "Light aircraft, business jets, helicopters and specialist types.", glyph: "GEN", href: "/search?q=*&type=aircraft", icon: Compass, cardClass: "from-emerald-500/15 via-card to-card", iconClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
 ];
 
 const militaryPattern = /\b(?:air force|air superiority|attack aircraft|bomber|combat|fighter|military|reconnaissance|trainer|uav|unmanned|warplane)\b/i;
-const historicPattern = /\b(?:ceased|decommissioned|historic|museum|pioneer|retired|warbird|withdrawn from service)\b/i;
 
 function categoryFor(document: SearchDocument) {
   if (document.contentType === "airline") return "Commercial";
+  if (document.contentType === "alliance") return "Alliances";
   const searchableText = `${document.title} ${document.description}`;
-  if (
-    document.contentType === "aircraft" &&
-    historicPattern.test(searchableText)
-  )
-    return "Historic";
   if (document.contentType === "aircraft" && militaryPattern.test(searchableText))
     return "Military";
   if (document.contentType === "aircraft") return "General aviation";
   return null;
 }
-
-const commercialTailLogos = [
-  { airline: "British Airways", src: "https://airhex.com/images/airline-logos/tail/british-airways.png" },
-  { airline: "Emirates", src: "https://airhex.com/images/airline-logos/tail/emirates.png" },
-  { airline: "Delta Air Lines", src: "https://airhex.com/images/airline-logos/tail/delta.png" },
-  { airline: "Qantas", src: "https://airhex.com/images/airline-logos/tail/qantas.png" },
-  { airline: "Singapore Airlines", src: "https://airhex.com/images/airline-logos/tail/singapore-airlines.png" },
-];
 
 export default async function Home() {
   const documents = await listPublicSearchDocuments();
@@ -75,30 +69,45 @@ export default async function Home() {
       </section>
 
       <section id="browse" className="mb-12">
-        <div className="mb-4 flex items-baseline justify-between"><h2 className="text-[15px] font-semibold">Browse by category</h2><Link href="#" className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">View all <ArrowRight className="size-3.5" /></Link></div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((category) => (
-            <Link key={category.name} href={category.href} className="block">
-              <Card className="group h-full gap-0 py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                <CardContent className="p-[18px]">
-                {category.name === "Commercial" ? (
-                  <div className="commercial-tail-logos mb-3.5 size-10 overflow-hidden rounded-lg bg-accent" aria-label="Commercial airline tail logos">
-                    {commercialTailLogos.map((logo) => (
-                      <Image key={logo.airline} src={logo.src} alt={`${logo.airline} tail logo`} width={40} height={40} className="commercial-tail-logo" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mb-3.5 grid size-10 place-items-center rounded-lg bg-accent font-mono text-[10px] font-semibold text-primary">{category.glyph}</div>
-                )}
-                <h3 className="font-semibold">{category.name}</h3>
-                <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{category.description}</p>
-                <p className="mt-2.5 font-mono text-xs text-muted-foreground/70">
-                  {(categoryCounts.get(category.name) || 0).toLocaleString()} {categoryCounts.get(category.name) === 1 ? "page" : "pages"}
-                </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+      <div className="mb-5">
+          <div>
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Directory</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight">Explore aviation</h2>
+          </div>
+      </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {categories.map((category) => {
+            const Icon = category.icon;
+            const count = categoryCounts.get(category.name) || 0;
+            return (
+              <Link key={category.name} href={category.href} className="group block rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <Card className={`relative min-h-[240px] h-full gap-0 overflow-hidden border bg-gradient-to-br py-0 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-xl ${category.cardClass}`}>
+                  <span className="pointer-events-none absolute -right-3 -top-7 font-mono text-[92px] font-black tracking-[-0.12em] text-foreground/[0.035]" aria-hidden="true">{category.glyph}</span>
+                  <CardContent className="relative flex h-full min-h-[240px] flex-col p-6 sm:p-7">
+                    <div className="flex items-start justify-between gap-4">
+                      <span className={`grid size-12 place-items-center rounded-2xl ring-1 ring-inset ring-current/10 ${category.iconClass}`}>
+                        <Icon className="size-5" strokeWidth={1.8} />
+                      </span>
+                      <span className="rounded-full border bg-background/70 px-3 py-1 font-mono text-[11px] text-muted-foreground backdrop-blur-sm">
+                        {count.toLocaleString()} {count === 1 ? "article" : "articles"}
+                      </span>
+                    </div>
+                    <div className="mt-7">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{category.label}</p>
+                      <h3 className="mt-1 text-2xl font-bold tracking-tight">{category.name}</h3>
+                      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{category.description}</p>
+                    </div>
+                    <div className="mt-auto flex items-center justify-between pt-6 text-sm font-semibold">
+                      <span>Browse collection</span>
+                      <span className="grid size-9 place-items-center rounded-full border bg-background/70 transition duration-300 group-hover:rotate-45 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
+                        <ArrowUpRight className="size-4" />
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </main>

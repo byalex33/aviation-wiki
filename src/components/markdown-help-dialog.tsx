@@ -5,6 +5,7 @@ import { BookOpen, X } from "lucide-react";
 
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { Button } from "@/components/ui/button";
+import { CHART_TEMPLATE } from "@/lib/article-chart";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 
 const examples = [
@@ -56,6 +57,12 @@ Callsign: AEGEAN
 Country: f![gr] Greece
 Status: Active
 </Sidebar>`,
+  },
+  {
+    title: "Charts and graphs",
+    description:
+      "Insert a safe local dataset. The first column supplies categories and every remaining column is numeric.",
+    source: CHART_TEMPLATE,
   },
 ] as const;
 

@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ArticleBlockName } from "@/lib/article-markdown";
 
+type SimpleArticleBlockName = Exclude<ArticleBlockName, "Chart">;
+
 type ArticleBlockProps = {
-  name: ArticleBlockName;
+  name: SimpleArticleBlockName;
   attributes: Record<string, string>;
   children: ReactNode;
 };
@@ -22,7 +24,7 @@ const blockMeta = {
   Timeline: { label: "Timeline", icon: Clock3 },
   Gallery: { label: "Gallery", icon: Images },
   RelatedPages: { label: "Related pages", icon: Link2 },
-} satisfies Record<ArticleBlockName, { label: string; icon: typeof Info }>;
+} satisfies Record<SimpleArticleBlockName, { label: string; icon: typeof Info }>;
 
 export function ArticleBlock({ name, attributes, children }: ArticleBlockProps) {
   const { label, icon: Icon } = blockMeta[name];

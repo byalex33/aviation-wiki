@@ -85,11 +85,11 @@ const checks = [
   ["foreign key violations", "SELECT COUNT(*) FROM pragma_foreign_key_check"],
   [
     "invalid article types",
-    "SELECT COUNT(*) FROM articles WHERE content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')",
+    "SELECT COUNT(*) FROM articles WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')",
   ],
   [
     "invalid revision types",
-    "SELECT COUNT(*) FROM revisions WHERE content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')",
+    "SELECT COUNT(*) FROM revisions WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')",
   ],
   [
     "invalid revision statuses",
@@ -147,7 +147,6 @@ const checks = [
     (ar.relationship_type='manufactured_by' AND s.content_type='aircraft' AND t.content_type='manufacturer') OR
     (ar.relationship_type='uses_engine' AND s.content_type='aircraft' AND t.content_type='engine') OR
     (ar.relationship_type='variant_of' AND s.content_type='aircraft' AND t.content_type='aircraft') OR
-    (ar.relationship_type='located_in_country' AND s.content_type='airport' AND t.content_type='country') OR
     (ar.relationship_type='produces_aircraft' AND s.content_type='manufacturer' AND t.content_type='aircraft') OR
     (ar.relationship_type='produces_engine' AND s.content_type='manufacturer' AND t.content_type='engine'))`,
   ],

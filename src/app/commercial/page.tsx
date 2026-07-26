@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 
 import { AirlineCountryFilter } from "@/components/airline-country-filter";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ type CommercialPageProps = {
 };
 
 export default async function CommercialAirlinesPage({ searchParams }: CommercialPageProps) {
+  const { userId } = await auth();
   const query = await searchParams;
   const openFlightsAirlines = await getOpenFlightsAirlines(iataCodes);
   const statusFilter = query.status === "active" || query.status === "historic" ? query.status : "all";
@@ -137,7 +139,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
         </div>
         <aside className="border-l-2 border-primary/25 pl-4 text-sm lg:mb-1 lg:max-w-52" aria-label="Contribute to aviation.wiki">
           <p className="font-semibold">Something missing?</p>
-          <Link href="/contribute" className="article-link mt-1 inline-block">Sign up to contribute.</Link>
+          <Link href="/contribute" className="article-link mt-1 inline-block">{userId ? "Contribute now!" : "Sign up to contribute."}</Link>
         </aside>
       </section>
 
@@ -150,7 +152,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
           <div className="mt-4">
             <h3 className="field-label">Show</h3>
             <nav className="mt-2 grid gap-1" aria-label="Filter airlines by status">
-              {[["all", "All airlines"], ["active", "Active"], ["historic", "Historic"]].map(([value, label]) => (
+              {[["all", "All airlines"], ["active", "Active"], ["historic", "Ceased"]].map(([value, label]) => (
                 <Link key={value} href={sidebarHref({ status: value })} aria-current={statusFilter === value ? "page" : undefined} className={`rounded-md px-3 py-2 text-sm transition-colors ${statusFilter === value ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{label}</Link>
               ))}
             </nav>

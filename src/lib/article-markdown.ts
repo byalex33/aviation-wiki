@@ -3,10 +3,17 @@ import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
 import remarkParse from "remark-parse";
 
+import {
+  CHART_ATTRIBUTES,
+  parseChartDefinition,
+  type ChartDefinition,
+} from "@/lib/article-chart";
+
 export const ARTICLE_BLOCKS = [
   "Infobox",
   "Notice",
   "Sidebar",
+  "Chart",
   "Sources",
   "FleetTable",
   "Specifications",
@@ -30,7 +37,11 @@ export type MarkdownNode = {
   name?: string | null;
   attributes?: Array<{ type: string; name?: string; value?: unknown }>;
   children?: MarkdownNode[];
-  position?: { start: { line: number; column: number }; end: { line: number; column: number } };
+  chartDefinition?: ChartDefinition;
+  position?: {
+    start: { line: number; column: number; offset?: number };
+    end: { line: number; column: number; offset?: number };
+  };
 };
 
 export type MarkdownRoot = MarkdownNode & { type: "root"; children: MarkdownNode[] };
@@ -71,6 +82,7 @@ const allowedAttributes: Record<ArticleBlockName, Set<string>> = {
   Infobox: new Set(["title"]),
   Notice: new Set(["title", "variant"]),
   Sidebar: new Set(["title"]),
+  Chart: new Set(CHART_ATTRIBUTES),
   Sources: new Set(["title"]),
   FleetTable: new Set(["title"]),
   Specifications: new Set(["title"]),
@@ -132,16 +144,73 @@ export function getArticleHeadings(root: MarkdownRoot): ArticleHeading[] {
   });
 }
 
-export function parseArticleMarkdown(source: string): { root: MarkdownRoot; errors: MarkdownError[]; warnings: MarkdownWarning[]; citations: Citation[]; sidebarFields: SidebarField[] | null } {
+function extractChartBody(source: string, node: MarkdownNode) {
+  const start = node.position?.start.offset;
+  const end = node.position?.end.offset;
+  if (start === undefined || end === undefined)
+    return { body: "", bodyLine: node.position?.start.line ?? 1 };
+  const block = source.slice(start, end);
+  let quote = "";
+  let openingEnd = -1;
+  for (let index = 0; index < block.length; index += 1) {
+    const character = block[index];
+    if (quote) {
+      if (character === quote) quote = "";
+    } else if (character === '"' || character === "'") quote = character;
+    else if (character === ">") {
+      openingEnd = index;
+      break;
+    }
+  }
+  const closingStart = block.lastIndexOf("</Chart>");
+  const bodyStart = openingEnd + 1;
+  const body =
+    openingEnd >= 0 && closingStart >= bodyStart
+      ? block.slice(bodyStart, closingStart)
+      : "";
+  return {
+    body,
+    bodyLine: source.slice(0, start + bodyStart).split(/\r?\n/).length,
+  };
+}
+
+export type ParsedArticleMarkdown = {
+  root: MarkdownRoot;
+  errors: MarkdownError[];
+  warnings: MarkdownWarning[];
+  citations: Citation[];
+  sidebarFields: SidebarField[] | null;
+  charts: ChartDefinition[];
+};
+
+export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
   let root: MarkdownRoot;
 
   try {
     root = unified().use(remarkParse).use(remarkGfm).use(remarkMdx).parse(source) as unknown as MarkdownRoot;
   } catch (error) {
     const parseError = error as Error & { line?: number; column?: number };
+    const message = parseError.message.includes(
+      "Expected a closing tag for `<Chart>`",
+    )
+      ? "Missing closing </Chart> tag."
+      : parseError.message.includes("before attribute value") &&
+          /<Chart\b/.test(source)
+        ? "Chart attribute values must use quotes."
+        : parseError.message;
     return {
       root: { type: "root", children: [] },
-      errors: [{ line: parseError.line ?? 1, column: parseError.column ?? 1, message: parseError.message }], warnings: [], citations: [], sidebarFields: null,
+      errors: [
+        {
+          line: parseError.line ?? 1,
+          column: parseError.column ?? 1,
+          message,
+        },
+      ],
+      warnings: [],
+      citations: [],
+      sidebarFields: null,
+      charts: [],
     };
   }
 
@@ -282,6 +351,31 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
   };
 
   validate(root);
+  const charts: ChartDefinition[] = [];
+  const chartNodes: MarkdownNode[] = [];
+  const collectCharts = (node: MarkdownNode, topLevel: boolean) => {
+    if (node.type === "mdxJsxFlowElement" && node.name === "Chart") {
+      if (!topLevel)
+        report(node, "<Chart> must be a standalone top-level article block.");
+      else chartNodes.push(node);
+    }
+    node.children?.forEach((child) => collectCharts(child, false));
+  };
+  root.children.forEach((node) => collectCharts(node, true));
+  for (const node of chartNodes) {
+    const { body, bodyLine } = extractChartBody(source, node);
+    const parsedChart = parseChartDefinition({
+      attributes: node.attributes ?? [],
+      body,
+      blockLine: node.position?.start.line ?? 1,
+      bodyLine,
+    });
+    errors.push(...parsedChart.errors);
+    if (parsedChart.definition) {
+      node.chartDefinition = parsedChart.definition;
+      charts.push(parsedChart.definition);
+    }
+  }
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   let sidebarFields: SidebarField[] | null = null;
   if (sidebarNodes.length > 1) report(sidebarNodes[1], "Only one <Sidebar> block is allowed.");
@@ -308,7 +402,7 @@ export function parseArticleMarkdown(source: string): { root: MarkdownRoot; erro
       ? [{ identifier, number: index + 1, url: definition.url, occurrences: citationCounts.get(identifier) ?? 1 }]
       : [];
   });
-  return { root, errors, warnings, citations, sidebarFields };
+  return { root, errors, warnings, citations, sidebarFields, charts };
 }
 
 export function parseStructuredFieldMarkdown(source: string) {

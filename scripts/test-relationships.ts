@@ -9,14 +9,13 @@ const valid: Array<[ContentType, EntityRelationship, ContentType]> = [
   ["aircraft", { type: "manufactured_by", targetArticleId: "maker", citationIdentifiers: [] }, "manufacturer"],
   ["aircraft", { type: "uses_engine", targetArticleId: "engine", citationIdentifiers: [] }, "engine"],
   ["aircraft", { type: "variant_of", targetArticleId: "family", citationIdentifiers: [] }, "aircraft"],
-  ["airport", { type: "located_in_country", targetArticleId: "country", citationIdentifiers: [] }, "country"],
   ["manufacturer", { type: "produces_aircraft", targetArticleId: "aircraft", citationIdentifiers: [] }, "aircraft"],
   ["manufacturer", { type: "produces_engine", targetArticleId: "engine", citationIdentifiers: [] }, "engine"],
 ];
 for (const [sourceType, relationship, targetType] of valid) assert.doesNotThrow(() => validateRelationshipShape("source", sourceType, relationship, targetType));
 assert.throws(() => validateRelationshipShape("same", "aircraft", { type: "variant_of", targetArticleId: "same", citationIdentifiers: [] }, "aircraft"), /cannot relate to itself/);
 assert.throws(() => validateRelationshipShape("source", "airline", { type: "uses_engine", targetArticleId: "engine", citationIdentifiers: [] }, "engine"), /Invalid relationship combination/);
-assert.equal(relationshipTargetType("located_in_country"), "country");
-assert.deepEqual(allowedRelationshipTypes("country"), []);
+assert.equal(relationshipTargetType("produces_engine"), "engine");
+assert.deepEqual(allowedRelationshipTypes("airport"), []);
 assert.equal(relationshipKey(valid[0][1]), "operates_aircraft:aircraft");
 console.log("Relationship rule tests passed");

@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WatchArticleButton } from "@/components/watch-article-button";
 import { getArticleHeadings, parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
-import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
 import type {
   ArticleRecord,
   ContentType,
@@ -264,7 +264,11 @@ export function PublicArticle({
           aviation.wiki
         </Link>
         <span> / </span>
-        <span>{formatDisplayLabel(revision.contentType)}</span>
+        <Link href={`/${contentTypePaths[revision.contentType]}`} className="article-link">
+          {revision.contentType === "airline"
+            ? "Commercial airlines"
+            : formatDisplayLabel(contentTypePaths[revision.contentType])}
+        </Link>
         <span> / </span>
         <span>{revision.title}</span>
       </nav>

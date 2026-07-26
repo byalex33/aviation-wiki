@@ -30,7 +30,7 @@ async function createSchema() {
       id text PRIMARY KEY,
       slug text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','aircraft','airport','manufacturer','engine','country')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine')),
       live_revision_id text,
       created_at timestamptz NOT NULL,
       updated_at timestamptz NOT NULL,
@@ -48,7 +48,7 @@ async function createSchema() {
       contributor_name text NOT NULL,
       edit_summary text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','aircraft','airport','manufacturer','engine','country')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine')),
       markdown text NOT NULL DEFAULT '',
       fields_json jsonb NOT NULL DEFAULT '[]',
       sections_json jsonb NOT NULL DEFAULT '[]',
@@ -65,6 +65,10 @@ async function createSchema() {
       submitted_at timestamptz,
       reviewed_at timestamptz
     );
+    ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_content_type_check;
+    ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine'));
+    ALTER TABLE revisions DROP CONSTRAINT IF EXISTS revisions_content_type_check;
+    ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine'));
     ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_live_revision_id_fkey;
     ALTER TABLE articles ADD CONSTRAINT articles_live_revision_id_fkey FOREIGN KEY (live_revision_id) REFERENCES revisions(id) DEFERRABLE INITIALLY DEFERRED;
     CREATE INDEX IF NOT EXISTS revisions_article_idx ON revisions(article_id, created_at DESC);
@@ -74,29 +78,17 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS article_slug_redirects (content_type text NOT NULL, old_slug text NOT NULL, article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY(content_type,old_slug));
     CREATE TABLE IF NOT EXISTS article_relationships (source_article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, target_article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, relationship_type text NOT NULL, approved_revision_id text NOT NULL REFERENCES revisions(id), created_at timestamptz NOT NULL, PRIMARY KEY(source_article_id,relationship_type,target_article_id), CHECK(source_article_id<>target_article_id));
     CREATE INDEX IF NOT EXISTS article_relationships_target_idx ON article_relationships(target_article_id,relationship_type);
-    DO $migration$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conrelid = 'article_relationships'::regclass
-          AND conname = 'article_relationships_type_check'
-      ) THEN
-        ALTER TABLE article_relationships
-          ADD CONSTRAINT article_relationships_type_check
-          CHECK (relationship_type IN (
-            'operates_aircraft',
-            'hub_at_airport',
-            'manufactured_by',
-            'uses_engine',
-            'variant_of',
-            'located_in_country',
-            'produces_aircraft',
-            'produces_engine'
-          ));
-      END IF;
-    END
-    $migration$;
+    ALTER TABLE article_relationships DROP CONSTRAINT IF EXISTS article_relationships_type_check;
+    ALTER TABLE article_relationships ADD CONSTRAINT article_relationships_type_check
+      CHECK (relationship_type IN (
+        'operates_aircraft',
+        'hub_at_airport',
+        'manufactured_by',
+        'uses_engine',
+        'variant_of',
+        'produces_aircraft',
+        'produces_engine'
+      ));
     CREATE OR REPLACE FUNCTION validate_article_relationship_insert()
     RETURNS trigger
     LANGUAGE plpgsql
@@ -122,7 +114,6 @@ async function createSchema() {
             OR (NEW.relationship_type = 'manufactured_by' AND source.content_type = 'aircraft' AND target.content_type = 'manufacturer')
             OR (NEW.relationship_type = 'uses_engine' AND source.content_type = 'aircraft' AND target.content_type = 'engine')
             OR (NEW.relationship_type = 'variant_of' AND source.content_type = 'aircraft' AND target.content_type = 'aircraft')
-            OR (NEW.relationship_type = 'located_in_country' AND source.content_type = 'airport' AND target.content_type = 'country')
             OR (NEW.relationship_type = 'produces_aircraft' AND source.content_type = 'manufacturer' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'produces_engine' AND source.content_type = 'manufacturer' AND target.content_type = 'engine')
           )

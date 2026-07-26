@@ -773,20 +773,18 @@ const codeFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsig
 
 export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
-  const [documents, redirects, priorTitles, relatedCountries] = await Promise.all([
+  const [documents, redirects, priorTitles] = await Promise.all([
     rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
     rows<{ article_id: string; old_slug: string }>("SELECT x.article_id,x.old_slug FROM article_slug_redirects x JOIN articles a ON a.id=x.article_id JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL"),
     rows<{ article_id: string; title: string }>("SELECT r.article_id,r.title FROM revisions r JOIN articles a ON a.id=r.article_id JOIN revisions live ON live.id=a.live_revision_id WHERE r.status='approved' AND live.status='approved' AND a.archived_at IS NULL"),
-    rows<{ source_article_id: string; title: string }>("SELECT ar.source_article_id,c.title FROM article_relationships ar JOIN articles c ON c.id=ar.target_article_id JOIN revisions cr ON cr.id=c.live_revision_id JOIN articles s ON s.id=ar.source_article_id JOIN revisions sr ON sr.id=s.live_revision_id WHERE ar.relationship_type='located_in_country' AND cr.status='approved' AND sr.status='approved' AND c.archived_at IS NULL AND s.archived_at IS NULL"),
   ]);
-  const aliases = new Map<string,string[]>(); const titles = new Map<string,string[]>(); const countriesByArticle = new Map<string,string[]>();
+  const aliases = new Map<string,string[]>(); const titles = new Map<string,string[]>();
   for (const item of redirects) aliases.set(item.article_id,[...(aliases.get(item.article_id) || []),item.old_slug.replaceAll("-"," ")]);
   for (const item of priorTitles) titles.set(item.article_id,[...(titles.get(item.article_id) || []),item.title]);
-  for (const item of relatedCountries) countriesByArticle.set(item.source_article_id,[...(countriesByArticle.get(item.source_article_id) || []),item.title]);
   return documents.map((item) => {
     const fields = json<Array<{key?:string;value?:string}>>(item.fields_json,[]);
     const searchable = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
-    const countries = [...new Set([...(item.content_type === "country" ? [item.title] : []),...searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => part.trim()).filter(Boolean)),...(countriesByArticle.get(item.id) || [])])];
+    const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => part.trim()).filter(Boolean)))];
     const terms: SearchDocument["terms"] = [{value:item.title,kind:"title"}];
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
@@ -816,6 +814,6 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
   if (article.contentType === "airport") sections.push({title:"Airlines using this airport",entities:incoming("hub_at_airport")});
   if (article.contentType === "manufacturer") sections.push({title:"Other products from this manufacturer",entities:unique([...outgoing("produces_aircraft"),...incoming("manufactured_by"),...outgoing("produces_engine")])});
   const current = documents.find((document) => document.id===articleId); const countries = current?.countries || [];
-  if (countries.length) sections.push({title:article.contentType === "country" ? "Explore more from this country" : `Explore more from ${countries[0]}`,entities:unique(documents.filter((document) => document.id!==articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({id:document.id,title:document.title,slug:document.slug,contentType:document.contentType})))});
+  if (countries.length) sections.push({title:`Explore more from ${countries[0]}`,entities:unique(documents.filter((document) => document.id!==articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({id:document.id,title:document.title,slug:document.slug,contentType:document.contentType})))});
   return sections.map((section) => ({...section,entities:unique(section.entities)})).filter((section) => section.entities.length);
 }

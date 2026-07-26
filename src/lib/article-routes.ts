@@ -2,11 +2,11 @@ import type { ContentType } from "@/lib/wiki-types";
 
 export const contentTypePaths: Record<ContentType, string> = {
   airline: "commercial",
+  alliance: "alliances",
   aircraft: "aircraft",
   airport: "airports",
   manufacturer: "manufacturers",
   engine: "engines",
-  country: "countries",
 };
 
 export function articlePath(contentType: ContentType, slug: string) {

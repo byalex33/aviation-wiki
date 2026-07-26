@@ -1,5 +1,6 @@
 import { diffWords } from "diff";
 
+import { ArticleMarkdown } from "@/components/article-markdown";
 import { Card } from "@/components/ui/card";
 import type { RevisionContent } from "@/lib/wiki-types";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
@@ -15,7 +16,8 @@ export async function RevisionComparison({ current, proposed }: { current: Revis
   const proposedText = proposed.markdown;
   const textDiff = diffWords(currentText, proposedText);
   const currentCitations = parseArticleMarkdown(currentText).citations;
-  const proposedCitations = parseArticleMarkdown(proposedText).citations;
+  const parsedProposed = parseArticleMarkdown(proposedText);
+  const proposedCitations = parsedProposed.citations;
   const currentIds = new Set(currentCitations.map((citation) => citation.identifier));
   const proposedIds = new Set(proposedCitations.map((citation) => citation.identifier));
   const citationChanges = [
@@ -47,6 +49,17 @@ export async function RevisionComparison({ current, proposed }: { current: Revis
       <Card className="gap-0 overflow-hidden py-0 shadow-xs">
         <div className="border-b px-5 py-4"><h2 className="font-semibold">Citation changes</h2><p className="mt-1 text-xs text-muted-foreground">Citation identifiers remain visible in the text diff; source additions and removals are listed here.</p></div>
         <div className="divide-y">{citationChanges.length ? citationChanges.map(({ kind, citation, source }) => <div key={`${kind}-${citation.identifier}`} className={`px-5 py-3 text-sm ${kind === "added" ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`}><strong>{kind === "added" ? "Added" : "Removed"} [^{citation.identifier}]</strong><span className="ml-2">{sourceTitle(source)}</span><span className="ml-2 break-all text-xs opacity-75">{citation.url}</span></div>) : <p className="px-5 py-4 text-sm text-muted-foreground">No citation additions or removals.</p>}</div>
+      </Card>
+
+      <Card className="gap-0 overflow-hidden py-0 shadow-xs">
+        <div className="border-b px-5 py-4"><h2 className="font-semibold">Proposed article preview</h2><p className="mt-1 text-xs text-muted-foreground">This uses the same renderer as the editor and published article.</p></div>
+        <div className="p-5">
+          {parsedProposed.errors.length ? (
+            <p className="text-sm text-destructive">The proposed Markdown cannot be rendered safely.</p>
+          ) : (
+            <ArticleMarkdown root={parsedProposed.root} citations={parsedProposed.citations} compact />
+          )}
+        </div>
       </Card>
 
       <Card className="gap-0 overflow-hidden py-0 shadow-xs">

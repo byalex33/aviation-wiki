@@ -14,7 +14,6 @@ const properties: Partial<Record<ContentType, Array<[string, string]>>> = {
   airport: [["P238", "IATA code"], ["P239", "ICAO code"], ["P17", "Country"], ["P137", "Operator"], ["P571", "Opened"]],
   manufacturer: [["P17", "Country"], ["P571", "Founded"], ["P576", "Dissolved"]],
   engine: [["P176", "Manufacturer"], ["P495", "Country of origin"], ["P571", "Inception"]],
-  country: [["P297", "ISO 3166-1 alpha-2 code"], ["P298", "ISO 3166-1 alpha-3 code"], ["P299", "ISO 3166-1 numeric code"]],
 };
 
 const expectedInstanceIds: Partial<Record<ContentType, string[]>> = {
@@ -22,7 +21,6 @@ const expectedInstanceIds: Partial<Record<ContentType, string[]>> = {
   aircraft: ["Q11436"],
   airport: ["Q1248784"],
   engine: ["Q192980"],
-  country: ["Q6256"],
 };
 
 function entityId(value: unknown) { return typeof value === "object" && value && "id" in value ? String((value as { id: unknown }).id) : null; }

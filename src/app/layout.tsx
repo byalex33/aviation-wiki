@@ -155,6 +155,12 @@ export default function RootLayout({
                       Pro
                     </Link>
                     <Link
+                      href="/alliances"
+                      className="transition-colors hover:text-primary"
+                    >
+                      Alliances
+                    </Link>
+                    <Link
                       href="/staff"
                       className="transition-colors hover:text-primary"
                     >

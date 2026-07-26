@@ -2,6 +2,10 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { ArticleBlock } from "@/components/article-blocks";
+import {
+  ArticleChart,
+  UnavailableArticleChart,
+} from "@/components/article-chart";
 import { getArticleHeadings, getBlockAttributes, resolveFlagCode, type ArticleBlockName, type Citation, type MarkdownNode, type MarkdownRoot } from "@/lib/article-markdown";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +73,22 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     case "table": return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm"><tbody>{children}</tbody></table></div>;
     case "tableRow": return <tr key={key} className="border-b last:border-0">{children}</tr>;
     case "tableCell": return <td key={key} className="border-r px-3 py-2.5 align-top last:border-0 first:font-medium">{children}</td>;
-    case "mdxJsxFlowElement": return <ArticleBlock key={key} name={node.name as ArticleBlockName} attributes={getBlockAttributes(node)}>{children}</ArticleBlock>;
+    case "mdxJsxFlowElement":
+      if (node.name === "Chart")
+        return node.chartDefinition ? (
+          <ArticleChart key={key} definition={node.chartDefinition} />
+        ) : (
+          <UnavailableArticleChart key={key} />
+        );
+      return (
+        <ArticleBlock
+          key={key}
+          name={node.name as Exclude<ArticleBlockName, "Chart">}
+          attributes={getBlockAttributes(node)}
+        >
+          {children}
+        </ArticleBlock>
+      );
     case "definition": return null;
     default: return null;
   }

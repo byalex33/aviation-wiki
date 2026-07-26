@@ -1,13 +1,21 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { Eye, Plus, Trash2 } from "lucide-react";
+import {
+  Fragment,
+  useActionState,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { ChartNoAxesCombined, Eye, Plus, Trash2 } from "lucide-react";
 
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { MarkdownHelpDialog } from "@/components/markdown-help-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CHART_ATTRIBUTES, CHART_TEMPLATE } from "@/lib/article-chart";
 import { contentTypes, type EntityOption, type EntityRelationship, type RevisionContent, type SourceLink } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 import {
@@ -40,6 +48,95 @@ async function unavailableAction(): Promise<FormActionState> {
   return { error: "This action is not available." };
 }
 
+function highlightChartTag(line: string) {
+  const attributeNames = new Set<string>(CHART_ATTRIBUTES);
+  const expression =
+    /<\/?Chart\b|\/?>|[A-Za-z][A-Za-z0-9]*|"(?:[^"\\]|\\.)*"/g;
+  const output: ReactNode[] = [];
+  let offset = 0;
+  for (const match of line.matchAll(expression)) {
+    const index = match.index ?? 0;
+    if (index > offset) output.push(line.slice(offset, index));
+    const token = match[0];
+    const className =
+      token.startsWith("<") || token === ">" || token === "/>"
+        ? "font-semibold text-primary"
+        : token.startsWith('"')
+          ? "text-chart-3"
+          : attributeNames.has(token)
+            ? "font-medium text-chart-2"
+            : "";
+    output.push(
+      className ? (
+        <span key={`${index}-${token}`} className={className}>
+          {token}
+        </span>
+      ) : (
+        token
+      ),
+    );
+    offset = index + token.length;
+  }
+  if (offset < line.length) output.push(line.slice(offset));
+  return output;
+}
+
+function highlightChartMarkdown(source: string) {
+  let insideChart = false;
+  let openingTag = false;
+  let headerSeen = false;
+  const lines = source.split("\n");
+
+  return lines.map((line, index) => {
+    const trimmed = line.trim();
+    let content: ReactNode = line;
+    if (/^<Chart\b/.test(trimmed)) {
+      insideChart = true;
+      openingTag = !trimmed.includes(">");
+      headerSeen = false;
+      content = highlightChartTag(line);
+    } else if (insideChart && openingTag) {
+      content = highlightChartTag(line);
+      if (trimmed.includes(">")) openingTag = false;
+    } else if (insideChart && /^<\/Chart>/.test(trimmed)) {
+      content = highlightChartTag(line);
+      insideChart = false;
+    } else if (insideChart && trimmed) {
+      const cells = trimmed
+        .replace(/^\||\|$/g, "")
+        .split("|")
+        .map((cell) => cell.trim());
+      const separator = cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+      if (!separator) {
+        const parts = line.split(/(\|)/g);
+        content = parts.map((part, partIndex) => {
+          if (part === "|") return part;
+          const value = part.trim();
+          const className = !headerSeen
+            ? "font-semibold text-foreground"
+            : value && Number.isFinite(Number(value))
+              ? "text-chart-3"
+              : "";
+          return className ? (
+            <span key={partIndex} className={className}>
+              {part}
+            </span>
+          ) : (
+            part
+          );
+        });
+        headerSeen = true;
+      }
+    }
+    return (
+      <Fragment key={index}>
+        {content}
+        {index < lines.length - 1 && "\n"}
+      </Fragment>
+    );
+  });
+}
+
 export function RevisionEditor({
   slug,
   revisionId,
@@ -53,6 +150,8 @@ export function RevisionEditor({
   submitAction,
   moderatorAction,
 }: RevisionEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
   const [contentType, setContentType] = useState(initialContent.contentType);
   const [markdown, setMarkdown] = useState(() => {
     if (!initialContent.fields.length || parseArticleMarkdown(initialContent.markdown).sidebarFields) return initialContent.markdown;
@@ -78,6 +177,33 @@ export function RevisionEditor({
   const fields = useMemo(() => parsed.sidebarFields ?? [], [parsed.sidebarFields]);
   const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
   const unusedMetadata = sources.filter((source) => source.url && !parsed.citations.some((citation) => citation.url === source.url || citation.identifier === source.identifier?.toLowerCase()));
+  const insertChart = () => {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? markdown.length;
+    const end = textarea?.selectionEnd ?? start;
+    const before = markdown.slice(0, start);
+    const after = markdown.slice(end);
+    const leading =
+      before && !before.endsWith("\n\n")
+        ? before.endsWith("\n")
+          ? "\n"
+          : "\n\n"
+        : "";
+    const trailing =
+      after && !after.startsWith("\n\n")
+        ? after.startsWith("\n")
+          ? "\n"
+          : "\n\n"
+        : "";
+    const insertion = `${leading}${CHART_TEMPLATE}${trailing}`;
+    setMarkdown(`${before}${insertion}${after}`);
+    requestAnimationFrame(() => {
+      const titleStart =
+        start + leading.length + CHART_TEMPLATE.indexOf("Chart title");
+      textarea?.focus();
+      textarea?.setSelectionRange(titleStart, titleStart + "Chart title".length);
+    });
+  };
 
   return (
     <form
@@ -142,18 +268,46 @@ export function RevisionEditor({
               Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one <code>Label: value</code> per line.
             </p>
           </div>
-          <MarkdownHelpDialog />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={insertChart}
+            >
+              <ChartNoAxesCombined />
+              Insert chart
+            </Button>
+            <MarkdownHelpDialog />
+          </div>
         </div>
         <div className="grid lg:grid-cols-2">
           <div className="border-b p-5 lg:border-b-0 lg:border-r">
-            <Textarea
-              aria-label="Article Markdown"
-              value={markdown}
-              onChange={(event) => setMarkdown(event.target.value)}
-              className="min-h-[520px] resize-y font-mono text-[13px] leading-6"
-              spellCheck={false}
-              placeholder="Write the article in Markdown…"
-            />
+            <div className="relative">
+              <pre
+                ref={highlightRef}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-px overflow-hidden whitespace-pre-wrap break-words rounded-md px-3 py-2 font-mono text-[13px] leading-6 text-foreground"
+              >
+                {highlightChartMarkdown(markdown)}
+              </pre>
+              <Textarea
+                ref={textareaRef}
+                aria-label="Article Markdown"
+                value={markdown}
+                onChange={(event) => setMarkdown(event.target.value)}
+                onScroll={(event) => {
+                  if (!highlightRef.current) return;
+                  highlightRef.current.scrollTop =
+                    event.currentTarget.scrollTop;
+                  highlightRef.current.scrollLeft =
+                    event.currentTarget.scrollLeft;
+                }}
+                className="relative min-h-[520px] resize-y bg-transparent font-mono text-[13px] leading-6 text-transparent caret-foreground selection:bg-primary/20"
+                spellCheck={false}
+                placeholder="Write the article in Markdown…"
+              />
+            </div>
             {parsed.errors.length > 0 && (
               <ul className="mt-3 space-y-1 text-xs text-destructive">
                 {parsed.errors.map((error, index) => (

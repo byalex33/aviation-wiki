@@ -169,16 +169,16 @@ db.exec(`
   DROP TRIGGER IF EXISTS revisions_content_type_insert;
   DROP TRIGGER IF EXISTS revisions_content_type_update;
   CREATE TRIGGER articles_content_type_insert
-  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')
+  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER articles_content_type_update
-  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')
+  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER revisions_content_type_insert
-  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')
+  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER revisions_content_type_update
-  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','aircraft','airport','manufacturer','engine','country')
+  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER IF NOT EXISTS revisions_status_insert
   BEFORE INSERT ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')
@@ -186,10 +186,11 @@ db.exec(`
   CREATE TRIGGER IF NOT EXISTS revisions_status_update
   BEFORE UPDATE OF status ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')
   BEGIN SELECT RAISE(ABORT, 'invalid revision status'); END;
-  CREATE TRIGGER IF NOT EXISTS relationships_insert_guard
+  DROP TRIGGER IF EXISTS relationships_insert_guard;
+  CREATE TRIGGER relationships_insert_guard
   BEFORE INSERT ON article_relationships
   WHEN NEW.source_article_id = NEW.target_article_id
-    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','located_in_country','produces_aircraft','produces_engine')
+    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine')
     OR NOT EXISTS (SELECT 1 FROM articles s JOIN articles t ON t.id=NEW.target_article_id JOIN revisions tr ON tr.id=t.live_revision_id JOIN revisions rr ON rr.id=NEW.approved_revision_id
       WHERE s.id=NEW.source_article_id AND tr.status='approved' AND t.archived_at IS NULL AND rr.article_id=s.id AND rr.status='approved' AND (
         (NEW.relationship_type='operates_aircraft' AND s.content_type='airline' AND t.content_type='aircraft') OR
@@ -197,7 +198,6 @@ db.exec(`
         (NEW.relationship_type='manufactured_by' AND s.content_type='aircraft' AND t.content_type='manufacturer') OR
         (NEW.relationship_type='uses_engine' AND s.content_type='aircraft' AND t.content_type='engine') OR
         (NEW.relationship_type='variant_of' AND s.content_type='aircraft' AND t.content_type='aircraft') OR
-        (NEW.relationship_type='located_in_country' AND s.content_type='airport' AND t.content_type='country') OR
         (NEW.relationship_type='produces_aircraft' AND s.content_type='manufacturer' AND t.content_type='aircraft') OR
         (NEW.relationship_type='produces_engine' AND s.content_type='manufacturer' AND t.content_type='engine')
       ))
@@ -298,24 +298,14 @@ export function listPublicSearchDocuments(): SearchDocument[] {
     WHERE r.status='approved' AND a.archived_at IS NULL`).all() as Array<{ article_id: string; old_slug: string }>;
   const previousTitles = db.prepare(`SELECT r.article_id,r.title FROM revisions r JOIN articles a ON a.id=r.article_id
     JOIN revisions live ON live.id=a.live_revision_id WHERE r.status='approved' AND live.status='approved' AND a.archived_at IS NULL`).all() as Array<{ article_id: string; title: string }>;
-  const relationshipCountries = db.prepare(`SELECT ar.source_article_id,c.title FROM article_relationships ar
-    JOIN articles c ON c.id=ar.target_article_id JOIN revisions cr ON cr.id=c.live_revision_id
-    JOIN articles s ON s.id=ar.source_article_id JOIN revisions sr ON sr.id=s.live_revision_id
-    WHERE ar.relationship_type='located_in_country' AND cr.status='approved' AND sr.status='approved' AND c.archived_at IS NULL AND s.archived_at IS NULL`).all() as Array<{ source_article_id: string; title: string }>;
   const aliases = new Map<string, string[]>();
   const titles = new Map<string, string[]>();
-  const relatedCountries = new Map<string, string[]>();
   for (const row of redirects) aliases.set(row.article_id, [...(aliases.get(row.article_id) || []), row.old_slug.replaceAll("-", " ")]);
   for (const row of previousTitles) titles.set(row.article_id, [...(titles.get(row.article_id) || []), row.title]);
-  for (const row of relationshipCountries) relatedCountries.set(row.source_article_id, [...(relatedCountries.get(row.source_article_id) || []), row.title]);
   return rows.map((row) => {
     const fields = JSON.parse(row.fields_json) as Array<{ key?: string; value?: string }>;
     const searchableFields = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
-    const countries = [...new Set([
-      ...(row.content_type === "country" ? [row.title] : []),
-      ...searchableFields.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((value) => value.trim()).filter(Boolean)),
-      ...(relatedCountries.get(row.id) || []),
-    ])];
+    const countries = [...new Set(searchableFields.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((value) => value.trim()).filter(Boolean)))];
     const terms: SearchDocument["terms"] = [{ value: row.title, kind: "title" }];
     for (const value of titles.get(row.id) || []) if (value !== row.title) terms.push({ value, kind: "alias", label: "Previous title" });
     for (const value of aliases.get(row.id) || []) terms.push({ value, kind: "alias", label: "Previous title or slug" });
@@ -380,7 +370,7 @@ export function getPublicDiscoverySections(articleId: string): DiscoverySection[
   const documents = listPublicSearchDocuments();
   const currentDocument = documents.find((document) => document.id === articleId);
   const countries = currentDocument?.countries || [];
-  if (countries.length) sections.push({ title: article.contentType === "country" ? "Explore more from this country" : `Explore more from ${countries[0]}`, entities: unique(documents.filter((document) => document.id !== articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({ id: document.id, title: document.title, slug: document.slug, contentType: document.contentType }))) });
+  if (countries.length) sections.push({ title: `Explore more from ${countries[0]}`, entities: unique(documents.filter((document) => document.id !== articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({ id: document.id, title: document.title, slug: document.slug, contentType: document.contentType }))) });
   return sections.map((section) => ({ ...section, entities: unique(section.entities) })).filter((section) => section.entities.length);
 }
 

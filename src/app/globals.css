@@ -285,31 +285,6 @@ html[data-theme="twitter"].dark .site-footer {
     animation-delay: -6s;
   }
 
-  .commercial-tail-logos {
-    @apply relative;
-  }
-
-  .commercial-tail-logo {
-    @apply absolute inset-0 size-full object-cover opacity-0;
-    animation: commercial-tail-crossfade 20s ease-in-out infinite;
-  }
-
-  .commercial-tail-logo:nth-child(2) {
-    animation-delay: 4s;
-  }
-
-  .commercial-tail-logo:nth-child(3) {
-    animation-delay: 8s;
-  }
-
-  .commercial-tail-logo:nth-child(4) {
-    animation-delay: 12s;
-  }
-
-  .commercial-tail-logo:nth-child(5) {
-    animation-delay: 16s;
-  }
-
   .pro-card::before {
     content: "";
     pointer-events: none;
@@ -349,16 +324,6 @@ html[data-theme="twitter"].dark .site-footer {
   }
 }
 
-@keyframes commercial-tail-crossfade {
-  0%, 20%, 100% {
-    opacity: 0;
-  }
-
-  5%, 15% {
-    opacity: 1;
-  }
-}
-
 @keyframes home-plane-drift {
   to {
     translate: var(--drift-x, 12px) var(--drift-y, -8px);
@@ -379,12 +344,7 @@ html[data-theme="twitter"].dark .site-footer {
 
 @media (prefers-reduced-motion: reduce) {
   .home-plane,
-  .commercial-tail-logo,
   .pro-card::before {
     animation: none;
-  }
-
-  .commercial-tail-logo:first-child {
-    opacity: 1;
   }
 }
