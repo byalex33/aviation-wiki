@@ -91,7 +91,7 @@ const militaryPattern =
   /\b(?:air force|air superiority|attack aircraft|bomber|combat|fighter|military|reconnaissance|trainer|uav|unmanned|warplane)\b/i;
 
 const commercialAircraftPattern =
-  /\b(?:airliner|cargo aircraft|cargo plane|commercial aircraft|freighter aircraft|jetliner|narrow-body|passenger aircraft|passenger jet|regional aircraft|regional jet|wide-body)\b/i;
+  /\b(?:airliners?|cargo aircraft|cargo plane|commercial aircraft|freighter aircraft|jetliner|narrow-body|passenger aircraft|passenger jet|regional aircraft|regional jet|wide-body)\b/i;
 
 const cargoAirlinePattern =
   /\b(?:air cargo|cargo airline|cargo carrier|freight airline|freight carrier|air freight|logistics|parcel|express carrier|dhl|fedex|ups airlines|cargolux|atlas air|kalitta|polar air cargo)\b/i;

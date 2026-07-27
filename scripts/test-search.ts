@@ -19,6 +19,7 @@ assert.deepEqual(provider.search({ query: "B", country: "United States" }).hits.
 assert.equal(provider.search({ query: "missing" }).total, 0);
 assert.equal(provider.search({ query: "" }).total, 0);
 assert.equal(aviationCategoryFor(documents[1]), "commercialAircraft");
+assert.equal(aviationCategoryFor({ ...documents[1], id: "regional", title: "Embraer E-Jet family", description: "A family of twin-engine regional airliners" }), "commercialAircraft");
 assert.equal(aviationCategoryFor({ ...documents[1], id: "military", title: "F-35 Lightning II", description: "A military fighter aircraft" }), "military");
 assert.equal(aviationCategoryFor({ ...documents[1], id: "general", title: "Cessna 172", description: "A four-seat light aircraft" }), "general");
 
