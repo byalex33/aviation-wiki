@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 
+import { aviationCategoryFor } from "../src/lib/article-categories";
 import { InMemorySearchProvider } from "../src/lib/search-core";
 import type { SearchDocument } from "../src/lib/search-types";
 
 const documents: SearchDocument[] = [
   { id: "approved", title: "British Airways", slug: "british-airways", contentType: "airline", href: "/commercial/british-airways", description: "Approved airline", countries: ["United Kingdom"], terms: [{ value: "British Airways", kind: "title" }, { value: "BA", kind: "code", label: "IATA code" }, { value: "Speedbird", kind: "code", label: "Callsign" }] },
-  { id: "aircraft", title: "Boeing 747", slug: "boeing-747", contentType: "aircraft", href: "/aircraft/boeing-747", description: "Approved aircraft", countries: ["United States"], terms: [{ value: "Boeing 747", kind: "title" }, { value: "B747", kind: "code", label: "ICAO designation" }, { value: "Jumbo Jet", kind: "alias", label: "Alias" }] },
+  { id: "aircraft", title: "Boeing 747", slug: "boeing-747", contentType: "aircraft", href: "/aircraft/boeing-747", description: "A long-range wide-body airliner", countries: ["United States"], terms: [{ value: "Boeing 747", kind: "title" }, { value: "B747", kind: "code", label: "ICAO designation" }, { value: "Jumbo Jet", kind: "alias", label: "Alias" }] },
 ];
 const provider = new InMemorySearchProvider(documents);
 
@@ -17,5 +18,8 @@ assert.deepEqual(provider.search({ query: "B", contentType: "airline" }).hits.ma
 assert.deepEqual(provider.search({ query: "B", country: "United States" }).hits.map((hit) => hit.id), ["aircraft"]);
 assert.equal(provider.search({ query: "missing" }).total, 0);
 assert.equal(provider.search({ query: "" }).total, 0);
+assert.equal(aviationCategoryFor(documents[1]), "commercialAircraft");
+assert.equal(aviationCategoryFor({ ...documents[1], id: "military", title: "F-35 Lightning II", description: "A military fighter aircraft" }), "military");
+assert.equal(aviationCategoryFor({ ...documents[1], id: "general", title: "Cessna 172", description: "A four-seat light aircraft" }), "general");
 
 console.log("Search ranking tests passed");

@@ -34,6 +34,14 @@ export const aviationCategories = [
     href: "/military",
   },
   {
+    id: "commercialAircraft",
+    name: "Commercial aircraft",
+    label: "Air transport",
+    description:
+      "Passenger airliners, regional aircraft, and commercial freighters.",
+    href: "/commercial-aircraft",
+  },
+  {
     id: "general",
     name: "General aviation",
     label: "Civil aircraft",
@@ -82,6 +90,9 @@ export type FeaturedAviationCategoryId =
 const militaryPattern =
   /\b(?:air force|air superiority|attack aircraft|bomber|combat|fighter|military|reconnaissance|trainer|uav|unmanned|warplane)\b/i;
 
+const commercialAircraftPattern =
+  /\b(?:airliner|cargo aircraft|cargo plane|commercial aircraft|freighter aircraft|jetliner|narrow-body|passenger aircraft|passenger jet|regional aircraft|regional jet|wide-body)\b/i;
+
 const cargoAirlinePattern =
   /\b(?:air cargo|cargo airline|cargo carrier|freight airline|freight carrier|air freight|logistics|parcel|express carrier|dhl|fedex|ups airlines|cargolux|atlas air|kalitta|polar air cargo)\b/i;
 
@@ -103,12 +114,24 @@ export function isCargoAirline(
   );
 }
 
+export function isCommercialAircraft(
+  document: Pick<SearchDocument, "contentType" | "title" | "description">,
+) {
+  return (
+    document.contentType === "aircraft" &&
+    !isMilitaryAircraft(document) &&
+    commercialAircraftPattern.test(`${document.title} ${document.description}`)
+  );
+}
+
 export function aviationCategoryFor(document: SearchDocument): AviationCategoryId {
   if (document.contentType === "airline")
     return isCargoAirline(document) ? "cargo" : "commercial";
   if (document.contentType === "alliance") return "alliances";
-  if (document.contentType === "aircraft")
-    return isMilitaryAircraft(document) ? "military" : "general";
+  if (document.contentType === "aircraft") {
+    if (isMilitaryAircraft(document)) return "military";
+    return isCommercialAircraft(document) ? "commercialAircraft" : "general";
+  }
   if (document.contentType === "airport") return "airports";
   if (document.contentType === "manufacturer") return "manufacturers";
   return "engines";

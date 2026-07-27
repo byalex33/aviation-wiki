@@ -9,6 +9,7 @@ import {
   MapPin,
   Network,
   Package,
+  Plane,
   PlaneTakeoff,
   Shield,
 } from "lucide-react";
@@ -43,6 +44,10 @@ const categoryPresentation = {
   military: {
     icon: Shield,
     color: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  },
+  commercialAircraft: {
+    icon: Plane,
+    color: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
   },
   general: {
     icon: Compass,
