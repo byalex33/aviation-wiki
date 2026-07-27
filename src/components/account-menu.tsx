@@ -16,7 +16,7 @@ export function AccountMenu() {
   return (
     <Menu.Root>
       <Menu.Trigger
-        className="grid size-9 place-items-center overflow-hidden rounded-full border bg-muted outline-none transition-shadow hover:ring-2 hover:ring-primary/20 focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid size-10 place-items-center overflow-hidden rounded-full border bg-muted outline-none transition-shadow hover:ring-2 hover:ring-primary/20 focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Open profile menu"
         disabled={!isLoaded}
       >

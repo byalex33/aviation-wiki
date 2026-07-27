@@ -49,7 +49,7 @@ export function WatchArticleButton({
       />
       <input type="hidden" name="returnTo" value={returnTo} />
       <button
-        className={buttonVariants({ variant: "outline", size: "sm" })}
+        className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}
         disabled={pending}
         type="submit"
       >

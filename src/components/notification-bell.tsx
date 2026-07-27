@@ -60,7 +60,7 @@ export function NotificationBell() {
   return (
     <Menu.Root onOpenChange={(open) => open && void refresh()}>
       <Menu.Trigger
-        className="relative grid size-9 place-items-center rounded-md outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative grid size-10 place-items-center rounded-md outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={
           unreadCount ? `${unreadCount} unread notifications` : "Notifications"
         }

@@ -59,7 +59,7 @@ export default async function AdminArticlesPage({
         </Card>
       )}
       <div className="mt-6 overflow-hidden rounded-xl border bg-card">
-        <div className="grid grid-cols-[minmax(0,1fr)_120px_100px] gap-3 border-b bg-muted/40 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="hidden grid-cols-[minmax(0,1fr)_120px_100px] gap-3 border-b bg-muted/40 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
           <span>Article</span>
           <span>Publication</span>
           <span></span>
@@ -69,7 +69,7 @@ export default async function AdminArticlesPage({
               <Link
                 key={String(article.id)}
                 href={`/admin/articles/${article.id}`}
-                className="grid grid-cols-[minmax(0,1fr)_120px_100px] items-center gap-3 border-b px-5 py-4 text-sm last:border-0 hover:bg-muted/30"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-4 text-sm last:border-0 hover:bg-muted/30 sm:grid-cols-[minmax(0,1fr)_120px_100px] sm:px-5"
               >
                 <div>
                   <p className="font-medium">{String(article.title)}</p>
@@ -87,7 +87,9 @@ export default async function AdminArticlesPage({
                       ? "Published"
                       : "Unpublished"}
                 </Badge>
-                <span className="text-right text-primary">Manage</span>
+                <span className="col-span-2 text-right text-primary sm:col-span-1">
+                  Manage
+                </span>
               </Link>
           ))
         ) : (

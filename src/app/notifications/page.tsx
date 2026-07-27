@@ -98,7 +98,7 @@ export default async function NotificationsPage({
                   ].map(([value, label]) => (
                     <label
                       key={value}
-                      className="flex items-center gap-2 text-sm"
+                      className="flex min-h-10 items-center gap-2 py-1 text-sm"
                     >
                       <input
                         type="radio"
@@ -119,7 +119,7 @@ export default async function NotificationsPage({
                   {notificationTypes.map((type) => (
                     <label
                       key={type}
-                      className="flex items-start gap-2 text-sm"
+                      className="flex min-h-10 items-center gap-2 py-1 text-sm"
                     >
                       <input
                         type="checkbox"

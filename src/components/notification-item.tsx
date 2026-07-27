@@ -97,7 +97,7 @@ export function NotificationItem({
                 type="submit"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="min-h-10 px-3 text-xs"
               >
                 Mark as read
               </Button>

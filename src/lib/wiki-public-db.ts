@@ -854,6 +854,16 @@ function firstSidebarImageUrl(markdown: string) {
   return undefined;
 }
 
+function articleCardDescription(markdown: string) {
+  return markdown
+    .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+    .replace(/\[\^[^\]]+\]/g, "")
+    .replace(/[#*_>`\[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
 export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
@@ -872,7 +882,7 @@ export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
-    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:item.markdown.replace(/\[\^[^\]]+\]/g,"").replace(/[#*_>`\[\]()]/g," ").replace(/\s+/g," ").trim().slice(0,180),imageUrl:firstSidebarImageUrl(item.markdown),countries,terms};
+    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),imageUrl:firstSidebarImageUrl(item.markdown),countries,terms};
   });
 }
 

@@ -153,7 +153,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
             <h3 className="field-label">Show</h3>
             <nav className="mt-2 grid gap-1" aria-label="Filter airlines by status">
               {[["all", "All airlines"], ["active", "Active"], ["historic", "Ceased"]].map(([value, label]) => (
-                <Link key={value} href={sidebarHref({ status: value })} aria-current={statusFilter === value ? "page" : undefined} className={`rounded-md px-3 py-2 text-sm transition-colors ${statusFilter === value ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{label}</Link>
+                <Link key={value} href={sidebarHref({ status: value })} aria-current={statusFilter === value ? "page" : undefined} className={`flex min-h-11 items-center rounded-md px-3 py-2 text-sm transition-colors ${statusFilter === value ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{label}</Link>
               ))}
             </nav>
           </div>
@@ -165,7 +165,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
             <h3 className="field-label">Sort by name</h3>
             <nav className="mt-2 grid gap-1" aria-label="Sort airlines alphabetically">
               {[["asc", "A to Z"], ["desc", "Z to A"]].map(([value, label]) => (
-                <Link key={value} href={sidebarHref({ sort: value })} aria-current={sortOrder === value ? "page" : undefined} className={`rounded-md px-3 py-2 text-sm transition-colors ${sortOrder === value ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{label}</Link>
+                <Link key={value} href={sidebarHref({ sort: value })} aria-current={sortOrder === value ? "page" : undefined} className={`flex min-h-11 items-center rounded-md px-3 py-2 text-sm transition-colors ${sortOrder === value ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>{label}</Link>
               ))}
             </nav>
           </div>
@@ -173,7 +173,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
 
         <div>
           <nav className="mb-9 flex flex-wrap gap-1.5 border-y py-4" aria-label="Airline alphabet index">
-            {alphabet.map((letter) => activeLetters.has(letter) ? <a key={letter} href={`#letter-${letter}`} className="grid size-8 place-items-center rounded-md bg-foreground font-mono text-xs font-semibold text-background transition-colors hover:bg-primary">{letter}</a> : <span key={letter} className="grid size-8 place-items-center rounded-md font-mono text-xs text-muted-foreground/35">{letter}</span>)}
+            {alphabet.map((letter) => activeLetters.has(letter) ? <a key={letter} href={`#letter-${letter}`} className="grid size-10 place-items-center rounded-md bg-foreground font-mono text-xs font-semibold text-background transition-colors hover:bg-primary">{letter}</a> : <span key={letter} className="grid size-10 place-items-center rounded-md font-mono text-xs text-muted-foreground/35">{letter}</span>)}
           </nav>
           <div className="space-y-12">
         {displayGroups.map((group) => (

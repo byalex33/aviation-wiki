@@ -62,18 +62,18 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <ClerkProvider appearance={{ theme: shadcn }}>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
-            <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-6 px-5 sm:px-6">
+            <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
               <Link
                 href="/"
-                className="group flex shrink-0 items-center gap-2.5 text-[17px] font-semibold tracking-tight"
+                className="group flex min-h-10 shrink-0 items-center gap-2.5 text-[17px] font-semibold tracking-tight"
                 aria-label="aviation.wiki home"
               >
                 <AviationLogo className="size-7" />
-                <span>
+                <span className="hidden min-[360px]:inline">
                   Aviation<span className="text-primary">.wiki</span>
                 </span>
                 <span
-                  className="-ml-1 inline-flex h-5 -rotate-3 items-center gap-1 rounded-full border border-primary/20 bg-accent px-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary shadow-sm transition-transform group-hover:rotate-0"
+                  className="-ml-1 hidden h-5 -rotate-3 items-center gap-1 rounded-full border border-primary/20 bg-accent px-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary shadow-sm transition-transform group-hover:rotate-0 min-[360px]:inline-flex"
                   aria-label="Beta version"
                 >
                   <Sparkles className="size-2.5" aria-hidden="true" />
@@ -91,7 +91,7 @@ export default function RootLayout({
                   href="/search"
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "icon" }),
-                    "md:hidden",
+                    "size-10 md:hidden",
                   )}
                   aria-label="Search"
                 >
@@ -102,14 +102,14 @@ export default function RootLayout({
                     <button
                       className={cn(
                         buttonVariants({ variant: "ghost" }),
-                        "h-9 px-3",
+                        "h-10 px-3",
                       )}
                     >
                       Log in
                     </button>
                   </SignInButton>
                   <SignUpButton>
-                    <button className={cn(buttonVariants(), "h-9 px-4")}>
+                    <button className={cn(buttonVariants(), "h-10 px-4")}>
                       Sign up
                     </button>
                   </SignUpButton>
@@ -148,28 +148,28 @@ export default function RootLayout({
                   <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background/40">
                     Navigate
                   </p>
-                  <div className="mt-4 flex flex-col items-start gap-3 text-sm font-medium">
+                  <div className="mt-4 flex flex-col items-start gap-1 text-sm font-medium">
                     <Link
                       href="/"
-                      className="transition-colors hover:text-primary"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Home
                     </Link>
                     <Link
                       href="/pro"
-                      className="transition-colors hover:text-primary"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Pro
                     </Link>
                     <Link
                       href="/privacy"
-                      className="transition-colors hover:text-primary"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Privacy
                     </Link>
                     <Link
                       href="/contact"
-                      className="transition-colors hover:text-primary"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Contact
                     </Link>

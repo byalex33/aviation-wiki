@@ -48,13 +48,16 @@ export function ArticleHeader({
         {title}
       </h1>
       <div className="mt-6 flex flex-wrap gap-2">
-        <Link href={editorHref} className={buttonVariants({ size: "sm" })}>
+        <Link
+          href={editorHref}
+          className={`${buttonVariants({ size: "sm" })} min-h-10 px-3`}
+        >
           <FilePenLine />
           Edit
         </Link>
         <Link
           href={articleHistoryPath(contentType, slug)}
-          className={buttonVariants({ variant: "outline", size: "sm" })}
+          className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}
         >
           <History />
           View history
@@ -68,7 +71,7 @@ export function ArticleHeader({
         )}
         <Link
           href={`${editorHref}&correction=1`}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
+          className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10 px-3`}
         >
           <MessageSquareWarning />
           Suggest correction

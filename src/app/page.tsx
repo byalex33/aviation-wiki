@@ -95,7 +95,7 @@ export default async function Home() {
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Directory</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight">Explore aviation</h2>
           </div>
-          <Link href="/categories" className="article-link flex shrink-0 items-center gap-1 text-sm font-medium">
+          <Link href="/categories" className="article-link flex min-h-10 shrink-0 items-center gap-1 text-sm font-medium">
             View all categories
             <ArrowUpRight className="size-3.5" />
           </Link>
