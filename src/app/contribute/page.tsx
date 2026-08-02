@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignInButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
@@ -5,20 +6,53 @@ import { FilePlus2, PencilLine } from "lucide-react";
 
 import { startArticleFormAction } from "@/app/contribute/actions";
 import { ActionForm } from "@/components/action-form";
+import { ContributionMissions } from "@/components/growth-sections";
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDisplayLabel } from "@/lib/display";
-import { listContributorRevisions } from "@/lib/wiki-public-db";
-import { contentTypes } from "@/lib/wiki-types";
+import { contributionMissions } from "@/lib/growth-content";
+import {
+  listContributorRevisions,
+  listPublicSearchDocuments,
+} from "@/lib/wiki-public-db";
+import {
+  contentTypes,
+  type ContentType,
+} from "@/lib/wiki-types";
 
-export default async function ContributePage() {
+export const metadata: Metadata = {
+  title: "Contribute",
+  description:
+    "Choose a focused aviation research mission, create an article, or improve an approved aviation.wiki page.",
+  robots: { index: false, follow: true },
+};
+
+function valueOf(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || "" : value || "";
+}
+
+export default async function ContributePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await auth();
+  const query = await searchParams;
+  const documents = await listPublicSearchDocuments();
+  const missions = contributionMissions(documents);
+  const title = valueOf(query.title).slice(0, 120);
+  const slug = valueOf(query.slug).slice(0, 100);
+  const requestedType = valueOf(query.contentType);
+  const selectedType = contentTypes.includes(requestedType as ContentType)
+    ? (requestedType as ContentType)
+    : "airline";
+
   if (!session.isAuthenticated || !session.userId) {
     return (
-      <main className="mx-auto grid min-h-[65vh] max-w-2xl place-items-center px-5 py-20 text-center">
-        <div>
+      <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-14 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
           <PencilLine className="mx-auto size-8 text-primary" />
           <h1 className="mt-5 text-4xl font-bold tracking-tight">
             Contribute to aviation.wiki
@@ -33,6 +67,9 @@ export default async function ContributePage() {
             </Button>
           </SignInButton>
         </div>
+        <div className="mt-14 text-left">
+          <ContributionMissions missions={missions} />
+        </div>
       </main>
     );
   }
@@ -44,8 +81,13 @@ export default async function ContributePage() {
         Contribute to aviation.wiki
       </h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
-        Start a new article or continue working on a saved revision.
+        Choose a focused mission, start a new article, or continue working on a
+        saved revision.
       </p>
+
+      <div className="mt-10">
+        <ContributionMissions missions={missions} />
+      </div>
 
       <div className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section>
@@ -111,6 +153,7 @@ export default async function ContributePage() {
                     name="title"
                     required
                     placeholder="Article title"
+                    defaultValue={title}
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-medium">
@@ -121,12 +164,14 @@ export default async function ContributePage() {
                     required
                     placeholder="article-title"
                     pattern="[a-zA-Z0-9-]+"
+                    defaultValue={slug}
                   />
                 </label>
                 <label className="grid gap-2 text-sm font-medium">
                   Content type
                   <select
                     name="contentType"
+                    defaultValue={selectedType}
                     className="h-10 rounded-lg border bg-background px-3 text-sm"
                   >
                     {contentTypes.map((type) => (

@@ -3,6 +3,7 @@ import {
   CalendarClock,
   ExternalLink,
   FilePenLine,
+  GitCompareArrows,
   History,
   MessageSquareWarning,
 } from "lucide-react";
@@ -17,6 +18,9 @@ import { WatchArticleButton } from "@/components/watch-article-button";
 import { getArticleHeadings, parseArticleMarkdown } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
+import { articleDescription } from "@/lib/article-seo";
+import { comparisonsForEntity } from "@/lib/comparison-content";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 import type {
   ArticleRecord,
   ContentType,
@@ -76,6 +80,15 @@ export function ArticleHeader({
           <MessageSquareWarning />
           Suggest correction
         </Link>
+        {contentType === "aircraft" && (
+          <Link
+            href={`/fleet/compare?aircraft=${encodeURIComponent(slug)}`}
+            className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10 px-3`}
+          >
+            <GitCompareArrows />
+            Compare
+          </Link>
+        )}
       </div>
     </header>
   );
@@ -212,8 +225,70 @@ export function PublicArticle({
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
   const headings = getArticleHeadings(parsed.root);
+  const pathname = articlePath(revision.contentType, article.slug);
+  const relatedComparisons = comparisonsForEntity(
+    article.slug,
+    revision.contentType,
+  );
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": `${absoluteUrl(pathname)}#article`,
+        headline: revision.title,
+        description: articleDescription(revision),
+        url: absoluteUrl(pathname),
+        mainEntityOfPage: absoluteUrl(pathname),
+        datePublished: revision.reviewedAt || revision.createdAt,
+        dateModified: revision.updatedAt,
+        author:
+          revision.contributorId === "system"
+            ? { "@id": `${SITE_URL}/#organization` }
+            : {
+                "@type": "Person",
+                name: revision.contributorName,
+              },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        citation: revision.sources.map((source) => source.url),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: SITE_NAME,
+            item: absoluteUrl("/"),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name:
+              revision.contentType === "airline"
+                ? "Commercial airlines"
+                : formatDisplayLabel(contentTypePaths[revision.contentType]),
+            item: absoluteUrl(`/${contentTypePaths[revision.contentType]}`),
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: revision.title,
+            item: absoluteUrl(pathname),
+          },
+        ],
+      },
+    ],
+  };
   return (
-    <main className="mx-auto max-w-[1380px] px-5 pb-20 pt-8 sm:px-6">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <main className="mx-auto max-w-[1380px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="mb-7 text-sm text-muted-foreground">
         <Link href="/" className="article-link">
           aviation.wiki
@@ -263,6 +338,27 @@ export function PublicArticle({
           ) : (
             <ArticleMarkdown root={parsed.root} citations={parsed.citations} hideSidebar />
           )}
+          {relatedComparisons.length > 0 && (
+            <section className="mt-10 rounded-xl border bg-muted/30 p-5 sm:p-6">
+              <div className="flex items-center gap-2">
+                <GitCompareArrows className="size-5 text-primary" />
+                <h2 className="text-xl font-semibold">
+                  Compare {revision.title}
+                </h2>
+              </div>
+              <div className="mt-4 flex flex-col items-start gap-2">
+                {relatedComparisons.map((comparison) => (
+                  <Link
+                    key={comparison.slug}
+                    href={`/compare/${comparison.slug}`}
+                    className="article-link font-medium"
+                  >
+                    {comparison.title}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           <ApprovedRelationships article={article} />
           <ImportedRevisionData revisionId={revision.id} />
           <SourceList sources={revision.sources} citations={parsed.citations} />
@@ -279,6 +375,7 @@ export function PublicArticle({
           />
         </aside>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

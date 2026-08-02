@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
 import { Toaster } from "sonner";
 
@@ -12,6 +13,7 @@ import { HeaderSearch } from "@/components/header-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -27,12 +29,43 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "aviation.wiki", template: "%s | aviation.wiki" },
-  description:
-    "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 const themeScript = `(function(){try{var t=localStorage.getItem("aviation-theme");if(t==="pastel-light"||t==="pastel-dark"||t==="twitter-light"||t==="twitter-dark"){document.documentElement.dataset.theme=t.indexOf("pastel")===0?"pastel-dreams":"twitter";document.documentElement.classList.toggle("dark",t.endsWith("-dark"))}}catch(e){}})()`;
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": `${SITE_URL}/#organization`,
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/aviation-wiki-logo.svg`,
+};
 
 function AviationLogo({ className }: { className: string }) {
   return (
@@ -60,6 +93,12 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
         <ClerkProvider appearance={{ theme: shadcn }}>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
@@ -73,7 +112,7 @@ export default function RootLayout({
                   Aviation<span className="text-primary">.wiki</span>
                 </span>
                 <span
-                  className="-ml-1 hidden h-5 -rotate-3 items-center gap-1 rounded-full border border-primary/20 bg-accent px-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary shadow-sm transition-transform group-hover:rotate-0 min-[360px]:inline-flex"
+                  className="-ml-1 hidden h-5 -rotate-3 items-center gap-1 rounded-full border border-primary/20 bg-accent px-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-primary shadow-sm transition-transform group-hover:rotate-0 min-[420px]:inline-flex"
                   aria-label="Beta version"
                 >
                   <Sparkles className="size-2.5" aria-hidden="true" />
@@ -156,6 +195,36 @@ export default function RootLayout({
                       Home
                     </Link>
                     <Link
+                      href="/categories"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Categories
+                    </Link>
+                    <Link
+                      href="/fleet"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Fleet database
+                    </Link>
+                    <Link
+                      href="/fleet/compare"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Compare aircraft
+                    </Link>
+                    <Link
+                      href="/compare"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Comparison guides
+                    </Link>
+                    <Link
+                      href="/contribute"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Contribute
+                    </Link>
+                    <Link
                       href="/pro"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
@@ -186,6 +255,7 @@ export default function RootLayout({
             </div>
           </footer>
           <Analytics />
+          <SpeedInsights />
           <Toaster position="bottom-right" richColors />
         </ClerkProvider>
       </body>

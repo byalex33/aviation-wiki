@@ -47,7 +47,7 @@ export const aviationCategories = [
     label: "Civil aircraft",
     description:
       "Light aircraft, business jets, helicopters, and specialist civil types.",
-    href: "/search?q=*&type=aircraft",
+    href: "/general-aviation",
   },
   {
     id: "airports",
@@ -55,7 +55,7 @@ export const aviationCategories = [
     label: "Places",
     description:
       "Airports, airfields, hubs, terminals, and the places aviation connects.",
-    href: "/search?q=*&type=airport",
+    href: "/airports",
   },
   {
     id: "manufacturers",
@@ -63,7 +63,7 @@ export const aviationCategories = [
     label: "Industry",
     description:
       "Aircraft and engine manufacturers, design bureaux, and aerospace companies.",
-    href: "/search?q=*&type=manufacturer",
+    href: "/manufacturers",
   },
   {
     id: "engines",
@@ -71,7 +71,7 @@ export const aviationCategories = [
     label: "Propulsion",
     description:
       "Piston, turboprop, turbojet, and turbofan engines from aviation history.",
-    href: "/search?q=*&type=engine",
+    href: "/engines",
   },
 ] as const;
 

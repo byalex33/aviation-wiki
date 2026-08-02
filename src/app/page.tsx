@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -12,6 +13,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  ContributionMissions,
+  FeaturedArticles,
+} from "@/components/growth-sections";
 import { Input } from "@/components/ui/input";
 import {
   aviationCategories,
@@ -20,7 +25,15 @@ import {
   type FeaturedAviationCategoryId,
 } from "@/lib/article-categories";
 import { cn } from "@/lib/utils";
+import {
+  contributionMissions,
+  featuredArticles,
+} from "@/lib/growth-content";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const featuredCategoryPresentation = {
   commercial: {
@@ -65,6 +78,8 @@ const categories = featuredAviationCategoryIds.map((id) => ({
 export default async function Home() {
   const documents = await listPublicSearchDocuments();
   const categoryCounts = getAviationCategoryCounts(documents);
+  const featured = featuredArticles(documents);
+  const missions = contributionMissions(documents);
   return (
     <main className="home-background relative overflow-hidden pb-20">
       <div className="pointer-events-none absolute inset-0 text-muted-foreground" aria-hidden="true">
@@ -135,6 +150,8 @@ export default async function Home() {
           })}
         </div>
         </section>
+        <FeaturedArticles articles={featured} />
+        <ContributionMissions missions={missions} compact />
       </div>
     </main>
   );

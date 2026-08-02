@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { articlePath } from "@/lib/article-routes";
+import { aviationCategoryFor } from "@/lib/article-categories";
 import {
   isSafeImageUrl,
   parseArticleImageShorthand,
@@ -19,6 +20,10 @@ import type { OpenFlightsAirline } from "@/lib/openflights";
 import type { ImportField, ImportImage, ImportPreview, ImportProviderId } from "@/lib/import-types";
 import type { NotificationRecord, NotificationType } from "@/lib/notification-types";
 import type { PublicContributorActivity, PublicContribution } from "@/lib/public-profile-types";
+import type {
+  FleetSourceArticle,
+  FleetSourceRelationship,
+} from "@/lib/fleet-data";
 
 type ArticleRow = { id: string; slug: string; title: string; content_type: ContentType; live_revision_id: string | null; created_at: Date | string; updated_at: Date | string };
 type RevisionRow = { id: string; article_id: string; article_slug: string; proposed_slug: string; status: RevisionStatus; contributor_id: string; contributor_name: string; edit_summary: string; title: string; content_type: ContentType; markdown: string; fields_json: unknown; sections_json: unknown; sources_json: unknown; relationships_json: unknown; verification_json: unknown; moderator_id: string | null; moderator_note: string | null; parent_revision_id: string | null; created_at: Date | string; updated_at: Date | string; submitted_at: Date | string | null; reviewed_at: Date | string | null };
@@ -835,7 +840,7 @@ export async function getSourceHealth(sources: SourceLink[]) {
   return { citedCount: urls.length, lastReviewedAt: dates.length ? new Date(Math.max(...dates)).toISOString() : null, broken: urls.filter((url) => byUrl.get(url)?.status === "broken").length, stale: urls.filter((url) => { const checked = byUrl.get(url)?.checked_at; return !checked || new Date(checked).getTime() < staleBefore; }).length };
 }
 
-const searchableFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign|country|country of origin|manufacturer|engine|alias|aliases|abbreviation|abbreviations|acronym)(\b|$)/i;
+const searchableFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign|country|country of origin|national origin|manufacturer|engine|alias|aliases|abbreviation|abbreviations|acronym)(\b|$)/i;
 const codeFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign)(\b|$)/i;
 
 function firstSidebarImageUrl(markdown: string) {
@@ -855,10 +860,22 @@ function firstSidebarImageUrl(markdown: string) {
 }
 
 function articleCardDescription(markdown: string) {
-  return markdown
+  const paragraph = markdown
     .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .find(
+      (block) =>
+        block.length >= 40 &&
+        !/^(#{1,6}\s|[|>]|[-*+]\s|\d+\.\s|<|\[\^[^\]]+\]:)/.test(block) &&
+        !block.includes("\n|"),
+    );
+
+  return (paragraph ?? "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\[\^[^\]]+\]/g, "")
-    .replace(/[#*_>`\[\]()]/g, " ")
+    .replace(/[*_`~]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 180);
@@ -867,7 +884,7 @@ function articleCardDescription(markdown: string) {
 export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
-    rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
+    rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown,r.updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
     rows<{ article_id: string; old_slug: string }>("SELECT x.article_id,x.old_slug FROM article_slug_redirects x JOIN articles a ON a.id=x.article_id JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL"),
     rows<{ article_id: string; title: string }>("SELECT r.article_id,r.title FROM revisions r JOIN articles a ON a.id=r.article_id JOIN revisions live ON live.id=a.live_revision_id WHERE r.status='approved' AND live.status='approved' AND a.archived_at IS NULL"),
   ]);
@@ -882,8 +899,66 @@ export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
-    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),imageUrl:firstSidebarImageUrl(item.markdown),countries,terms};
+    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),imageUrl:firstSidebarImageUrl(item.markdown),updatedAt:iso(item.updated_at),countries,terms};
   });
+}
+
+export async function listPublicFleetSourceData(): Promise<{
+  articles: FleetSourceArticle[];
+  relationships: FleetSourceRelationship[];
+}> {
+  await ready();
+  const [articles, relationships] = await Promise.all([
+    rows<{
+      id: string;
+      title: string;
+      slug: string;
+      content_type: "aircraft" | "airline";
+      fields_json: unknown;
+      updated_at: Date | string;
+    }>(
+      `SELECT a.id,r.title,a.slug,a.content_type,r.fields_json,r.updated_at
+       FROM articles a
+       JOIN revisions r ON r.id=a.live_revision_id
+       WHERE r.status='approved'
+         AND a.archived_at IS NULL
+         AND a.redirect_to_slug IS NULL
+         AND a.content_type IN ('aircraft','airline')
+       ORDER BY r.title`,
+    ),
+    rows<{
+      relationship_type: string;
+      source_article_id: string;
+      target_article_id: string;
+    }>(
+      `SELECT ar.relationship_type,ar.source_article_id,ar.target_article_id
+       FROM article_relationships ar
+       JOIN articles source ON source.id=ar.source_article_id
+       JOIN articles target ON target.id=ar.target_article_id
+       JOIN revisions source_revision ON source_revision.id=source.live_revision_id
+       JOIN revisions target_revision ON target_revision.id=target.live_revision_id
+       WHERE source_revision.status='approved'
+         AND target_revision.status='approved'
+         AND source.archived_at IS NULL
+         AND target.archived_at IS NULL`,
+    ),
+  ]);
+
+  return {
+    articles: articles.map((article) => ({
+      id: article.id,
+      title: article.title,
+      slug: article.slug,
+      contentType: article.content_type,
+      fields: json(article.fields_json, []),
+      updatedAt: iso(article.updated_at),
+    })),
+    relationships: relationships.map((relationship) => ({
+      type: relationship.relationship_type,
+      sourceArticleId: relationship.source_article_id,
+      targetArticleId: relationship.target_article_id,
+    })),
+  };
 }
 
 export type PublicRelationship = EntityRelationship & { source: EntityOption; target: EntityOption };
@@ -908,5 +983,36 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
   if (article.contentType === "manufacturer") sections.push({title:"Other products from this manufacturer",entities:unique([...outgoing("produces_aircraft"),...incoming("manufactured_by"),...outgoing("produces_engine")])});
   const current = documents.find((document) => document.id===articleId); const countries = current?.countries || [];
   if (countries.length) sections.push({title:`Explore more from ${countries[0]}`,entities:unique(documents.filter((document) => document.id!==articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({id:document.id,title:document.title,slug:document.slug,contentType:document.contentType})))});
+  if (current) {
+    const category = aviationCategoryFor(current);
+    const categoryLabels = {
+      commercial: "More commercial airlines",
+      cargo: "More cargo and logistics operators",
+      alliances: "More airline alliances",
+      military: "More military aircraft",
+      commercialAircraft: "More commercial aircraft",
+      general: "More general aviation aircraft",
+      airports: "More airports",
+      manufacturers: "More manufacturers",
+      engines: "More aircraft engines",
+    } as const;
+    sections.push({
+      title: categoryLabels[category],
+      entities: unique(
+        documents
+          .filter(
+            (document) =>
+              document.id !== articleId &&
+              aviationCategoryFor(document) === category,
+          )
+          .map((document) => ({
+            id: document.id,
+            title: document.title,
+            slug: document.slug,
+            contentType: document.contentType,
+          })),
+      ),
+    });
+  }
   return sections.map((section) => ({...section,entities:unique(section.entities)})).filter((section) => section.entities.length);
 }

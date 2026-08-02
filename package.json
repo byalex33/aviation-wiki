@@ -13,6 +13,8 @@
     "test:citations": "tsx scripts/test-citations.ts",
     "test:relationships": "tsx scripts/test-relationships.ts",
     "test:search": "tsx scripts/test-search.ts",
+    "test:fleet": "tsx scripts/test-fleet.ts",
+    "indexnow": "node scripts/submit-indexnow.mjs",
     "test:importer": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-importer.ts",
     "test:import-collisions": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-import-collisions.ts",
     "test:notifications": "node scripts/check-notifications.mjs"
@@ -23,6 +25,7 @@
     "@clerk/ui": "^1.25.6",
     "@types/mdast": "^4.0.4",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "better-sqlite3": "^13.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
