@@ -31,6 +31,15 @@ const missingCategoryMissions: Array<{
   description: string;
 }> = [
   {
+    category: "news",
+    title: "US Airways Flight 1549 ditching",
+    slug: "us-airways-flight-1549-ditching",
+    contentType: "event",
+    label: "Aviation news",
+    description:
+      "Create the first retrospective event report with a dated timeline, verified outcome, and strong sources.",
+  },
+  {
     category: "general",
     title: "Cessna 172",
     slug: "cessna-172",

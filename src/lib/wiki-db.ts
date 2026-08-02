@@ -170,16 +170,16 @@ db.exec(`
   DROP TRIGGER IF EXISTS revisions_content_type_insert;
   DROP TRIGGER IF EXISTS revisions_content_type_update;
   CREATE TRIGGER articles_content_type_insert
-  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
+  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER articles_content_type_update
-  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
+  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER revisions_content_type_insert
-  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
+  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER revisions_content_type_update
-  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')
+  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER IF NOT EXISTS revisions_status_insert
   BEFORE INSERT ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')

@@ -85,11 +85,11 @@ const checks = [
   ["foreign key violations", "SELECT COUNT(*) FROM pragma_foreign_key_check"],
   [
     "invalid article types",
-    "SELECT COUNT(*) FROM articles WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')",
+    "SELECT COUNT(*) FROM articles WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')",
   ],
   [
     "invalid revision types",
-    "SELECT COUNT(*) FROM revisions WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine')",
+    "SELECT COUNT(*) FROM revisions WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')",
   ],
   [
     "invalid revision statuses",

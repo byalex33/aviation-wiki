@@ -13,6 +13,7 @@ const staticRoutes = [
   "/aircraft",
   "/commercial-aircraft",
   "/general-aviation",
+  "/aviation-news",
   "/military",
   "/cargo",
   "/airports",

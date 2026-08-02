@@ -86,6 +86,7 @@ export function articleDescription(revision: RevisionRecord) {
     manufacturer: `Explore ${revision.title} aircraft, engines, company history, and cited aviation data.`,
     engine: `Explore ${revision.title} specifications, applications, variants, history, and cited aviation data.`,
     alliance: `Explore ${revision.title} members, partners, history, and cited aviation data.`,
+    event: `Read a sourced account of ${revision.title}, including when it happened, what changed, and its aviation significance.`,
   };
   return truncateSentence(fallbacks[revision.contentType]);
 }
@@ -98,6 +99,7 @@ function searchTitle(revision: RevisionRecord) {
     airport: "codes, airlines and airport guide",
     manufacturer: "aircraft, engines and company history",
     engine: "specifications, applications and variants",
+    event: "what happened, timeline and aviation impact",
   };
   return `${revision.title}: ${suffixes[revision.contentType]}`;
 }

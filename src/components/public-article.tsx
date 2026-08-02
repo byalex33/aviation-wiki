@@ -234,7 +234,8 @@ export function PublicArticle({
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "TechArticle",
+        "@type":
+          revision.contentType === "event" ? "NewsArticle" : "TechArticle",
         "@id": `${absoluteUrl(pathname)}#article`,
         headline: revision.title,
         description: articleDescription(revision),

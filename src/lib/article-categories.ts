@@ -50,6 +50,14 @@ export const aviationCategories = [
     href: "/general-aviation",
   },
   {
+    id: "news",
+    name: "Aviation news",
+    label: "Past events",
+    description:
+      "Sourced reports about completed aviation events, ordered by when they happened.",
+    href: "/aviation-news",
+  },
+  {
     id: "airports",
     name: "Airports",
     label: "Places",
@@ -125,6 +133,7 @@ export function isCommercialAircraft(
 }
 
 export function aviationCategoryFor(document: SearchDocument): AviationCategoryId {
+  if (document.contentType === "event") return "news";
   if (document.contentType === "airline")
     return isCargoAirline(document) ? "cargo" : "commercial";
   if (document.contentType === "alliance") return "alliances";

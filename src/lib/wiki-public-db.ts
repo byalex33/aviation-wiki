@@ -995,6 +995,7 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
       airports: "More airports",
       manufacturers: "More manufacturers",
       engines: "More aircraft engines",
+      news: "More aviation event reports",
     } as const;
     sections.push({
       title: categoryLabels[category],

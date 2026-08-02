@@ -88,6 +88,22 @@ function parseContent(
     }))
     .filter((field) => field.key && field.value)
     .slice(0, 60);
+  if (requireSubmissionFields && contentType === "event") {
+    const eventDate = fields.find((field) =>
+      ["event date", "date", "date of event"].includes(
+        field.key.toLowerCase(),
+      ),
+    )?.value;
+    const parsedEventDate = eventDate ? Date.parse(eventDate) : Number.NaN;
+    if (!eventDate || !Number.isFinite(parsedEventDate))
+      throw new UserFacingError(
+        "Aviation news reports require a valid Event date structured field.",
+      );
+    if (parsedEventDate > Date.now() + 86_400_000)
+      throw new UserFacingError(
+        "Aviation news reports must describe an event that has already happened.",
+      );
+  }
   for (const field of fields) {
     const fieldMarkdown = parseStructuredFieldMarkdown(field.value);
     if (fieldMarkdown.errors.length) throw new UserFacingError(`Structured field "${field.key}" has invalid Markdown: ${fieldMarkdown.errors[0].message}`);

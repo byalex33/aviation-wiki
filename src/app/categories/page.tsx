@@ -8,6 +8,7 @@ import {
   Gauge,
   MapPin,
   Network,
+  Newspaper,
   Package,
   Plane,
   PlaneTakeoff,
@@ -25,7 +26,7 @@ import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 export const metadata: Metadata = {
   title: "Aviation categories",
   description:
-    "Browse every aviation.wiki category, from passenger and cargo airlines to aircraft, airports, manufacturers, and engines.",
+    "Browse every aviation.wiki category, from passenger and cargo airlines to aircraft, airports, manufacturers, engines, and past aviation events.",
 };
 
 const categoryPresentation = {
@@ -52,6 +53,10 @@ const categoryPresentation = {
   general: {
     icon: Compass,
     color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  },
+  news: {
+    icon: Newspaper,
+    color: "bg-red-500/15 text-red-700 dark:text-red-300",
   },
   airports: {
     icon: MapPin,
@@ -94,7 +99,8 @@ export default async function CategoriesPage() {
           </h1>
           <p className="mt-4 text-lg leading-8 text-muted-foreground">
             Browse passenger and cargo operators, aircraft, airports,
-            manufacturers, engines, and the networks connecting them.
+            manufacturers, engines, past events, and the networks connecting
+            them.
           </p>
         </div>
         <aside

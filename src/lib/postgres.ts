@@ -30,7 +30,7 @@ async function createSchema() {
       id text PRIMARY KEY,
       slug text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')),
       live_revision_id text,
       created_at timestamptz NOT NULL,
       updated_at timestamptz NOT NULL,
@@ -48,7 +48,7 @@ async function createSchema() {
       contributor_name text NOT NULL,
       edit_summary text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')),
       markdown text NOT NULL DEFAULT '',
       fields_json jsonb NOT NULL DEFAULT '[]',
       sections_json jsonb NOT NULL DEFAULT '[]',
@@ -66,9 +66,9 @@ async function createSchema() {
       reviewed_at timestamptz
     );
     ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_content_type_check;
-    ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine'));
+    ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event'));
     ALTER TABLE revisions DROP CONSTRAINT IF EXISTS revisions_content_type_check;
-    ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine'));
+    ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event'));
     ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_live_revision_id_fkey;
     ALTER TABLE articles ADD CONSTRAINT articles_live_revision_id_fkey FOREIGN KEY (live_revision_id) REFERENCES revisions(id) DEFERRABLE INITIALLY DEFERRED;
     CREATE INDEX IF NOT EXISTS revisions_article_idx ON revisions(article_id, created_at DESC);

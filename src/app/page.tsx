@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Compass,
+  Newspaper,
   Network,
   Plane,
   PlaneTakeoff,
@@ -149,6 +150,33 @@ export default async function Home() {
             );
           })}
         </div>
+        <Link
+          href="/aviation-news"
+          className="group mt-4 flex flex-col gap-5 rounded-[22px] border bg-gradient-to-r from-red-500/10 via-card to-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-7"
+        >
+          <div className="flex items-start gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-red-500/15 text-red-700 ring-1 ring-inset ring-current/10 dark:text-red-300">
+              <Newspaper className="size-5" />
+            </span>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Past events
+              </p>
+              <h3 className="mt-1 text-xl font-bold tracking-tight">
+                Aviation news archive
+              </h3>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Completed aviation events preserved with dates, outcomes,
+                context, and linked sources.
+              </p>
+            </div>
+          </div>
+          <span className="flex shrink-0 items-center gap-2 text-sm font-semibold">
+            {categoryCounts.news.toLocaleString()}{" "}
+            {categoryCounts.news === 1 ? "report" : "reports"}
+            <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </span>
+        </Link>
         </section>
         <FeaturedArticles articles={featured} />
         <ContributionMissions missions={missions} compact />

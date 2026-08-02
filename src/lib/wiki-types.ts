@@ -1,4 +1,12 @@
-export const contentTypes = ["airline", "alliance", "aircraft", "airport", "manufacturer", "engine"] as const;
+export const contentTypes = [
+  "airline",
+  "alliance",
+  "aircraft",
+  "airport",
+  "manufacturer",
+  "engine",
+  "event",
+] as const;
 export type ContentType = (typeof contentTypes)[number];
 
 export const revisionStatuses = ["draft", "verifying", "pending_review", "changes_requested", "approved", "rejected"] as const;

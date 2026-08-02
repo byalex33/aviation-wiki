@@ -11,6 +11,28 @@ import { contentTypes, type ContentType, type RevisionContent } from "@/lib/wiki
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ title?: string; type?: string; saved?: string; submitted?: string }> };
 
+const eventStarterMarkdown = `<Sidebar>
+Event date: YYYY-MM-DD
+Location: Add the city, airport, or region
+Event type: Add a concise classification
+Status: Completed
+</Sidebar>
+
+Write a concise, retrospective summary of the event. Add an inline citation
+after every factual claim.
+
+## What happened
+
+Describe the verified sequence of events without speculation.
+
+## Timeline
+
+List the important times or stages in chronological order.
+
+## Outcome and impact
+
+Record the confirmed outcome, official response, and lasting aviation significance.`;
+
 export default async function ContributionEditorPage({ params, searchParams }: Props) {
   const session = await auth();
   if (!session.isAuthenticated || !session.userId) notFound();
@@ -22,7 +44,7 @@ export default async function ContributionEditorPage({ params, searchParams }: P
   const draft = article ? await getEditableRevision(article.id, session.userId) : null;
   const relationshipTargets = await listApprovedEntityOptions();
   const contentType = contentTypes.includes(query.type as ContentType) ? query.type as ContentType : article?.contentType || "aircraft";
-  const initialContent: RevisionContent = draft || article?.liveRevision || { title: query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" "), contentType, markdown: "", fields: [], sections: [], sources: [], relationships: [] };
+  const initialContent: RevisionContent = draft || article?.liveRevision || { title: query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" "), contentType, markdown: contentType === "event" ? eventStarterMarkdown : "", fields: [], sections: [], sources: [], relationships: [] };
   const latestOwn = !draft && article ? null : draft;
 
   return (

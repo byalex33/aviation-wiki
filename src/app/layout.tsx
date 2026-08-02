@@ -219,6 +219,12 @@ export default function RootLayout({
                       Comparison guides
                     </Link>
                     <Link
+                      href="/aviation-news"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Aviation news
+                    </Link>
+                    <Link
                       href="/contribute"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
