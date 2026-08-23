@@ -1,0 +1,215 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "aviation.wiki Draft API",
+    "description": "Create article drafts for manual review on aviation.wiki. This API cannot publish articles.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://www.aviation.wiki"
+    }
+  ],
+  "paths": {
+    "/api/v1/drafts": {
+      "post": {
+        "operationId": "createArticleDraft",
+        "summary": "Create an aviation.wiki article draft",
+        "description": "Create a draft only after the user explicitly asks for it. Research and verify factual claims, include the sources used, then return the `url` from the response so the user can review the draft. This action never publishes an article.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDraftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft created successfully. Return `url` to the user for review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDraftResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "aviation.wiki API key"
+      }
+    },
+    "schemas": {
+      "CreateDraftRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "type",
+          "content"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Article title. The draft slug is derived from this value."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "airline",
+              "alliance",
+              "aircraft",
+              "airport",
+              "manufacturer",
+              "engine",
+              "event"
+            ],
+            "description": "aviation.wiki content type. Use `event` for aviation news and historical events."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250000,
+            "description": "Finished article body in aviation.wiki Markdown. Use inline footnote citations such as `[^airbus]` and matching footnote definitions."
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Short edit summary describing the draft."
+          },
+          "sources": {
+            "type": "array",
+            "description": "Sources used for factual claims in the article.",
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            }
+          }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "publisher": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "accessedAt": {
+            "type": "string",
+            "format": "date"
+          },
+          "archiveUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2000
+          }
+        }
+      },
+      "CreateDraftResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "success",
+          "draftId",
+          "articleId",
+          "slug",
+          "url"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "draftId": {
+            "type": "string"
+          },
+          "articleId": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Editor URL for the user to review the created draft."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "The draft was not created.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

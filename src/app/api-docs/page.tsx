@@ -219,6 +219,28 @@ X-RateLimit-Reset: 1724437260`}</CodeBlock>
           . Keys are shown only once on creation.
         </p>
       </section>
+
+      <section className="mt-12">
+        <h2 className="text-2xl font-bold tracking-tight">Connect ChatGPT</h2>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          Add this API to a custom GPT as an Action. Import the OpenAPI schema below, then set
+          authentication to <strong>API key</strong> using the <strong>Bearer</strong> scheme.
+          Paste your aviation.wiki key into the Action authentication settings, never into a chat.
+        </p>
+        <div className="mt-4">
+          <CodeBlock>{`https://www.aviation.wiki/openapi.json`}</CodeBlock>
+        </div>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-7 text-muted-foreground">
+          <li>Create an aviation.wiki API key named for the integration.</li>
+          <li>In the GPT editor, create an Action and import the schema URL above.</li>
+          <li>Choose API key authentication, select Bearer, and save the key there.</li>
+          <li>Test the Action in Preview and confirm it returns a review URL.</li>
+        </ol>
+        <p className="mt-3 text-xs leading-6 text-muted-foreground">
+          The Action can only create drafts. You still review, edit, and submit or publish them
+          through the normal aviation.wiki workflow.
+        </p>
+      </section>
     </main>
   );
 }
