@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PublicArticleRoute } from "@/components/public-article-route";
-import { generateArticleMetadata } from "@/lib/article-seo";
 import { getOpenFlightsAirlines } from "@/lib/openflights";
+import { publicArticleMetadata } from "@/lib/seo";
 import {
   ensureDirectoryAirlineArticle,
   getArticleBySlug,
@@ -23,7 +23,7 @@ function iataFrom(value: string | string[] | undefined) {
 export async function generateMetadata({
   params,
 }: AirlinePageProps): Promise<Metadata> {
-  return generateArticleMetadata(params, "airline");
+  return publicArticleMetadata(params, "airline");
 }
 
 export default async function Page({ params, searchParams }: AirlinePageProps) {

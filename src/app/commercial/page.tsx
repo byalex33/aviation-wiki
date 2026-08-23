@@ -11,6 +11,7 @@ import { normalizeSlug } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Commercial airlines",
+  alternates: { canonical: "/commercial" },
   description: "Browse commercial airlines alphabetically on aviation.wiki.",
 };
 

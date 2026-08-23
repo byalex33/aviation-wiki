@@ -11,7 +11,7 @@ import { formatDisplayLabel } from "@/lib/display";
 import { contentTypes, type ContentType } from "@/lib/wiki-types";
 import { searchPublicArticles } from "@/lib/wiki-search";
 
-export const metadata: Metadata = { title: "Search", description: "Search approved public aviation.wiki articles." };
+export const metadata: Metadata = { title: "Search", description: "Search approved public aviation.wiki articles.", robots: { index: false, follow: true } };
 
 function valueOf(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] || "" : value || ""; }
 function pageHref(query: string, type: string, country: string, page: number) {

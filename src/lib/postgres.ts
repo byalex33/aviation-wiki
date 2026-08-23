@@ -25,7 +25,9 @@ export const sql =
 if (process.env.NODE_ENV !== "production") globalThis.aviationWikiSql = sql;
 
 async function createSchema() {
-  await sql.unsafe(`
+  await sql.begin(async (transaction) => {
+    await transaction`SELECT pg_advisory_xact_lock(1337, 20260727)`;
+    await transaction.unsafe(`
     CREATE TABLE IF NOT EXISTS articles (
       id text PRIMARY KEY,
       slug text NOT NULL,
@@ -156,11 +158,26 @@ async function createSchema() {
     CREATE TABLE IF NOT EXISTS article_watches (user_id text NOT NULL, article_id text NOT NULL REFERENCES articles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY(user_id,article_id));
     CREATE TABLE IF NOT EXISTS notification_email_deliveries (id text PRIMARY KEY, notification_id text NOT NULL UNIQUE REFERENCES notifications(id) ON DELETE CASCADE, user_id text NOT NULL, status text NOT NULL, provider_message_id text, failure_reason text, retry_count integer NOT NULL DEFAULT 0, next_attempt_at timestamptz, created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL);
     CREATE TABLE IF NOT EXISTS request_rate_limits (scope text NOT NULL, subject text NOT NULL, window_started_at timestamptz NOT NULL, request_count integer NOT NULL, PRIMARY KEY(scope,subject));
-  `);
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id text PRIMARY KEY,
+      name text NOT NULL,
+      key_hash text NOT NULL UNIQUE,
+      key_prefix text NOT NULL,
+      user_id text NOT NULL,
+      user_name text NOT NULL,
+      scopes_json jsonb NOT NULL DEFAULT '["articles:draft"]',
+      created_at timestamptz NOT NULL,
+      last_used_at timestamptz,
+      revoked_at timestamptz
+    );
+    CREATE INDEX IF NOT EXISTS api_keys_user_idx ON api_keys(user_id, created_at DESC);
+    `);
+  });
 }
 
 export function ensureSchema() {
-  globalThis.aviationWikiSchemaReady ??= createSchema();
+  globalThis.aviationWikiSchemaReady ??=
+    process.env.NODE_ENV === "production" ? Promise.resolve() : createSchema();
   return globalThis.aviationWikiSchemaReady;
 }
 

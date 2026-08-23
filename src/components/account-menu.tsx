@@ -2,7 +2,7 @@
 
 import { useClerk, useUser } from "@clerk/nextjs";
 import { Menu } from "@base-ui/react/menu";
-import { BookOpen, LogOut, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { BookOpen, KeyRound, LogOut, Settings, ShieldCheck, UserRound } from "lucide-react";
 
 import { RoleUsername } from "@/components/role-username";
 
@@ -48,6 +48,10 @@ export function AccountMenu() {
               Your contributions
             </Menu.Item>
             {(user?.publicMetadata.role === "moderator" || user?.publicMetadata.role === "admin") && <Menu.Item onClick={() => { window.location.href = "/admin"; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"><ShieldCheck className="size-4 text-muted-foreground" />Administration</Menu.Item>}
+            <Menu.Item onClick={() => { window.location.href = "/settings/api-keys"; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
+              <KeyRound className="size-4 text-muted-foreground" />
+              API Keys
+            </Menu.Item>
             <Menu.Item onClick={() => openUserProfile()} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
               <Settings className="size-4 text-muted-foreground" />
               Manage account

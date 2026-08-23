@@ -6,8 +6,10 @@ import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
+import { submitIndexNow } from "@/lib/indexnow";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, VerificationResult } from "@/lib/wiki-types";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
+import { buildFleetRows, type FleetEntity, type FleetRelationship } from "@/lib/fleet";
 import { articlePath } from "@/lib/article-routes";
 import type { ImportField, ImportImage, ImportProviderId } from "@/lib/import-types";
 import type { PublicContributorActivity, PublicContribution } from "@/lib/public-profile-types";
@@ -290,10 +292,10 @@ const codeFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsig
 
 /** Returns only material attached to the currently-live approved revision. */
 export function listPublicSearchDocuments(): SearchDocument[] {
-  const rows = db.prepare(`SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown
+  const rows = db.prepare(`SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown,COALESCE(r.reviewed_at,r.updated_at) updated_at
     FROM articles a JOIN revisions r ON r.id=a.live_revision_id
     WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
-    ORDER BY r.title`).all() as Array<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: string; markdown: string }>;
+    ORDER BY r.title`).all() as Array<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: string; markdown: string; updated_at: string }>;
   const redirects = db.prepare(`SELECT x.article_id,x.old_slug FROM article_slug_redirects x
     JOIN articles a ON a.id=x.article_id JOIN revisions r ON r.id=a.live_revision_id
     WHERE r.status='approved' AND a.archived_at IS NULL`).all() as Array<{ article_id: string; old_slug: string }>;
@@ -315,7 +317,8 @@ export function listPublicSearchDocuments(): SearchDocument[] {
       for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({ value, kind, label: field.key });
     }
     const description = row.markdown.replace(/\[\^[^\]]+\]/g, "").replace(/[#*_>`\[\]()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
-    return { id: row.id, title: row.title, slug: row.slug, contentType: row.content_type, href: articlePath(row.content_type, row.slug), description, countries, terms };
+    const images = parseArticleMarkdown(row.markdown).sidebarImages;
+    return { id: row.id, title: row.title, slug: row.slug, contentType: row.content_type, href: articlePath(row.content_type, row.slug), description, updatedAt: row.updated_at, imageUrl: images[0]?.url, imageUrls: images.map((image) => image.url), imageCredit: images[0]?.credit || undefined, countries, terms };
   });
 }
 
@@ -357,9 +360,16 @@ export function getPublicDiscoverySections(articleId: string): DiscoverySection[
   const incoming = (type: EntityRelationship["type"]) => relationships.filter((item) => item.target.id === articleId && item.type === type).map((item) => item.source);
   const unique = (entities: EntityOption[]) => [...new Map(entities.filter((entity) => entity.id !== articleId).map((entity) => [entity.id, entity])).values()].slice(0, 12);
   const sections: DiscoverySection[] = [];
-  if (article.contentType === "airline") sections.push({ title: "Aircraft operated by this airline", entities: outgoing("operates_aircraft") });
+  if (article.contentType === "airline") sections.push(
+    { title: "Aircraft operated by this airline", entities: outgoing("operates_aircraft") },
+    { title: "Hub airports", entities: outgoing("hub_at_airport") },
+  );
   if (article.contentType === "aircraft") {
-    sections.push({ title: "Related airlines", entities: incoming("operates_aircraft") });
+    sections.push(
+      { title: "Airlines operating this aircraft", entities: incoming("operates_aircraft") },
+      { title: "Manufacturers", entities: outgoing("manufactured_by") },
+      { title: "Engines used", entities: outgoing("uses_engine") },
+    );
     const manufacturers = outgoing("manufactured_by").map((entity) => entity.id);
     const sameManufacturer = manufacturers.length ? db.prepare(`SELECT DISTINCT a.id,a.title,a.slug,a.content_type FROM article_relationships ar
       JOIN articles a ON a.id=ar.source_article_id JOIN revisions r ON r.id=a.live_revision_id
@@ -367,7 +377,14 @@ export function getPublicDiscoverySections(articleId: string): DiscoverySection[
     sections.push({ title: "Similar aircraft", entities: unique([...outgoing("variant_of"), ...incoming("variant_of"), ...sameManufacturer.map((row) => ({ id: row.id, title: row.title, slug: row.slug, contentType: row.content_type }))]) });
   }
   if (article.contentType === "airport") sections.push({ title: "Airlines using this airport", entities: incoming("hub_at_airport") });
-  if (article.contentType === "manufacturer") sections.push({ title: "Other products from this manufacturer", entities: unique([...outgoing("produces_aircraft"), ...incoming("manufactured_by"), ...outgoing("produces_engine")]) });
+  if (article.contentType === "manufacturer") sections.push(
+    { title: "Aircraft from this manufacturer", entities: unique([...outgoing("produces_aircraft"), ...incoming("manufactured_by")]) },
+    { title: "Engines from this manufacturer", entities: outgoing("produces_engine") },
+  );
+  if (article.contentType === "engine") sections.push(
+    { title: "Aircraft using this engine", entities: incoming("uses_engine") },
+    { title: "Engine manufacturers", entities: incoming("produces_engine") },
+  );
   const documents = listPublicSearchDocuments();
   const currentDocument = documents.find((document) => document.id === articleId);
   const countries = currentDocument?.countries || [];
@@ -507,7 +524,7 @@ export function transitionRevision(id: string, actorId: string, toStatus: Revisi
   return getRevision(id)!;
 }
 
-export function publishRevision(id: string, moderatorId: string, note?: string | null) {
+export async function publishRevision(id: string, moderatorId: string, note?: string | null) {
   const transaction = db.transaction(() => {
     const revision = getRevision(id);
     if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("This revision is no longer awaiting review.");
@@ -536,7 +553,40 @@ export function publishRevision(id: string, moderatorId: string, note?: string |
   });
   transaction.immediate();
   const published = getRevision(id)!;
-  return getArticleById(published.articleId)!;
+  const article = getArticleById(published.articleId)!;
+  await submitIndexNow([
+    articlePath(published.contentType, published.articleSlug),
+    articlePath(article.contentType, article.slug),
+  ]);
+  return article;
+}
+
+export function listPublicFleet() {
+  const entities = (db.prepare(`SELECT a.id,r.title,a.slug,a.content_type,r.fields_json
+    FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+    WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+      AND a.content_type IN ('aircraft','airline','engine')`).all() as Array<{
+    id: string; title: string; slug: string; content_type: ContentType; fields_json: string;
+  }>).map((entity): FleetEntity => ({
+    id: entity.id,
+    title: entity.title,
+    slug: entity.slug,
+    contentType: entity.content_type,
+    fields: JSON.parse(entity.fields_json),
+  }));
+  const relationships = db.prepare(`SELECT source_article_id,target_article_id,relationship_type
+    FROM article_relationships
+    WHERE relationship_type IN ('operates_aircraft','uses_engine','variant_of')`).all() as Array<{
+    source_article_id: string; target_article_id: string; relationship_type: FleetRelationship["type"];
+  }>;
+  return buildFleetRows(
+    entities,
+    relationships.map((relationship) => ({
+      sourceId: relationship.source_article_id,
+      targetId: relationship.target_article_id,
+      type: relationship.relationship_type,
+    })),
+  );
 }
 
 export function moderatorEditRevision(id: string, content: RevisionContent, proposedSlug: string, editSummary: string, moderatorId: string) {

@@ -6,6 +6,7 @@ import {
   MissingArticleState,
   PublicArticle,
 } from "@/components/public-article";
+import { getAircraftArticleTitles } from "@/lib/article-markdown";
 import {
   ComparisonPrompt,
   RevisionHistory,
@@ -20,6 +21,7 @@ import {
   normalizeSlug,
   getArticlePublicationControls,
   isWatchingArticle,
+  listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
 
@@ -47,15 +49,28 @@ export async function PublicArticleRoute({
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     return <MissingArticleState slug={slug} contentType={contentType} />;
-  const watching = session.userId
-    ? await isWatchingArticle(session.userId, article.id)
-    : false;
+  const [watching, entities] = await Promise.all([
+    session.userId ? isWatchingArticle(session.userId, article.id) : false,
+    listApprovedEntityOptions(),
+  ]);
+  const articleLinks = entities
+    .filter((entity) => entity.contentType === "aircraft")
+    .flatMap((entity) =>
+      getAircraftArticleTitles(entity.title).map((title) => ({
+        title,
+        href:
+          entity.id === article.id
+            ? null
+            : articlePath(entity.contentType, entity.slug),
+      })),
+    );
   return (
     <PublicArticle
       article={article}
       revision={article.liveRevision}
       watching={watching}
       signedIn={Boolean(session.userId)}
+      articleLinks={articleLinks}
     />
   );
 }

@@ -12,6 +12,7 @@ import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Military aircraft",
+  alternates: { canonical: "/military" },
   description:
     "Browse approved military aircraft articles on aviation.wiki.",
 };

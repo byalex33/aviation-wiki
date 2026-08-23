@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ArticleBlock } from "@/components/article-blocks";
@@ -9,12 +10,14 @@ import {
 import {
   getArticleHeadings,
   getArticleImageShorthandMatches,
+  getArticleMentionParts,
   getBlockAttributes,
   parseArticleImageShorthand,
   parseStructuredFieldMarkdown,
   resolveFlagCode,
   type ArticleBlockName,
   type ArticleImage,
+  type ArticleMentionLink,
   type Citation,
   type MarkdownNode,
   type MarkdownRoot,
@@ -67,7 +70,12 @@ export function ArticleImageDisplay({
   );
 }
 
-function renderText(value: string, key: string, compact: boolean) {
+function renderText(
+  value: string,
+  key: string,
+  compact: boolean,
+  articleLinks: ArticleMentionLink[],
+) {
   const tokens = [
     ...[...value.matchAll(/f!\[[^\]]+\]/g)].map((match) => ({
       index: match.index ?? 0,
@@ -81,10 +89,28 @@ function renderText(value: string, key: string, compact: boolean) {
   ].sort((left, right) => left.index - right.index);
   const rendered: ReactNode[] = [];
   let offset = 0;
+  const pushText = (text: string, textOffset: number) => {
+    rendered.push(
+      ...getArticleMentionParts(text, articleLinks).map((part, index) =>
+        part.href ? (
+          <Link
+            key={`${key}-article-${textOffset}-${index}`}
+            href={part.href}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {part.text}
+          </Link>
+        ) : (
+          part.text
+        ),
+      ),
+    );
+  };
 
   for (const [index, token] of tokens.entries()) {
     if (token.index < offset) continue;
-    if (token.index > offset) rendered.push(value.slice(offset, token.index));
+    if (token.index > offset)
+      pushText(value.slice(offset, token.index), offset);
 
     if (token.kind === "flag") {
       const code = /^f!\[([^\]]+)\]$/.exec(token.value)?.[1];
@@ -113,18 +139,25 @@ function renderText(value: string, key: string, compact: boolean) {
     offset = token.index + token.value.length;
   }
 
-  if (offset < value.length) rendered.push(value.slice(offset));
+  if (offset < value.length) pushText(value.slice(offset), offset);
   return rendered;
 }
 
-function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact: boolean): ReactNode {
-  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, headingIds, compact));
+function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact: boolean, articleLinks: ArticleMentionLink[]): ReactNode {
+  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, headingIds, compact, articleLinks));
 }
 
-function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact = false): ReactNode {
-  const children = renderChildren(node, definitions, citations, headingIds, compact);
+function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact = false, articleLinks: ArticleMentionLink[] = []): ReactNode {
+  const children = renderChildren(
+    node,
+    definitions,
+    citations,
+    headingIds,
+    compact,
+    node.type === "link" || node.type === "linkReference" ? [] : articleLinks,
+  );
   switch (node.type) {
-    case "text": return renderText(node.value ?? "", key, compact);
+    case "text": return renderText(node.value ?? "", key, compact, articleLinks);
     case "paragraph": {
       const onlyChild = node.children?.length === 1 ? node.children[0] : null;
       if (onlyChild?.type === "image") return renderNode(onlyChild, key, definitions, citations, headingIds, compact);
@@ -197,7 +230,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
   }
 }
 
-export function ArticleMarkdown({ root, citations = [], compact = false, hideSidebar = false }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean; hideSidebar?: boolean }) {
+export function ArticleMarkdown({ root, citations = [], compact = false, hideSidebar = false, articleLinks = [] }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean; hideSidebar?: boolean; articleLinks?: ArticleMentionLink[] }) {
   const definitions: Definitions = new Map();
   for (const node of root.children) {
     if (node.type === "definition" && node.identifier && node.url) {
@@ -213,8 +246,8 @@ export function ArticleMarkdown({ root, citations = [], compact = false, hideSid
 
   return (
     <div className={compact ? "" : showSidebar ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
-      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, headingIds, compact))}</article>
-      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, headingIds))}</aside>}
+      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, headingIds, compact, articleLinks))}</article>
+      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, headingIds, false, articleLinks))}</aside>}
     </div>
   );
 }

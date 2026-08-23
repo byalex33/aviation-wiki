@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   parseStructuredFieldMarkdown,
   type ArticleImage,
+  type ArticleMentionLink,
 } from "@/lib/article-markdown";
 import { formatDisplayLabel } from "@/lib/display";
 import type { ContentType, StructuredField } from "@/lib/wiki-types";
@@ -15,11 +16,13 @@ export function InformationSidebar({
   contentType,
   fields,
   images = [],
+  articleLinks = [],
 }: {
   title: string;
   contentType: ContentType;
   fields: StructuredField[];
   images?: ArticleImage[];
+  articleLinks?: ArticleMentionLink[];
 }) {
   return (
     <Card className="min-w-0 gap-0 overflow-hidden py-0 shadow-md">
@@ -27,6 +30,7 @@ export function InformationSidebar({
         <ArticleImageDisplay
           key={`${image.url}-${index}`}
           image={image}
+          alt={title}
           flush
         />
       ))}
@@ -50,7 +54,7 @@ export function InformationSidebar({
                     {field.key}
                   </dt>
                   <dd className="min-w-0 break-words [overflow-wrap:anywhere]">
-                    {parsed.errors.length ? field.value : <ArticleMarkdown root={parsed.root} compact />}
+                    {parsed.errors.length ? field.value : <ArticleMarkdown root={parsed.root} compact articleLinks={articleLinks} />}
                   </dd>
                 </div>
               );

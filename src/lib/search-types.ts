@@ -9,8 +9,10 @@ export type SearchDocument = {
   contentType: ContentType;
   href: string;
   description: string;
-  imageUrl?: string;
   updatedAt?: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  imageCredit?: string;
   countries: string[];
   terms: Array<{ value: string; kind: SearchTermKind; label?: string }>;
 };

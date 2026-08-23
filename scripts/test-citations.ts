@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { getArticleHeadings, parseArticleImageShorthand, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
+import { getAircraftArticleTitles, getArticleHeadings, getArticleMentionParts, parseArticleImageShorthand, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
 assert.deepEqual(valid.errors, []);
@@ -86,5 +86,32 @@ assert.deepEqual(headings.map(({ id, text, depth }) => ({ id, text, depth })), [
   { id: "section-current-fleet", text: "Current fleet", depth: 3 },
   { id: "section-fleet-2", text: "Fleet", depth: 2 },
 ]);
+
+const articleLinks = [
+  { title: "Boeing 737", href: "/aircraft/boeing-737" },
+  { title: "Boeing 737 family", href: null },
+];
+assert.deepEqual(
+  getArticleMentionParts(
+    "The Boeing 737 family followed the Boeing 737; XBoeing 737 is not a mention.",
+    articleLinks,
+  ),
+  [
+    { text: "The ", href: null },
+    { text: "Boeing 737 family", href: null },
+    { text: " followed the ", href: null },
+    { text: "Boeing 737", href: "/aircraft/boeing-737" },
+    { text: "; XBoeing 737 is not a mention.", href: null },
+  ],
+);
+assert.deepEqual(
+  getAircraftArticleTitles("General Dynamics F-16 Fighting Falcon"),
+  [
+    "General Dynamics F-16 Fighting Falcon",
+    "F-16 Fighting Falcon",
+    "F-16",
+  ],
+);
+assert.deepEqual(getAircraftArticleTitles("Boeing 747"), ["Boeing 747"]);
 
 console.log("Citation parser tests passed");

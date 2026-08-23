@@ -18,6 +18,7 @@ import {
   type WikiRole,
 } from "@/lib/wiki-auth";
 import { UserFacingError } from "@/lib/user-facing-error";
+import { submitIndexNow } from "@/lib/indexnow";
 
 const adminDatabase = () =>
   process.env.DATABASE_URL
@@ -190,6 +191,16 @@ export async function updateArticleAction(formData: FormData) {
   };
   await adminDb.updateArticleAdmin(input);
   const after = await adminDb.getArticleAdminById(articleId);
+  if (before.live_revision_id) {
+    const contentType = String(
+      before.content_type,
+    ) as import("@/lib/wiki-types").ContentType;
+    await submitIndexNow([
+      articlePath(contentType, String(before.slug)),
+      articlePath(contentType, slug),
+      ...(redirectToSlug ? [articlePath(contentType, redirectToSlug)] : []),
+    ]);
+  }
   await adminDb.recordAdminAudit({
     actorId: actor.userId,
     actorName: actor.name,

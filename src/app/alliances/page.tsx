@@ -11,6 +11,7 @@ import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Airline alliances",
+  alternates: { canonical: "/alliances" },
   description: "Browse airline alliance articles on aviation.wiki.",
 };
 

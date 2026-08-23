@@ -58,6 +58,16 @@ export type ArticleImageShorthandMatch = {
   index: number;
 };
 
+export type ArticleMentionLink = {
+  title: string;
+  href: string | null;
+};
+
+export type ArticleMentionPart = {
+  text: string;
+  href: string | null;
+};
+
 export type ArticleHeading = {
   node: MarkdownNode;
   id: string;
@@ -100,6 +110,56 @@ const allowedAttributes: Record<ArticleBlockName, Set<string>> = {
   Gallery: new Set(["title", "columns"]),
   RelatedPages: new Set(["title"]),
 };
+
+export function getArticleMentionParts(
+  value: string,
+  links: ArticleMentionLink[],
+): ArticleMentionPart[] {
+  const targets = new Map(
+    links.map((link) => [link.title.toLocaleLowerCase("en"), link.href]),
+  );
+  if (!value || !targets.size) return value ? [{ text: value, href: null }] : [];
+
+  const titles = [...targets.keys()]
+    .sort((left, right) => right.length - left.length)
+    .map((title) => title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}])(${titles.join("|")})(?![\\p{L}\\p{N}])`,
+    "giu",
+  );
+  const parts: ArticleMentionPart[] = [];
+  let offset = 0;
+
+  for (const match of value.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > offset)
+      parts.push({ text: value.slice(offset, index), href: null });
+    parts.push({
+      text: match[0],
+      href: targets.get(match[0].toLocaleLowerCase("en")) ?? null,
+    });
+    offset = index + match[0].length;
+  }
+
+  if (offset < value.length)
+    parts.push({ text: value.slice(offset), href: null });
+  return parts.length ? parts : [{ text: value, href: null }];
+}
+
+export function getAircraftArticleTitles(title: string) {
+  const designation =
+    /\b(?:[A-Z](?:\/[A-Z])?-\d+[A-Z]*(?:\/[A-Z])?|[A-Z][a-z]{0,2}-\d+[A-Z]*|JAS \d+|Mirage \d+)\b/.exec(
+      title,
+    );
+  return [
+    ...new Set([
+      title,
+      ...(designation
+        ? [title.slice(designation.index), designation[0]]
+        : []),
+    ]),
+  ];
+}
 
 function location(node: MarkdownNode) {
   return {

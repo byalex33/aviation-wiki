@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Pro",
+  alternates: { canonical: "/pro" },
   description: "Compare free and Pro access, then support aviation.wiki with one donation.",
 };
 

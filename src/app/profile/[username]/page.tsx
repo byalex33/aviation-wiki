@@ -16,6 +16,7 @@ import {
 import { articlePath } from "@/lib/article-routes";
 import { formatDisplayLabel } from "@/lib/display";
 import { getPublicProfile } from "@/lib/public-profile";
+import { jsonLd, siteUrl } from "@/lib/seo";
 
 type ProfilePageProps = {
   params: Promise<{ username: string }>;
@@ -58,6 +59,19 @@ export async function generateMetadata({
     alternates: {
       canonical: `/profile/${encodeURIComponent(profile.username)}`,
     },
+    openGraph: {
+      type: "profile",
+      url: `/profile/${encodeURIComponent(profile.username)}`,
+      title: `${profile.displayName} (@${profile.username})`,
+      description: `${profile.approvedCount} ${contributionLabel} on aviation.wiki.`,
+      images: [{ url: profile.imageUrl, alt: profile.displayName }],
+    },
+    twitter: {
+      card: "summary",
+      title: `${profile.displayName} (@${profile.username})`,
+      description: `${profile.approvedCount} ${contributionLabel} on aviation.wiki.`,
+      images: [profile.imageUrl],
+    },
   };
 }
 
@@ -73,7 +87,26 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const roleLabel = formatDisplayLabel(profile.role);
 
   return (
-    <main className="min-h-[70vh]">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            url: new URL(`/profile/${encodeURIComponent(profile.username)}`, siteUrl),
+            mainEntity: {
+              "@type": "Person",
+              name: profile.displayName,
+              image: profile.imageUrl,
+              description:
+                profile.bio ||
+                `${profile.displayName} is an aviation.wiki ${roleLabel.toLowerCase()}.`,
+            },
+          }),
+        }}
+      />
+      <main className="min-h-[70vh]">
       <div className="mx-auto max-w-[1040px] px-5 pb-24 pt-7 sm:px-6 sm:pt-9">
         <nav aria-label="Breadcrumb">
           <Link
@@ -283,6 +316,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           )}
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

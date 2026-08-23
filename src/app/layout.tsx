@@ -15,6 +15,7 @@ import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { jsonLd, siteUrl } from "@/lib/seo";
 
 import "./globals.css";
 
@@ -54,6 +55,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
       "max-video-preview": -1,
     },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
   },
 };
 
@@ -235,6 +242,12 @@ export default function RootLayout({
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Pro
+                    </Link>
+                    <Link
+                      href="/fleet"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Fleet database
                     </Link>
                     <Link
                       href="/privacy"

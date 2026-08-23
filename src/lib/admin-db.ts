@@ -298,21 +298,38 @@ export function updateArticleAdmin(input: {
 }
 
 export function listSourceReview() {
-  const rows = db
+  const sources = db
     .prepare(
       `SELECT json_extract(j.value,'$.url') url, MAX(COALESCE(json_extract(j.value,'$.title'),json_extract(j.value,'$.label'))) label, COUNT(*) usage_count,
     sc.status, sc.strength, sc.note, sc.checked_at,
     CASE WHEN sc.checked_at IS NULL OR sc.checked_at < datetime('now','-180 days') THEN 1 ELSE 0 END stale
-    FROM revisions r, json_each(r.sources_json) j LEFT JOIN source_checks sc ON sc.url=json_extract(j.value,'$.url')
-    WHERE json_extract(j.value,'$.url') IS NOT NULL GROUP BY url ORDER BY usage_count DESC, url`,
+    FROM articles a JOIN revisions r ON r.id=a.live_revision_id JOIN json_each(r.sources_json) j
+    LEFT JOIN source_checks sc ON sc.url=json_extract(j.value,'$.url')
+    WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+      AND json_extract(j.value,'$.url') IS NOT NULL GROUP BY url ORDER BY usage_count DESC, url`,
     )
     .all() as Array<Record<string, unknown>>;
   const missing = db
     .prepare(
-      "SELECT id,title,status FROM revisions WHERE json_array_length(sources_json)=0 ORDER BY updated_at DESC LIMIT 100",
+      `SELECT r.id,r.title,r.status FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+        AND json_array_length(r.sources_json)=0 ORDER BY r.updated_at DESC LIMIT 100`,
     )
     .all() as Array<Record<string, unknown>>;
-  return { sources: rows, missing };
+  const staleContent = db.prepare(`SELECT a.id,a.slug,a.content_type,r.title,COALESCE(r.reviewed_at,r.updated_at) last_modified_at,
+    CAST(julianday('now')-julianday(COALESCE(r.reviewed_at,r.updated_at)) AS INTEGER) age_days,
+    json_array_length(r.sources_json) source_count,
+    COALESCE(SUM(CASE WHEN sc.status='broken' THEN 1 ELSE 0 END),0) broken_sources,
+    COALESCE(SUM(CASE WHEN j.value IS NOT NULL AND (sc.checked_at IS NULL OR sc.checked_at<datetime('now','-180 days')) THEN 1 ELSE 0 END),0) stale_sources
+    FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+    LEFT JOIN json_each(r.sources_json) j ON true
+    LEFT JOIN source_checks sc ON sc.url=json_extract(j.value,'$.url')
+    WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+    GROUP BY a.id,a.slug,a.content_type,r.title,r.reviewed_at,r.updated_at,r.sources_json
+    HAVING COALESCE(r.reviewed_at,r.updated_at)<datetime('now','-365 days')
+      OR json_array_length(r.sources_json)=0 OR SUM(CASE WHEN sc.status='broken' THEN 1 ELSE 0 END)>0
+    ORDER BY broken_sources DESC,age_days DESC,r.title LIMIT 200`).all() as Array<Record<string, unknown>>;
+  return { sources, missing, staleContent };
 }
 
 export function getSourceHealth(sources: SourceLink[]) {

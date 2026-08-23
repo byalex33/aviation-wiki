@@ -25,6 +25,7 @@ import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Aviation categories",
+  alternates: { canonical: "/categories" },
   description:
     "Browse every aviation.wiki category, from passenger and cargo airlines to aircraft, airports, manufacturers, engines, and past aviation events.",
 };

@@ -13,6 +13,7 @@ import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
+import { submitIndexNow } from "@/lib/indexnow";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import type { WikiRole } from "@/lib/wiki-auth";
 import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, SourceLink, VerificationResult } from "@/lib/wiki-types";
@@ -183,18 +184,33 @@ export async function listPrivateRevisionNotes(revisionId: string) {
 
 export async function listSourceReview() {
   await ready();
-  const [sources, missing] = await Promise.all([
+  const [sources, missing, staleContent] = await Promise.all([
     rows<Record<string, unknown>>(`SELECT source->>'url' url,MAX(COALESCE(source->>'title',source->>'label')) label,COUNT(*)::int usage_count,
       sc.status,sc.strength,sc.note,sc.checked_at,
       CASE WHEN sc.checked_at IS NULL OR sc.checked_at<NOW()-INTERVAL '180 days' THEN 1 ELSE 0 END stale
-      FROM revisions r CROSS JOIN LATERAL jsonb_array_elements(r.sources_json) source
+      FROM articles a JOIN revisions r ON r.id=a.live_revision_id CROSS JOIN LATERAL jsonb_array_elements(r.sources_json) source
       LEFT JOIN source_checks sc ON sc.url=source->>'url'
-      WHERE source->>'url' IS NOT NULL
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL AND source->>'url' IS NOT NULL
       GROUP BY source->>'url',sc.status,sc.strength,sc.note,sc.checked_at
       ORDER BY usage_count DESC,url`),
-    rows<Record<string, unknown>>("SELECT id,title,status FROM revisions WHERE jsonb_array_length(sources_json)=0 ORDER BY updated_at DESC LIMIT 100"),
+    rows<Record<string, unknown>>(`SELECT r.id,r.title,r.status FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL AND jsonb_array_length(r.sources_json)=0
+      ORDER BY r.updated_at DESC LIMIT 100`),
+    rows<Record<string, unknown>>(`SELECT a.id,a.slug,a.content_type,r.title,COALESCE(r.reviewed_at,r.updated_at) last_modified_at,
+      FLOOR(EXTRACT(EPOCH FROM (NOW()-COALESCE(r.reviewed_at,r.updated_at)))/86400)::int age_days,
+      jsonb_array_length(r.sources_json)::int source_count,
+      COUNT(*) FILTER (WHERE sc.status='broken')::int broken_sources,
+      COUNT(*) FILTER (WHERE source IS NOT NULL AND (sc.checked_at IS NULL OR sc.checked_at<NOW()-INTERVAL '180 days'))::int stale_sources
+      FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+      LEFT JOIN LATERAL jsonb_array_elements(r.sources_json) source ON true
+      LEFT JOIN source_checks sc ON sc.url=source->>'url'
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+      GROUP BY a.id,a.slug,a.content_type,r.title,r.reviewed_at,r.updated_at,r.sources_json
+      HAVING COALESCE(r.reviewed_at,r.updated_at)<NOW()-INTERVAL '365 days'
+        OR jsonb_array_length(r.sources_json)=0 OR COUNT(*) FILTER (WHERE sc.status='broken')>0
+      ORDER BY broken_sources DESC,age_days DESC,r.title LIMIT 200`),
   ]);
-  return { sources, missing };
+  return { sources, missing, staleContent };
 }
 
 export async function listAuditLog() {
@@ -443,7 +459,10 @@ export async function ensureDirectoryAirlineArticle(
     await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${String(article.id)},'approved','system','aviation.wiki','Initial import from the OpenFlights airline directory',${airline.name},'airline',${markdown},${transaction.json(fields)},${transaction.json([])},${transaction.json([{ label: "OpenFlights airline database", url: "https://openflights.org/data.php", publisher: "OpenFlights" }])},${transaction.json([])},${slug},NULL,${now},${now},${now},${now},'system','Imported from the public airline directory')`;
     await transaction`UPDATE articles SET live_revision_id=${revisionId},updated_at=${now} WHERE id=${String(article.id)} AND live_revision_id IS NULL`;
   });
-  return getArticleBySlug(slug, "airline");
+  const article = await getArticleBySlug(slug, "airline");
+  if (article?.liveRevision?.id === revisionId)
+    await submitIndexNow([articlePath("airline", slug)]);
+  return article;
 }
 
 export async function getArticleById(id: string): Promise<ArticleWithLiveRevision | null> {
@@ -689,7 +708,12 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
       await transaction`INSERT INTO article_relationships (source_article_id,target_article_id,relationship_type,approved_revision_id,created_at)
         VALUES (${revision.articleId},${relationship.targetArticleId},${relationship.type},${id},${now})`;
   });
-  return (await getArticleById(revision.articleId))!;
+  const publishedArticle = (await getArticleById(revision.articleId))!;
+  await submitIndexNow([
+    articlePath(revision.contentType, revision.articleSlug),
+    articlePath(publishedArticle.contentType, publishedArticle.slug),
+  ]);
+  return publishedArticle;
 }
 
 export async function restoreRevision(sourceRevisionId: string, moderatorId: string, moderatorName: string) {
@@ -843,20 +867,20 @@ export async function getSourceHealth(sources: SourceLink[]) {
 const searchableFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign|country|country of origin|national origin|manufacturer|engine|alias|aliases|abbreviation|abbreviations|acronym)(\b|$)/i;
 const codeFieldPattern = /(^|\b)(iata|icao|code|designation|registration|callsign|call sign)(\b|$)/i;
 
-function firstSidebarImageUrl(markdown: string) {
+function sidebarImages(markdown: string) {
   const opening = /<Sidebar(?:\s[^>]*)?>/.exec(markdown);
-  if (opening?.index === undefined) return undefined;
+  if (opening?.index === undefined) return [];
   const bodyStart = opening.index + opening[0].length;
   const closing = markdown.indexOf("</Sidebar>", bodyStart);
-  if (closing < 0) return undefined;
+  if (closing < 0) return [];
 
-  for (const rawLine of markdown.slice(bodyStart, closing).split(/\r?\n/)) {
-    const image = parseArticleImageShorthand(
-      rawLine.trim().replace(/^-\s+/, ""),
-    );
-    if (image && isSafeImageUrl(image.url)) return image.url;
-  }
-  return undefined;
+  return markdown
+    .slice(bodyStart, closing)
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const image = parseArticleImageShorthand(line.trim().replace(/^-\s+/, ""));
+      return image && isSafeImageUrl(image.url) ? [image] : [];
+    });
 }
 
 function articleCardDescription(markdown: string) {
@@ -884,7 +908,7 @@ function articleCardDescription(markdown: string) {
 export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
-    rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown,r.updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
+    rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown,COALESCE(r.reviewed_at,r.updated_at) updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
     rows<{ article_id: string; old_slug: string }>("SELECT x.article_id,x.old_slug FROM article_slug_redirects x JOIN articles a ON a.id=x.article_id JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL"),
     rows<{ article_id: string; title: string }>("SELECT r.article_id,r.title FROM revisions r JOIN articles a ON a.id=r.article_id JOIN revisions live ON live.id=a.live_revision_id WHERE r.status='approved' AND live.status='approved' AND a.archived_at IS NULL"),
   ]);
@@ -899,7 +923,8 @@ export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
-    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),imageUrl:firstSidebarImageUrl(item.markdown),updatedAt:iso(item.updated_at),countries,terms};
+    const images = sidebarImages(item.markdown);
+    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,countries,terms};
   });
 }
 
@@ -977,10 +1002,25 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
   const incoming = (type: EntityRelationship["type"]) => relationships.filter((item) => item.target.id===articleId && item.type===type).map((item) => item.source);
   const unique = (entities: EntityOption[]) => [...new Map(entities.filter((entity) => entity.id!==articleId).map((entity) => [entity.id,entity])).values()].slice(0,12);
   const sections: DiscoverySection[] = [];
-  if (article.contentType === "airline") sections.push({title:"Aircraft operated by this airline",entities:outgoing("operates_aircraft")});
-  if (article.contentType === "aircraft") sections.push({title:"Related airlines",entities:incoming("operates_aircraft")},{title:"Related variants",entities:unique([...outgoing("variant_of"),...incoming("variant_of")])});
+  if (article.contentType === "airline") sections.push(
+    {title:"Aircraft operated by this airline",entities:outgoing("operates_aircraft")},
+    {title:"Hub airports",entities:outgoing("hub_at_airport")},
+  );
+  if (article.contentType === "aircraft") sections.push(
+    {title:"Airlines operating this aircraft",entities:incoming("operates_aircraft")},
+    {title:"Manufacturers",entities:outgoing("manufactured_by")},
+    {title:"Engines used",entities:outgoing("uses_engine")},
+    {title:"Related variants",entities:unique([...outgoing("variant_of"),...incoming("variant_of")])},
+  );
   if (article.contentType === "airport") sections.push({title:"Airlines using this airport",entities:incoming("hub_at_airport")});
-  if (article.contentType === "manufacturer") sections.push({title:"Other products from this manufacturer",entities:unique([...outgoing("produces_aircraft"),...incoming("manufactured_by"),...outgoing("produces_engine")])});
+  if (article.contentType === "manufacturer") sections.push(
+    {title:"Aircraft from this manufacturer",entities:unique([...outgoing("produces_aircraft"),...incoming("manufactured_by")])},
+    {title:"Engines from this manufacturer",entities:outgoing("produces_engine")},
+  );
+  if (article.contentType === "engine") sections.push(
+    {title:"Aircraft using this engine",entities:incoming("uses_engine")},
+    {title:"Engine manufacturers",entities:incoming("produces_engine")},
+  );
   const current = documents.find((document) => document.id===articleId); const countries = current?.countries || [];
   if (countries.length) sections.push({title:`Explore more from ${countries[0]}`,entities:unique(documents.filter((document) => document.id!==articleId && document.countries.some((country) => countries.includes(country))).map((document) => ({id:document.id,title:document.title,slug:document.slug,contentType:document.contentType})))});
   if (current) {

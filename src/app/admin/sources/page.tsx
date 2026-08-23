@@ -1,28 +1,32 @@
 import { AlertTriangle, BookCheck, Copy, Link2Off } from "lucide-react";
+import Link from "next/link";
 
 import { updateSourceCheckAction } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { articlePath } from "@/lib/article-routes";
 import { formatDisplayLabel } from "@/lib/display";
+import type { ContentType } from "@/lib/wiki-types";
 
 export default async function AdminSourcesPage() {
   const { listSourceReview } = process.env.DATABASE_URL
     ? await import("@/lib/wiki-public-db")
     : await import("@/lib/admin-db");
   const review = await listSourceReview();
+  const brokenSources = review.sources.filter((source) => source.status === "broken");
   return (
     <main>
       <p className="text-sm text-muted-foreground">
-        Citation health from real revision records
+        Automatically prioritised from live approved revisions
       </p>
-      <h2 className="mt-1 text-3xl font-bold">Source review</h2>
-      <div className="mt-7 grid gap-4 sm:grid-cols-3">
+      <h2 className="mt-1 text-3xl font-bold">Maintenance queues</h2>
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent>
             <Link2Off className="size-5 text-destructive" />
             <p className="mt-3 text-2xl font-bold">
-              {review.sources.filter((s) => s.status === "broken").length}
+              {brokenSources.length}
             </p>
             <p className="text-sm text-muted-foreground">Broken URLs</p>
           </CardContent>
@@ -47,10 +51,44 @@ export default async function AdminSourcesPage() {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent>
+            <AlertTriangle className="size-5 text-amber-600" />
+            <p className="mt-3 text-2xl font-bold">{review.staleContent.length}</p>
+            <p className="text-sm text-muted-foreground">Stale content</p>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="mt-7 grid gap-7 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Stale-content queue</CardTitle></CardHeader>
+          <CardContent className="divide-y p-0">
+            {review.staleContent.length ? review.staleContent.map((article) => (
+              <div key={String(article.id)} className="px-5 py-4 text-sm">
+                <Link href={articlePath(String(article.content_type) as ContentType, String(article.slug))} className="font-medium text-primary hover:underline">
+                  {String(article.title)}
+                </Link>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {Number(article.age_days)} days old · {Number(article.broken_sources)} broken · {Number(article.stale_sources)} unchecked sources
+                </p>
+              </div>
+            )) : <p className="p-5 text-sm text-muted-foreground">No live articles currently need a freshness review.</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Broken-source queue</CardTitle></CardHeader>
+          <CardContent className="divide-y p-0">
+            {brokenSources.length ? brokenSources.map((source) => (
+              <a key={String(source.url)} href={String(source.url)} target="_blank" rel="noreferrer" className="block break-all px-5 py-4 text-sm font-medium text-primary hover:underline">
+                {String(source.label || source.url)}
+              </a>
+            )) : <p className="p-5 text-sm text-muted-foreground">No sources are currently confirmed broken.</p>}
+          </CardContent>
+        </Card>
       </div>
       <Card className="mt-7">
         <CardHeader>
-          <CardTitle>Sources</CardTitle>
+          <CardTitle>All source checks</CardTitle>
         </CardHeader>
         <CardContent className="divide-y p-0">
           {review.sources.length ? (

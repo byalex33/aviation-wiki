@@ -33,7 +33,24 @@ import {
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
+  title: "aviation.wiki",
+  description:
+    "The free encyclopedia of aircraft, engines, airports, and aviation history.",
   alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "aviation.wiki",
+    title: "aviation.wiki",
+    description:
+      "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "aviation.wiki",
+    description:
+      "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+  },
 };
 
 const featuredCategoryPresentation = {

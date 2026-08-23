@@ -12,6 +12,7 @@ import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Cargo airlines and logistics",
+  alternates: { canonical: "/cargo" },
   description:
     "Browse approved air cargo, freight, parcel, and logistics operator articles on aviation.wiki.",
 };

@@ -1,48 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# aviation.wiki
 
-## Getting Started
+An open aviation encyclopedia built around sourced articles, public revision history, and moderator-reviewed contributions.
 
-First, run the development server:
+## How it works
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Visitors can browse and search approved articles without an account.
+- Clerk-authenticated contributors create drafts and submit revisions.
+- Submitted revisions pass through verification and moderator review before becoming public.
+- Administrators can manage articles, contributors, imports, sources, notifications, and the audit log.
+- Wikidata and compatible Wikimedia Commons media can seed private import drafts; imports never publish automatically.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Requirements
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js 20.9.x or 22 and newer
+- npm
+- A PostgreSQL database (Neon is used in production)
+- A Clerk application
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Resend, Vercel Cron, IndexNow, and search-engine verification are optional.
 
-## Learn More
+## Local development
 
-To learn more about Next.js, take a look at the following resources:
+1. Install the locked dependencies:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```sh
+   npm ci
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Copy `.env.example` to `.env.local` and set:
 
-## Deploy on Vercel
+   ```dotenv
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+   CLERK_SECRET_KEY=
+   DATABASE_URL=
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Start the application:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```sh
+   npm run dev
+   ```
 
-## Contribution workflow
+4. Open <http://localhost:3000>. The first database-backed request in development creates the PostgreSQL schema and seeds the built-in F-15 article. The database role therefore needs schema-creation permission for initial setup.
 
-Authenticated contributors work in `/contribute`. Drafts and submitted revisions are stored separately from the live revision, so contributor actions cannot publish content. Submitted revisions move through `verifying` and `pending_review`; moderators can approve, edit and approve, request changes, or reject from `/moderation`.
+Do not commit `.env.local` or other populated `.env*` files.
 
-Moderator access is granted through Clerk user public metadata:
+## Accounts and roles
+
+New Clerk users are contributors by default. Assign staff access through Clerk user public metadata:
 
 ```json
 { "role": "moderator" }
 ```
 
-Public article and search data use Neon Postgres through the server-only `DATABASE_URL` variable. Local SQLite remains available for the legacy moderation test harness while those authenticated write paths are migrated. On Vercel, unset `AVIATION_WIKI_DB_PATH` uses writable `/tmp` storage to prevent import-time filesystem failures; that SQLite data is ephemeral and must not be treated as durable.
+Supported roles are `contributor`, `trusted_contributor`, `moderator`, and `admin`. Only moderators and administrators can publish revisions; administrator-only tools include user roles and data imports.
+
+## Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Public Clerk application key |
+| `CLERK_SECRET_KEY` | Server-side Clerk key |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `AVIATION_WIKI_DB_PATH` | Optional path for the legacy SQLite moderation/test store |
+| `NEXT_PUBLIC_APP_URL` | Canonical site URL; defaults to `http://localhost:3000` |
+| `RESEND_API_KEY` | Optional notification email delivery |
+| `NOTIFICATION_EMAIL_FROM` | Verified sender used by Resend |
+| `CRON_SECRET` | Bearer token protecting scheduled endpoints |
+| `GOOGLE_SITE_VERIFICATION` | Optional Google ownership token |
+| `BING_SITE_VERIFICATION` | Optional Bing ownership token |
+| `INDEXNOW_KEY` | Optional IndexNow submission key |
+
+Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser and fixed at build time. All other variables are server-only.
+
+## Architecture
+
+| Path | Responsibility |
+| --- | --- |
+| `src/app` | Next.js App Router pages, Route Handlers, metadata, and Server Actions |
+| `src/components` | Article, revision, search, notification, and interface components |
+| `src/lib/wiki-public-db.ts` | PostgreSQL-backed public, contribution, moderation, and administration operations |
+| `src/lib/postgres.ts` | PostgreSQL connection and development schema bootstrap |
+| `src/lib/wiki-db.ts`, `admin-db.ts`, `notification-db.ts` | Legacy SQLite implementation used by local checks and remaining fallback paths |
+| `src/lib/import-providers` | Wikidata and Wikimedia Commons import previews |
+| `scripts` | Runnable integrity checks, parser tests, and controlled publishing scripts |
+
+PostgreSQL is the durable production store. SQLite defaults to `.data/aviation-wiki.db` locally and `/tmp/aviation-wiki.db` on Vercel; the Vercel fallback is ephemeral and must not hold durable production data.
+
+## Checks
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm audit --omit=dev
+```
+
+`npm test` runs the service-independent parser, rendering, import, notification, relationship, search, fleet, source-health, and seed-content checks. `npm run test:db` separately validates an existing local SQLite database.
+
+Pull requests run the service-independent checks in GitHub Actions. A production build needs configured Clerk and PostgreSQL services, so run it in the deployment environment or locally with `.env.local`.
+
+## Deployment
+
+The application is configured for Vercel. Before the first production deployment:
+
+1. Initialise the PostgreSQL schema from a trusted development environment using the production database URL.
+2. Configure the required Clerk and database environment variables.
+3. Add optional email and search-discovery variables as needed.
+4. Set a random `CRON_SECRET`; `vercel.json` schedules the daily source-health endpoint.
+
+Production mode intentionally does not run schema DDL during requests.
+
+## Licensing
+
+The software is licensed under [GNU AGPL v3](LICENSE). Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
+
+By contributing code, you agree to license it under AGPL-3.0-only. By contributing original editorial content, you agree to license it under CC BY-SA 4.0.

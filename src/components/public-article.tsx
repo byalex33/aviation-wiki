@@ -15,12 +15,14 @@ import { ImportedRevisionData } from "@/components/imported-revision-data";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { WatchArticleButton } from "@/components/watch-article-button";
-import { getArticleHeadings, parseArticleMarkdown } from "@/lib/article-markdown";
+import {
+  getArticleHeadings,
+  parseArticleMarkdown,
+  type ArticleMentionLink,
+} from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
-import { articleDescription } from "@/lib/article-seo";
 import { comparisonsForEntity } from "@/lib/comparison-content";
-import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 import type {
   ArticleRecord,
   ContentType,
@@ -28,6 +30,12 @@ import type {
   SourceLink,
 } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
+import {
+  articleDescription,
+  articleImageDetails,
+  jsonLd,
+  siteUrl,
+} from "@/lib/seo";
 
 export function ArticleHeader({
   title,
@@ -217,76 +225,91 @@ export function PublicArticle({
   revision,
   watching,
   signedIn,
+  articleLinks,
 }: {
   article: ArticleRecord;
   revision: RevisionRecord;
   watching: boolean;
   signedIn: boolean;
+  articleLinks: ArticleMentionLink[];
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
   const headings = getArticleHeadings(parsed.root);
-  const pathname = articlePath(revision.contentType, article.slug);
+  const url = new URL(articlePath(revision.contentType, article.slug), siteUrl);
+  const image = articleImageDetails(revision.markdown);
+  const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
   const relatedComparisons = comparisonsForEntity(
     article.slug,
     revision.contentType,
   );
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type":
-          revision.contentType === "event" ? "NewsArticle" : "TechArticle",
-        "@id": `${absoluteUrl(pathname)}#article`,
-        headline: revision.title,
-        description: articleDescription(revision),
-        url: absoluteUrl(pathname),
-        mainEntityOfPage: absoluteUrl(pathname),
-        datePublished: revision.reviewedAt || revision.createdAt,
-        dateModified: revision.updatedAt,
-        author:
-          revision.contributorId === "system"
-            ? { "@id": `${SITE_URL}/#organization` }
-            : {
-                "@type": "Person",
-                name: revision.contributorName,
-              },
-        publisher: { "@id": `${SITE_URL}/#organization` },
-        citation: revision.sources.map((source) => source.url),
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
+  const historicalFields = revision.fields.filter((field) =>
+    /date|year|service|retir|operator|production|first flight|deliver/i.test(
+      field.key,
+    ),
+  );
+  const jsonLdGraph = [
+    {
+      "@type": "TechArticle",
+      "@id": `${url}#article`,
+      headline: revision.title,
+      description: articleDescription(revision.markdown),
+      url,
+      mainEntityOfPage: url,
+      datePublished: article.createdAt,
+      dateModified: revision.reviewedAt || revision.updatedAt,
+      publisher: { "@id": `${siteUrl}#organization` },
+      ...(imageUrl
+        ? {
+            image: {
+              "@type": "ImageObject",
+              url: imageUrl,
+              contentUrl: imageUrl,
+              caption: revision.title,
+              representativeOfPage: true,
+              ...(image?.credit ? { creditText: image.credit } : {}),
+            },
+          }
+        : {}),
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "aviation.wiki", item: siteUrl },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name:
+            revision.contentType === "airline"
+              ? "Commercial airlines"
+              : formatDisplayLabel(contentTypePaths[revision.contentType]),
+          item: new URL(`/${contentTypePaths[revision.contentType]}`, siteUrl),
+        },
+        { "@type": "ListItem", position: 3, name: revision.title, item: url },
+      ],
+    },
+    ...(historicalFields.length >= 4
+      ? [
           {
-            "@type": "ListItem",
-            position: 1,
-            name: SITE_NAME,
-            item: absoluteUrl("/"),
+            "@type": "Dataset",
+            name: `${revision.title} historical data`,
+            description: `Structured historical data published in the ${revision.title} article.`,
+            url,
+            isPartOf: { "@id": `${url}#article` },
+            creator: { "@id": `${siteUrl}#organization` },
+            variableMeasured: historicalFields.map((field) => field.key),
           },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name:
-              revision.contentType === "airline"
-                ? "Commercial airlines"
-                : formatDisplayLabel(contentTypePaths[revision.contentType]),
-            item: absoluteUrl(`/${contentTypePaths[revision.contentType]}`),
-          },
-          {
-            "@type": "ListItem",
-            position: 3,
-            name: revision.title,
-            item: absoluteUrl(pathname),
-          },
-        ],
-      },
-    ],
-  };
+        ]
+      : []),
+  ];
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c"),
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@graph": jsonLdGraph,
+          }),
         }}
       />
       <main className="mx-auto max-w-[1380px] px-5 pb-20 pt-8 sm:px-6">
@@ -337,7 +360,7 @@ export function PublicArticle({
               This approved revision cannot be rendered safely.
             </p>
           ) : (
-            <ArticleMarkdown root={parsed.root} citations={parsed.citations} hideSidebar />
+            <ArticleMarkdown root={parsed.root} citations={parsed.citations} hideSidebar articleLinks={articleLinks} />
           )}
           {relatedComparisons.length > 0 && (
             <section className="mt-10 rounded-xl border bg-muted/30 p-5 sm:p-6">
@@ -373,6 +396,7 @@ export function PublicArticle({
             contentType={revision.contentType}
             fields={parsed.sidebarFields ?? revision.fields}
             images={parsed.sidebarImages}
+            articleLinks={articleLinks}
           />
         </aside>
       </div>
