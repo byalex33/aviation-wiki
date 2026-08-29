@@ -18,7 +18,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["172.22.48.1"],
+  // If `next dev` rejects requests from another device on your LAN, add that
+  // origin here locally — it is not needed for production and should not be
+  // committed. https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
   turbopack: {
     root: process.cwd(),
   },
