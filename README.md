@@ -14,7 +14,7 @@ An open aviation encyclopedia built around sourced articles, public revision his
 
 - Node.js 20.9.x or 22 and newer
 - npm
-- A PostgreSQL database (Neon is used in production)
+- A PostgreSQL database (Aiven is used in production)
 - A Clerk application
 
 Resend, Vercel Cron, IndexNow, and search-engine verification are optional.
@@ -33,6 +33,7 @@ Resend, Vercel Cron, IndexNow, and search-engine verification are optional.
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
    CLERK_SECRET_KEY=
    DATABASE_URL=
+   DATABASE_POOL_SIZE=1
    ```
 
 3. Start the application:
@@ -62,6 +63,7 @@ Supported roles are `contributor`, `trusted_contributor`, `moderator`, and `admi
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Public Clerk application key |
 | `CLERK_SECRET_KEY` | Server-side Clerk key |
 | `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_POOL_SIZE` | Connections per server instance; defaults to `1` |
 | `AVIATION_WIKI_DB_PATH` | Optional path for the legacy SQLite moderation/test store |
 | `NEXT_PUBLIC_APP_URL` | Canonical site URL; defaults to `http://localhost:3000` |
 | `RESEND_API_KEY` | Optional notification email delivery |
@@ -111,6 +113,8 @@ The application is configured for Vercel. Before the first production deployment
 4. Set a random `CRON_SECRET`; `vercel.json` schedules the daily source-health endpoint.
 
 Production mode intentionally does not run schema DDL during requests.
+
+See [DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for the production database configuration, backup, migration, and rollback procedure.
 
 ## Licensing
 

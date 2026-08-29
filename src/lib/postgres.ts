@@ -13,10 +13,17 @@ function connectionString() {
   return value;
 }
 
+function poolSize() {
+  const configured = Number.parseInt(process.env.DATABASE_POOL_SIZE ?? "1", 10);
+  return Number.isFinite(configured) ? Math.min(5, Math.max(1, configured)) : 1;
+}
+
 export const sql =
   globalThis.aviationWikiSql ??
   postgres(connectionString(), {
-    max: 5,
+    // Serverless instances each create their own pool. Keep the default at one
+    // connection so small managed Postgres plans are not exhausted by bursts.
+    max: poolSize(),
     idle_timeout: 20,
     connect_timeout: 15,
     prepare: false,

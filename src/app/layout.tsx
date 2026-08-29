@@ -23,10 +23,12 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 const openSans = Open_Sans({
   variable: "--font-open-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -106,7 +108,7 @@ export default function RootLayout({
             __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
           }}
         />
-        <ClerkProvider appearance={{ theme: shadcn }}>
+        <ClerkProvider appearance={{ theme: shadcn }} prefetchUI={false}>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
               <Link

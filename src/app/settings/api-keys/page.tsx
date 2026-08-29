@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
@@ -121,9 +122,9 @@ export default async function ApiKeysPage() {
           </code>{" "}
           header.{" "}
           See the full{" "}
-          <a href="/api-docs" className="text-primary underline underline-offset-4 hover:no-underline">
+          <Link href="/api-docs" className="text-primary underline underline-offset-4 hover:no-underline">
             API documentation
-          </a>{" "}
+          </Link>{" "}
           for request format and examples.
         </p>
       </section>

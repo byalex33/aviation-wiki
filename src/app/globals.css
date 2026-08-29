@@ -284,6 +284,10 @@ html[data-theme="twitter"].dark .site-footer {
     animation-duration: 16s;
     animation-delay: -6s;
   }
+  .render-deferred {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 720px;
+  }
 
   .pro-card::before {
     content: "";

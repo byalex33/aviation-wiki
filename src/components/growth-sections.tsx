@@ -20,7 +20,10 @@ export function FeaturedArticles({
 }) {
   if (!articles.length) return null;
   return (
-    <section className="mb-14" aria-labelledby="featured-articles-heading">
+    <section
+      className="render-deferred mb-14"
+      aria-labelledby="featured-articles-heading"
+    >
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
@@ -89,7 +92,7 @@ export function ContributionMissions({
 
   return (
     <section
-      className={compact ? "mb-4" : ""}
+      className={compact ? "render-deferred mb-4" : ""}
       aria-labelledby={compact ? "home-missions-heading" : "missions-heading"}
     >
       {compact ? (
