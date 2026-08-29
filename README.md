@@ -1,130 +1,199 @@
+<div align="center">
+
 # aviation.wiki
 
-An open aviation encyclopedia built around sourced articles, public revision history, and moderator-reviewed contributions.
+**The free encyclopedia of aircraft, airlines, engines, airports, and aviation history.**
 
-## How it works
+Sourced articles · public revision history · moderator-reviewed contributions
 
-- Visitors can browse and search approved articles without an account.
-- Clerk-authenticated contributors create drafts and submit revisions.
-- Submitted revisions pass through verification and moderator review before becoming public.
-- Administrators can manage articles, contributors, imports, sources, notifications, and the audit log.
-- Wikidata and compatible Wikimedia Commons media can seed private import drafts; imports never publish automatically.
+[![CI](https://github.com/byalex33/aviation-wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/byalex33/aviation-wiki/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Content: CC BY-SA 4.0](https://img.shields.io/badge/Content-CC_BY--SA_4.0-lightgrey.svg)](CONTENT-LICENSE.md)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
+[![Made with TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)](https://www.typescriptlang.org)
 
-## Requirements
+[**Live site**](https://www.aviation.wiki) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Content licensing](CONTENT-LICENSE.md)
 
-- Node.js 20.9.x or 22 and newer
+</div>
+
+---
+
+aviation.wiki is a community encyclopedia for aviation. Anyone can read; signed-in
+contributors propose changes as revisions; every published version is the result
+of a moderator decision, and the full history stays public. Structured data can
+be seeded from Wikidata and Wikimedia Commons, but nothing reaches readers without
+review.
+
+## Features
+
+**Reading**
+- Full-text search across every approved article, with per-type and per-country filters
+- Seven content types — aircraft, airlines, alliances, airports, manufacturers, engines, and events
+- Side-by-side comparison pages, a queryable fleet database (`/api/fleet.json`, `/api/fleet.csv`), and an aviation-news archive
+- Per-article revision history with a diff view of any two approved versions
+
+**Contributing**
+- A constrained Markdown dialect with validated citations and ten article blocks
+  (`Infobox`, `Notice`, `Sidebar`, `Chart`, `Sources`, `FleetTable`,
+  `Specifications`, `Timeline`, `Gallery`, `RelatedPages`)
+- Draft → review → publish workflow with verification checks, moderator notes, and
+  change requests
+- Wikidata and Wikimedia Commons import previews that only ever create private drafts
+- Article watches and in-app / email digest notifications
+
+**Operations**
+- Role-based access (contributor, trusted contributor, moderator, admin) backed by Clerk
+- PostgreSQL-backed rate limiting on every mutation endpoint
+- Scoped, hashed API keys and an external drafts API (`POST /api/v1/drafts`)
+- Structured data output — JSON-LD, image sitemap, `robots.txt`, IndexNow, generated OpenGraph images
+- Admin dashboard: articles, contributors, imports, source health, notifications, and a full audit log
+
+## How a change reaches readers
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> verifying: submit
+    verifying --> pending_review: automated checks pass
+    pending_review --> approved: moderator approves
+    pending_review --> changes_requested: moderator requests changes
+    pending_review --> rejected: moderator rejects
+    changes_requested --> draft: contributor revises
+    approved --> [*]: published and indexed
+```
+
+Staff submissions publish immediately; everyone else's pass through review. Only
+moderators and admins can approve.
+
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js (App Router, Turbopack, React Server Components) |
+| Language | TypeScript, `strict` |
+| Auth | Clerk |
+| Database | PostgreSQL via [`postgres`](https://github.com/porsager/postgres) — any managed provider (Neon, Aiven, …) |
+| UI | Tailwind CSS v4, shadcn/ui, Base UI, Recharts |
+| Content | `unified` / `remark` Markdown pipeline with a custom validator |
+| Hosting | Vercel (Fluid Compute, Cron) |
+| Email | Resend (optional) |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js `^20.9` or `>=22`
 - npm
-- A PostgreSQL database (Aiven is used in production)
-- A Clerk application
+- A PostgreSQL database (the dev role needs schema-creation permission for first run)
+- A [Clerk](https://clerk.com) application (a free development instance is fine)
 
-Resend, Vercel Cron, IndexNow, and search-engine verification are optional.
+### Setup
 
-## Local development
+```sh
+git clone https://github.com/byalex33/aviation-wiki.git
+cd aviation-wiki
+npm ci
+cp .env.example .env.local     # fill in the three required values below
+npm run dev                    # http://localhost:3000
+```
 
-1. Install the locked dependencies:
+The first database-backed request in development creates the schema and seeds the
+built-in article. Never commit a populated `.env.local`.
 
-   ```sh
-   npm ci
-   ```
+### Environment variables
 
-2. Copy `.env.example` to `.env.local` and set:
+**Required**
 
-   ```dotenv
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-   CLERK_SECRET_KEY=
-   DATABASE_URL=
-   DATABASE_POOL_SIZE=1
-   ```
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Public Clerk key |
+| `CLERK_SECRET_KEY` | Server-side Clerk key |
+| `DATABASE_URL` | PostgreSQL connection string |
 
-3. Start the application:
+**Optional**
 
-   ```sh
-   npm run dev
-   ```
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_POOL_SIZE` | Connections per server instance (default `1`) |
+| `NEXT_PUBLIC_APP_URL` | Canonical site URL (default `http://localhost:3000`) |
+| `RESEND_API_KEY`, `NOTIFICATION_EMAIL_FROM` | Notification email delivery |
+| `CRON_SECRET` | Bearer token protecting `/api/cron/*` |
+| `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION`, `INDEXNOW_KEY` | Search-engine discovery |
+| `AVIATION_WIKI_DB_PATH` | Path for the legacy SQLite store used by local checks |
 
-4. Open <http://localhost:3000>. The first database-backed request in development creates the PostgreSQL schema and seeds the built-in F-15 article. The database role therefore needs schema-creation permission for initial setup.
+`NEXT_PUBLIC_`-prefixed variables are exposed to the browser and fixed at build time; everything else is server-only.
 
-Do not commit `.env.local` or other populated `.env*` files.
+### Accounts and roles
 
-## Accounts and roles
-
-New Clerk users are contributors by default. Assign staff access through Clerk user public metadata:
+New Clerk users are contributors. Grant staff access through the user's public
+metadata in the Clerk dashboard:
 
 ```json
 { "role": "moderator" }
 ```
 
-Supported roles are `contributor`, `trusted_contributor`, `moderator`, and `admin`. Only moderators and administrators can publish revisions; administrator-only tools include user roles and data imports.
+Valid roles: `contributor`, `trusted_contributor`, `moderator`, `admin`. Only
+moderators and admins publish; imports and role management are admin-only.
 
-## Environment variables
-
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Public Clerk application key |
-| `CLERK_SECRET_KEY` | Server-side Clerk key |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `DATABASE_POOL_SIZE` | Connections per server instance; defaults to `1` |
-| `AVIATION_WIKI_DB_PATH` | Optional path for the legacy SQLite moderation/test store |
-| `NEXT_PUBLIC_APP_URL` | Canonical site URL; defaults to `http://localhost:3000` |
-| `RESEND_API_KEY` | Optional notification email delivery |
-| `NOTIFICATION_EMAIL_FROM` | Verified sender used by Resend |
-| `CRON_SECRET` | Bearer token protecting scheduled endpoints |
-| `GOOGLE_SITE_VERIFICATION` | Optional Google ownership token |
-| `BING_SITE_VERIFICATION` | Optional Bing ownership token |
-| `INDEXNOW_KEY` | Optional IndexNow submission key |
-
-Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser and fixed at build time. All other variables are server-only.
-
-## Architecture
+## Project structure
 
 | Path | Responsibility |
 | --- | --- |
-| `src/app` | Next.js App Router pages, Route Handlers, metadata, and Server Actions |
+| `src/app` | App Router pages, Route Handlers, metadata, Server Actions |
 | `src/components` | Article, revision, search, notification, and interface components |
-| `src/lib/wiki-public-db.ts` | PostgreSQL-backed public, contribution, moderation, and administration operations |
-| `src/lib/postgres.ts` | PostgreSQL connection and development schema bootstrap |
-| `src/lib/wiki-db.ts`, `admin-db.ts`, `notification-db.ts` | Legacy SQLite implementation used by local checks and remaining fallback paths |
-| `src/lib/import-providers` | Wikidata and Wikimedia Commons import previews |
-| `scripts` | Runnable integrity checks, parser tests, and controlled publishing scripts |
+| `src/lib/wiki-public-db.ts` | Primary data module — public reads, contributions, moderation, admin, search index |
+| `src/lib/postgres.ts` | Connection pool and development schema bootstrap (source of truth for the schema) |
+| `src/lib/article-markdown.ts` | Markdown parser and validator — all submitted content passes through it |
+| `src/lib/import-providers/` | Wikidata and Wikimedia Commons import previews |
+| `src/proxy.ts` | Clerk request context + Content-Security-Policy |
+| `scripts/` | Offline integrity checks and controlled publishing scripts |
 
-PostgreSQL is the durable production store. SQLite defaults to `.data/aviation-wiki.db` locally and `/tmp/aviation-wiki.db` on Vercel; the Vercel fallback is ephemeral and must not hold durable production data.
+`src/lib/wiki-db.ts`, `admin-db.ts`, and `notification-db.ts` are legacy SQLite
+modules kept only for local checks and a few fallback paths — new work uses
+`wiki-public-db.ts`.
 
-## Checks
+## Testing and checks
 
 ```sh
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm audit --omit=dev
+npm run lint          # ESLint
+npm run typecheck     # tsc --noEmit
+npm test              # offline suites — parser, charts, citations, relationships,
+                      # search, importer, notifications, fleet, source health
+npm run build         # production build (needs Clerk + DATABASE_URL)
+npm audit --omit=dev --audit-level=high
 ```
 
-`npm test` runs the service-independent parser, rendering, import, notification, relationship, search, fleet, source-health, and seed-content checks. `npm run test:db` separately validates an existing local SQLite database.
-
-Pull requests run the service-independent checks in GitHub Actions. A production build needs configured Clerk and PostgreSQL services, so run it in the deployment environment or locally with `.env.local`.
+`npm test` runs without any external services. `npm run test:db` separately
+validates a local SQLite database. Pull requests run lint, typecheck, `npm audit`,
+and the test suite in GitHub Actions.
 
 ## Deployment
 
-The application is configured for Vercel. Before the first production deployment:
+Configured for Vercel. Before the first production deploy:
 
-1. Initialise the PostgreSQL schema from a trusted development environment using the production database URL.
-2. Configure the required Clerk and database environment variables.
+1. Initialise the PostgreSQL schema from a trusted environment using the production `DATABASE_URL` (production never runs DDL during requests).
+2. Set the required Clerk and database variables, plus a random `CRON_SECRET`.
 3. Add optional email and search-discovery variables as needed.
-4. Set a random `CRON_SECRET`; `vercel.json` schedules the daily source-health endpoint.
 
-Production mode intentionally does not run schema DDL during requests.
-
-See [DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for the production database configuration, backup, migration, and rollback procedure.
+`vercel.json` schedules the daily source-health cron. See
+[DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for backup, migration, and
+rollback procedures.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the review process, and how
-contributions are licensed. All participation is covered by the
-[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately per
+Bug reports, features, and code are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+for setup and the review process. Articles are contributed through the running
+application, not pull requests. All participation is covered by the
+[Code of Conduct](CODE_OF_CONDUCT.md); report security issues privately per
 [SECURITY.md](SECURITY.md).
 
-## Licensing
+## License
 
-The software is licensed under [GNU AGPL v3](LICENSE); see [NOTICE](NOTICE) for the copyright notice. Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
+| | |
+| --- | --- |
+| Software | [GNU AGPL v3](LICENSE) — see [NOTICE](NOTICE) |
+| Project-authored content | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| Imported data & media | Per-source terms — [CONTENT-LICENSE.md](CONTENT-LICENSE.md) |
 
-By contributing code, you agree to license it under AGPL-3.0-only. By contributing original editorial content, you agree to license it under CC BY-SA 4.0.
+Contributing code licenses it under AGPL-3.0-only; contributing original editorial
+content licenses it under CC BY-SA 4.0.
