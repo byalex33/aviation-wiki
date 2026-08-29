@@ -4,8 +4,11 @@ import type { NextConfig } from "next";
 // by clerkMiddleware (src/proxy.ts) so its host list stays in sync with Clerk.
 const securityHeaders = [
   {
+    // Two years, all subdomains. `preload` is intentionally omitted: submitting
+    // to the browser preload list is effectively irreversible and would force
+    // every current and future subdomain onto HTTPS with no fast rollback.
     key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
+    value: "max-age=63072000; includeSubDomains",
   },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
