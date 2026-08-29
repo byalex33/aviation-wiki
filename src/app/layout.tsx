@@ -15,7 +15,7 @@ import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
-import { jsonLd, siteUrl } from "@/lib/seo";
+import { jsonLd } from "@/lib/seo";
 
 import "./globals.css";
 
@@ -104,9 +104,7 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
-          }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
         <ClerkProvider appearance={{ theme: shadcn }} prefetchUI={false}>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
