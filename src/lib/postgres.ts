@@ -8,9 +8,10 @@ declare global {
 }
 
 function connectionString() {
-  const value = process.env.DATABASE_URL;
-  if (!value) throw new Error("DATABASE_URL is required.");
-  return value;
+  // Not thrown at module load: importing this file (e.g. while Next collects
+  // page data for /_not-found during a preview build without database env)
+  // must not crash. A missing URL surfaces as a connection error on first query.
+  return process.env.DATABASE_URL ?? "";
 }
 
 function poolSize() {

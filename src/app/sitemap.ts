@@ -3,8 +3,10 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
-// Matches the revalidate window of the cached search-document index this reads.
-export const revalidate = 86400;
+// Rendered on demand, but listPublicSearchDocuments is cached for 24h so this
+// touches Postgres at most once per day. Kept dynamic (not prerendered) so a
+// build without database env — e.g. a preview deploy — does not need to reach it.
+export const dynamic = "force-dynamic";
 
 const staticRoutes = [
   "/",
