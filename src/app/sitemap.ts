@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/lib/site";
+import { sitemapImageUrl } from "@/lib/sitemap-images";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 // Rendered on demand, but listPublicSearchDocuments is cached for 24h so this
@@ -45,13 +46,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: pathname === "/" ? 1 : index < 13 ? 0.8 : 0.5,
     }),
   );
-  const articleEntries: MetadataRoute.Sitemap = documents.map((document) => ({
-    url: new URL(document.href, SITE_URL).toString(),
-    lastModified: document.updatedAt || generatedAt,
-    changeFrequency: "monthly",
-    priority: 0.7,
-    images: document.imageUrl ? [document.imageUrl] : undefined,
-  }));
+  const articleEntries: MetadataRoute.Sitemap = documents.map((document) => {
+    const imageUrl = document.imageUrl
+      ? sitemapImageUrl(document.imageUrl)
+      : undefined;
+
+    return {
+      url: new URL(document.href, SITE_URL).toString(),
+      lastModified: document.updatedAt || generatedAt,
+      changeFrequency: "monthly",
+      priority: 0.7,
+      images: imageUrl ? [imageUrl] : undefined,
+    };
+  });
 
   return [...staticEntries, ...articleEntries];
 }
