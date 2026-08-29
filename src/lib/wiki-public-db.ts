@@ -491,11 +491,19 @@ export async function listEntityOptions(): Promise<EntityOption[]> {
   return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
 }
 
-export async function listApprovedEntityOptions(): Promise<EntityOption[]> {
+async function loadApprovedEntityOptions(): Promise<EntityOption[]> {
   await ready();
   const values = await rows<{id:string;title:string;slug:string;content_type:ContentType}>("SELECT a.id,a.title,a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL ORDER BY a.content_type,a.title");
   return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
 }
+
+// Every public article render reads this to build cross-links. The set only
+// changes when an article is approved or edited, which already busts this tag.
+export const listApprovedEntityOptions = unstable_cache(
+  loadApprovedEntityOptions,
+  ["approved-entity-options"],
+  { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
 
 export async function getEditableRevision(articleId: string, contributorId: string) {
   await ready();
