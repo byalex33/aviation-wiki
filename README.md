@@ -116,8 +116,15 @@ Production mode intentionally does not run schema DDL during requests.
 
 See [DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for the production database configuration, backup, migration, and rollback procedure.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the review process, and how
+contributions are licensed. All participation is covered by the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately per
+[SECURITY.md](SECURITY.md).
+
 ## Licensing
 
-The software is licensed under [GNU AGPL v3](LICENSE). Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
+The software is licensed under [GNU AGPL v3](LICENSE); see [NOTICE](NOTICE) for the copyright notice. Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
 
 By contributing code, you agree to license it under AGPL-3.0-only. By contributing original editorial content, you agree to license it under CC BY-SA 4.0.
