@@ -5,6 +5,10 @@ import Link from "next/link";
 import { ArticleCollection } from "@/components/article-collection";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
+// Reads the database at render time; the project builds without DB env, so
+// this page is not prerendered (it was dynamic via the layout before #5).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Aircraft encyclopedia",
   description:

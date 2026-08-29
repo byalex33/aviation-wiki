@@ -10,6 +10,10 @@ import { isCargoAirline } from "@/lib/article-categories";
 import { cn } from "@/lib/utils";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
+// Reads the database at render time; the project builds without DB env, so
+// this page is not prerendered (it was dynamic via the layout before #5).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Cargo airlines and logistics",
   alternates: { canonical: "/cargo" },

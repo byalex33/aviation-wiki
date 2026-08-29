@@ -10,17 +10,14 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  comparisonDefinition,
-  comparisonDefinitions,
-} from "@/lib/comparison-content";
+import { comparisonDefinition } from "@/lib/comparison-content";
 import { comparisonPath, loadComparison } from "@/lib/comparison-data";
 import { absoluteUrl, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-export function generateStaticParams() {
-  return comparisonDefinitions.map(({ slug }) => ({ slug }));
-}
+// loadComparison() reads the database; preview builds have no DATABASE_URL and
+// this route was already dynamic (via the root layout) before #5.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

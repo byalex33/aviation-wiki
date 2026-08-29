@@ -9,6 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
+// Reads the database at render time; the project builds without DB env, so
+// this page is not prerendered (it was dynamic via the layout before #5).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Airline alliances",
   alternates: { canonical: "/alliances" },

@@ -20,6 +20,10 @@ import {
 import { getArticleBySlug, listPublicSearchDocuments } from "@/lib/wiki-public-db";
 import { cn } from "@/lib/utils";
 
+// Reads the database at render time; the project builds without DB env, so
+// this page is not prerendered (it was dynamic via the layout before #5).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Aviation news archive",
   description:
