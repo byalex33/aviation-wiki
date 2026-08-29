@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Neon CLI project context
 /.neon
+
+# Local article-drafting working material (fed through the contribute/import flow)
+/docs/
