@@ -173,7 +173,7 @@ export default function RootLayout({
           {children}
           <footer className="site-footer mt-auto overflow-hidden bg-foreground text-background">
             <div className="mx-auto max-w-[1200px] px-5 sm:px-6">
-              <div className="grid gap-10 py-12 sm:py-14 md:grid-cols-[1.5fr_0.7fr_0.9fr] md:gap-14">
+              <div className="grid gap-10 py-12 sm:py-14 md:grid-cols-[1.3fr_1fr_0.7fr] md:gap-14">
                 <div>
                   <Link
                     href="/"
@@ -197,7 +197,7 @@ export default function RootLayout({
                   <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background/40">
                     Navigate
                   </p>
-                  <div className="mt-4 flex flex-col items-start gap-1 text-sm font-medium">
+                  <div className="mt-4 flex flex-col items-start gap-1 text-sm font-medium sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-1">
                     <Link
                       href="/"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
@@ -245,12 +245,6 @@ export default function RootLayout({
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Pro
-                    </Link>
-                    <Link
-                      href="/fleet"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Fleet database
                     </Link>
                     <Link
                       href="/privacy"
