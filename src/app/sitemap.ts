@@ -3,7 +3,8 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
-export const dynamic = "force-dynamic";
+// Matches the revalidate window of the cached search-document index this reads.
+export const revalidate = 86400;
 
 const staticRoutes = [
   "/",
