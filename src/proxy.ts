@@ -1,16 +1,23 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
-// Authorization remains in each protected page and Server Action. The proxy's
-// responsibilities are to attach Clerk's request context to every application
-// route and to emit a Content-Security-Policy alongside it.
+// Authorization stays in each protected page and Server Action. The proxy
+// attaches Clerk's request context and emits the Content-Security-Policy.
 //
-// The policy runs in non-strict mode: script-src keeps 'unsafe-inline' so the
-// inline theme bootstrap and JSON-LD blocks work without a per-request nonce
-// (which would force every route to render dynamically). Tightening this to a
-// nonce-based 'strict-dynamic' policy is a worthwhile follow-up. img-src is
-// pinned to the hosts declared in next.config.ts remotePatterns.
+// Strict mode: script-src becomes a per-request nonce plus 'strict-dynamic' —
+// no 'unsafe-inline', no host allowlist. Clerk generates the nonce and exposes
+// it as the `x-nonce` request header; Next applies it to framework and page
+// scripts automatically, and the root layout applies it to the inline theme
+// script. style-src keeps 'unsafe-inline': component libraries (Tailwind,
+// Recharts, Base UI, sonner) emit inline styles and CSS injection is far lower
+// risk than script injection.
+//
+// A per-request nonce forces every route to render dynamically. The app is
+// already fully dynamic, so this costs nothing today, but it is incompatible
+// with static / ISR article pages (issue #5) until the nonce is removed from
+// the shared layout.
 export default clerkMiddleware({
   contentSecurityPolicy: {
+    strict: true,
     directives: {
       "base-uri": ["'self'"],
       "object-src": ["'none'"],

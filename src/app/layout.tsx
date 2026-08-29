@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
@@ -88,9 +89,12 @@ function AviationLogo({ className }: { className: string }) {
   );
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Set by clerkMiddleware's strict CSP; Next injects it into its own scripts,
+  // and it authorizes the inline theme bootstrap below.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -99,11 +103,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
         <ClerkProvider
