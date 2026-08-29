@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   ArrowRight,
   BookCheck,
@@ -10,9 +11,14 @@ import {
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getStaffUser } from "@/lib/wiki-auth";
 import { getAdminDashboard } from "@/lib/wiki-public-db";
 
 export default async function AdminDashboardPage() {
+  // AdminLayout also guards this route, but layouts and pages render
+  // concurrently, so the dashboard queries must not run until the caller is
+  // confirmed to be staff.
+  if (!(await getStaffUser())) notFound();
   const { totals, queue } = await getAdminDashboard();
   const cards = [
     ["Articles", totals.articles, Library],

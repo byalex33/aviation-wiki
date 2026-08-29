@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@clerk/ui/themes/shadcn.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -283,6 +282,10 @@ html[data-theme="twitter"].dark .site-footer {
     --drift-y: 12px;
     animation-duration: 16s;
     animation-delay: -6s;
+  }
+  .render-deferred {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 720px;
   }
 
   .pro-card::before {

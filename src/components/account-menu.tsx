@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { Menu } from "@base-ui/react/menu";
 import { BookOpen, KeyRound, LogOut, Settings, ShieldCheck, UserRound } from "lucide-react";
@@ -7,6 +8,7 @@ import { BookOpen, KeyRound, LogOut, Settings, ShieldCheck, UserRound } from "lu
 import { RoleUsername } from "@/components/role-username";
 
 export function AccountMenu() {
+  const router = useRouter();
   const { openUserProfile, signOut } = useClerk();
   const { isLoaded, user } = useUser();
   const displayName = user?.username || user?.fullName || "Your account";
@@ -38,17 +40,17 @@ export function AccountMenu() {
             </div>
             <Menu.Separator className="my-1 h-px bg-border" />
             {user?.username && (
-              <Menu.Item onClick={() => { window.location.href = `/profile/${encodeURIComponent(user.username!)}`; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
+              <Menu.Item onClick={() => router.push(`/profile/${encodeURIComponent(user.username!)}`)} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
                 <UserRound className="size-4 text-muted-foreground" />
                 Public profile
               </Menu.Item>
             )}
-            <Menu.Item onClick={() => { window.location.href = "/contribute"; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
+            <Menu.Item onClick={() => router.push("/contribute")} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
               <BookOpen className="size-4 text-muted-foreground" />
               Your contributions
             </Menu.Item>
-            {(user?.publicMetadata.role === "moderator" || user?.publicMetadata.role === "admin") && <Menu.Item onClick={() => { window.location.href = "/admin"; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"><ShieldCheck className="size-4 text-muted-foreground" />Administration</Menu.Item>}
-            <Menu.Item onClick={() => { window.location.href = "/settings/api-keys"; }} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
+            {(user?.publicMetadata.role === "moderator" || user?.publicMetadata.role === "admin") && <Menu.Item onClick={() => router.push("/admin")} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"><ShieldCheck className="size-4 text-muted-foreground" />Administration</Menu.Item>}
+            <Menu.Item onClick={() => router.push("/settings/api-keys")} className="flex cursor-default items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
               <KeyRound className="size-4 text-muted-foreground" />
               API Keys
             </Menu.Item>

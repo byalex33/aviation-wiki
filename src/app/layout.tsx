@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
@@ -14,8 +13,9 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { clerkShadcnAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/utils";
-import { jsonLd, siteUrl } from "@/lib/seo";
+import { jsonLd } from "@/lib/seo";
 
 import "./globals.css";
 
@@ -23,10 +23,12 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 const openSans = Open_Sans({
   variable: "--font-open-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -102,11 +104,12 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
-          }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
-        <ClerkProvider appearance={{ theme: shadcn }}>
+        <ClerkProvider
+          appearance={{ theme: clerkShadcnAppearance }}
+          prefetchUI={false}
+        >
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
               <Link

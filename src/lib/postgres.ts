@@ -8,15 +8,23 @@ declare global {
 }
 
 function connectionString() {
-  const value = process.env.DATABASE_URL;
-  if (!value) throw new Error("DATABASE_URL is required.");
-  return value;
+  // Not thrown at module load: importing this file (e.g. while Next collects
+  // page data for /_not-found during a preview build without database env)
+  // must not crash. A missing URL surfaces as a connection error on first query.
+  return process.env.DATABASE_URL ?? "";
+}
+
+function poolSize() {
+  const configured = Number.parseInt(process.env.DATABASE_POOL_SIZE ?? "1", 10);
+  return Number.isFinite(configured) ? Math.min(5, Math.max(1, configured)) : 1;
 }
 
 export const sql =
   globalThis.aviationWikiSql ??
   postgres(connectionString(), {
-    max: 5,
+    // Serverless instances each create their own pool. Keep the default at one
+    // connection so small managed Postgres plans are not exhausted by bursts.
+    max: poolSize(),
     idle_timeout: 20,
     connect_timeout: 15,
     prepare: false,

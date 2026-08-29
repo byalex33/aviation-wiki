@@ -15,6 +15,8 @@ import {
 import { contentTypes, type ContentType, type SourceLink } from "@/lib/wiki-types";
 
 export const dynamic = "force-dynamic";
+// Bounds the full parse + transactional write path against a pathological body.
+export const maxDuration = 30;
 
 function errorResponse(message: string, status: number, extraHeaders?: Record<string, string>) {
   return Response.json({ error: message }, { status, headers: extraHeaders });

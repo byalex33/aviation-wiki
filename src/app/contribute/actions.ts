@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
 import {
   formActionError,
   type FormActionState,
@@ -339,6 +340,7 @@ export async function submitRevisionAction(formData: FormData) {
       before: { status: "pending_review" },
       after: { status: "approved", note },
     });
+    revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
     revalidatePath(articlePath(article.contentType, revision.articleSlug));
     revalidatePath(articlePath(article.contentType, article.slug));
     revalidatePath(articleHistoryPath(article.contentType, article.slug));
@@ -427,6 +429,7 @@ export async function moderateRevisionAction(formData: FormData) {
     before: { status: beforeStatus },
     after: { status: (await getPostgresRevision(revisionId))?.status, note },
   });
+  if (intent === "approve") revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
   revalidatePath("/moderation");
   revalidatePath(articlePath(revision.contentType, revision.articleSlug));
   revalidatePath(articlePath(revision.contentType, revision.proposedSlug));
@@ -513,6 +516,7 @@ export async function editAndApproveAction(formData: FormData) {
     before,
     after: await getPostgresRevision(revisionId),
   });
+  revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
   revalidatePath(articlePath(article.contentType, article.slug));
   revalidatePath(articleHistoryPath(article.contentType, article.slug));
   revalidatePath("/moderation");

@@ -1,9 +1,11 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { unstable_cache } from "next/cache";
 
 import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
+import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
 import {
   isSafeImageUrl,
   parseArticleImageShorthand,
@@ -489,11 +491,19 @@ export async function listEntityOptions(): Promise<EntityOption[]> {
   return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
 }
 
-export async function listApprovedEntityOptions(): Promise<EntityOption[]> {
+async function loadApprovedEntityOptions(): Promise<EntityOption[]> {
   await ready();
   const values = await rows<{id:string;title:string;slug:string;content_type:ContentType}>("SELECT a.id,a.title,a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL ORDER BY a.content_type,a.title");
   return values.map((value) => ({id:value.id,title:value.title,slug:value.slug,contentType:value.content_type}));
 }
+
+// Every public article render reads this to build cross-links. The set only
+// changes when an article is approved or edited, which already busts this tag.
+export const listApprovedEntityOptions = unstable_cache(
+  loadApprovedEntityOptions,
+  ["approved-entity-options"],
+  { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
 
 export async function getEditableRevision(articleId: string, contributorId: string) {
   await ready();
@@ -905,7 +915,7 @@ function articleCardDescription(markdown: string) {
     .slice(0, 180);
 }
 
-export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
+async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
     rows<{ id: string; slug: string; content_type: ContentType; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>("SELECT a.id,a.slug,a.content_type,r.title,r.fields_json,r.markdown,COALESCE(r.reviewed_at,r.updated_at) updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title"),
@@ -927,6 +937,15 @@ export async function listPublicSearchDocuments(): Promise<SearchDocument[]> {
     return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,countries,terms};
   });
 }
+
+// This index includes every live article's searchable fields and Markdown.
+// Persist it in Next's data cache so public page and search traffic does not
+// repeatedly transfer the entire published corpus from Postgres.
+export const listPublicSearchDocuments = unstable_cache(
+  loadPublicSearchDocuments,
+  ["public-search-documents"],
+  { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
 
 export async function listPublicFleetSourceData(): Promise<{
   articles: FleetSourceArticle[];
