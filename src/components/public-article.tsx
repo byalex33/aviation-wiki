@@ -42,15 +42,11 @@ export function ArticleHeader({
   contentType,
   slug,
   articleId,
-  watching,
-  signedIn,
 }: {
   title: string;
   contentType: ContentType;
   slug: string;
   articleId: string;
-  watching: boolean;
-  signedIn: boolean;
 }) {
   const editorHref = `/editor?type=${contentType}&slug=${encodeURIComponent(slug)}`;
   return (
@@ -74,13 +70,10 @@ export function ArticleHeader({
           <History />
           View history
         </Link>
-        {signedIn && (
-          <WatchArticleButton
-            articleId={articleId}
-            returnTo={articlePath(contentType, slug)}
-            watching={watching}
-          />
-        )}
+        <WatchArticleButton
+          articleId={articleId}
+          returnTo={articlePath(contentType, slug)}
+        />
         <Link
           href={`${editorHref}&correction=1`}
           className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10 px-3`}
@@ -223,14 +216,10 @@ export function MissingArticleState({
 export function PublicArticle({
   article,
   revision,
-  watching,
-  signedIn,
   articleLinks,
 }: {
   article: ArticleRecord;
   revision: RevisionRecord;
-  watching: boolean;
-  signedIn: boolean;
   articleLinks: ArticleMentionLink[];
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
@@ -331,8 +320,6 @@ export function PublicArticle({
         contentType={revision.contentType}
         slug={article.slug}
         articleId={article.id}
-        watching={watching}
-        signedIn={signedIn}
       />
       <div className="mt-5">
         <ArticleMetadata revision={revision} />

@@ -7,10 +7,12 @@ import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
 import {
+  getAircraftArticleTitles,
   isSafeImageUrl,
   parseArticleImageShorthand,
   parseArticleMarkdown,
 } from "@/lib/article-markdown";
+import type { ArticleMentionLink } from "@/lib/article-markdown";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
@@ -502,6 +504,75 @@ async function loadApprovedEntityOptions(): Promise<EntityOption[]> {
 export const listApprovedEntityOptions = unstable_cache(
   loadApprovedEntityOptions,
   ["approved-entity-options"],
+  { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
+
+// The full public article shell: content, structured fields, cross-links —
+// identical for every reader. Everything the article routes need to render
+// minus per-user state (watching). Split out and cached so anonymous article
+// views cost zero database work (issue #5).
+//
+// notFound()/permanentRedirect() must NOT be called here — those throw
+// control-flow errors that would be cached. The route acts on the returned kind.
+export type PublicArticleView =
+  | { kind: "not-found" }
+  | { kind: "redirect"; to: string }
+  | { kind: "missing"; slug: string }
+  | {
+      kind: "ok";
+      article: ArticleWithLiveRevision;
+      revision: RevisionRecord;
+      articleLinks: ArticleMentionLink[];
+    };
+
+async function loadPublicArticleView(
+  contentType: ContentType,
+  rawSlug: string,
+): Promise<PublicArticleView> {
+  const slug = normalizeSlug(rawSlug);
+  if (!slug) return { kind: "not-found" };
+
+  const controls = await getArticlePublicationControls(contentType, slug);
+  if (controls?.archived_at) return { kind: "not-found" };
+  if (controls?.redirect_to_slug)
+    return {
+      kind: "redirect",
+      to: articlePath(contentType, controls.redirect_to_slug),
+    };
+
+  const article = await getArticleBySlug(slug, contentType);
+  if (!article) {
+    const destination = await getSlugRedirect(contentType, slug);
+    if (destination)
+      return { kind: "redirect", to: articlePath(contentType, destination) };
+  }
+  if (!article?.liveRevision || article.liveRevision.status !== "approved")
+    return { kind: "missing", slug };
+
+  const entities = await listApprovedEntityOptions();
+  const articleLinks: ArticleMentionLink[] = entities
+    .filter((entity) => entity.contentType === "aircraft")
+    .flatMap((entity) =>
+      getAircraftArticleTitles(entity.title).map((title) => ({
+        title,
+        href:
+          entity.id === article.id
+            ? null
+            : articlePath(entity.contentType, entity.slug),
+      })),
+    );
+
+  return {
+    kind: "ok",
+    article,
+    revision: article.liveRevision,
+    articleLinks,
+  };
+}
+
+export const getPublicArticleView = unstable_cache(
+  loadPublicArticleView,
+  ["public-article-view"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 

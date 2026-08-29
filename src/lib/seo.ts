@@ -5,7 +5,7 @@ import {
   isSafeImageUrl,
   parseArticleImageShorthand,
 } from "@/lib/article-markdown";
-import { getArticleBySlug, normalizeSlug } from "@/lib/wiki-public-db";
+import { getPublicArticleView } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
 
 export const siteUrl = new URL(
@@ -39,11 +39,11 @@ export async function publicArticleMetadata(
   params: Promise<{ slug: string }>,
   contentType: ContentType,
 ): Promise<Metadata> {
-  const slug = normalizeSlug((await params).slug);
-  const article = await getArticleBySlug(slug, contentType);
-  const revision = article?.liveRevision;
-  if (!article || !revision || revision.status !== "approved")
+  // Shares the cached, reader-agnostic article read with the page render.
+  const view = await getPublicArticleView(contentType, (await params).slug);
+  if (view.kind !== "ok")
     return { title: "Article not found", robots: { index: false, follow: false } };
+  const { article, revision } = view;
 
   const url = articlePath(contentType, article.slug);
   const description =

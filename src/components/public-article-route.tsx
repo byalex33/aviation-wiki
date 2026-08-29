@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import {
   MissingArticleState,
   PublicArticle,
 } from "@/components/public-article";
-import { getAircraftArticleTitles } from "@/lib/article-markdown";
 import {
   ComparisonPrompt,
   RevisionHistory,
@@ -16,12 +14,11 @@ import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import {
   getApprovedRevision,
   getArticleBySlug,
+  getPublicArticleView,
   getSlugRedirect,
   listArticleHistory,
   normalizeSlug,
   getArticlePublicationControls,
-  isWatchingArticle,
-  listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
 
@@ -32,47 +29,26 @@ export async function PublicArticleRoute({
   params: Promise<{ slug: string }>;
   contentType: ContentType;
 }) {
-  // Initialize Clerk's request context before Next can transfer rendering to a
-  // not-found boundary. Calling auth() after notFound() branches may lose the
-  // middleware chain when Next renders the boundary as an internal /_not-found.
-  const session = await auth();
-  const slug = normalizeSlug((await params).slug);
-  if (!slug) notFound();
-  const controls = await getArticlePublicationControls(contentType, slug);
-  if (controls?.archived_at) notFound();
-  if (controls?.redirect_to_slug)
-    permanentRedirect(articlePath(contentType, controls.redirect_to_slug));
-  const article = await getArticleBySlug(slug, contentType);
-  if (!article) {
-    const destination = await getSlugRedirect(contentType, slug);
-    if (destination) permanentRedirect(articlePath(contentType, destination));
+  // No auth() here: the article shell is identical for every reader, so this
+  // render path stays static/ISR-eligible. Per-user state (the watch button)
+  // resolves client-side. See issue #5.
+  const view = await getPublicArticleView(contentType, (await params).slug);
+  switch (view.kind) {
+    case "not-found":
+      return notFound();
+    case "redirect":
+      return permanentRedirect(view.to);
+    case "missing":
+      return <MissingArticleState slug={view.slug} contentType={contentType} />;
+    case "ok":
+      return (
+        <PublicArticle
+          article={view.article}
+          revision={view.revision}
+          articleLinks={view.articleLinks}
+        />
+      );
   }
-  if (!article?.liveRevision || article.liveRevision.status !== "approved")
-    return <MissingArticleState slug={slug} contentType={contentType} />;
-  const [watching, entities] = await Promise.all([
-    session.userId ? isWatchingArticle(session.userId, article.id) : false,
-    listApprovedEntityOptions(),
-  ]);
-  const articleLinks = entities
-    .filter((entity) => entity.contentType === "aircraft")
-    .flatMap((entity) =>
-      getAircraftArticleTitles(entity.title).map((title) => ({
-        title,
-        href:
-          entity.id === article.id
-            ? null
-            : articlePath(entity.contentType, entity.slug),
-      })),
-    );
-  return (
-    <PublicArticle
-      article={article}
-      revision={article.liveRevision}
-      watching={watching}
-      signedIn={Boolean(session.userId)}
-      articleLinks={articleLinks}
-    />
-  );
 }
 
 export async function PublicArticleHistoryRoute({

@@ -4,10 +4,7 @@ import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
 import { SITE_NAME } from "@/lib/site";
-import {
-  getArticleBySlug,
-  normalizeSlug,
-} from "@/lib/wiki-public-db";
+import { getPublicArticleView, normalizeSlug } from "@/lib/wiki-public-db";
 import type {
   ArticleWithLiveRevision,
   ContentType,
@@ -146,16 +143,17 @@ export async function generateArticleMetadata(
   params: Promise<{ slug: string }>,
   contentType: ContentType,
 ): Promise<Metadata> {
-  const slug = normalizeSlug((await params).slug);
-  const article = await getArticleBySlug(slug, contentType);
+  const rawSlug = (await params).slug;
+  // Shares the cached, reader-agnostic article read with the page render.
+  const view = await getPublicArticleView(contentType, rawSlug);
 
-  if (!article?.liveRevision || article.liveRevision.status !== "approved") {
+  if (view.kind !== "ok") {
     return {
-      title: slug.replaceAll("-", " "),
+      title: normalizeSlug(rawSlug).replaceAll("-", " "),
       description: `This ${contentType} article is not available on ${SITE_NAME}.`,
       robots: { index: false, follow: false },
     };
   }
 
-  return metadataForArticle(article);
+  return metadataForArticle(view.article);
 }

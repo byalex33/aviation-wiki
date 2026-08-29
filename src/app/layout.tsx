@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
-import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
 import { Toaster } from "sonner";
 
-import { AccountMenu } from "@/components/account-menu";
+import { HeaderAuth } from "@/components/header-auth";
 import { HeaderSearch } from "@/components/header-search";
-import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { clerkShadcnAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/utils";
 import { jsonLd } from "@/lib/seo";
+import { themeBootstrapScript } from "@/lib/inline-scripts";
 
 import "./globals.css";
 
@@ -67,7 +66,6 @@ export const metadata: Metadata = {
   },
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem("aviation-theme");if(t==="pastel-light"||t==="pastel-dark"||t==="twitter-light"||t==="twitter-dark"){document.documentElement.dataset.theme=t.indexOf("pastel")===0?"pastel-dreams":"twitter";document.documentElement.classList.toggle("dark",t.endsWith("-dark"))}}catch(e){}})()`;
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -89,12 +87,9 @@ function AviationLogo({ className }: { className: string }) {
   );
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // Set by clerkMiddleware's strict CSP; Next injects it into its own scripts,
-  // and it authorizes the inline theme bootstrap below.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -103,12 +98,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
+        />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
-          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
         <ClerkProvider
@@ -151,27 +147,7 @@ export default async function RootLayout({
                 >
                   <Search />
                 </Link>
-                <Show when="signed-out">
-                  <SignInButton>
-                    <button
-                      className={cn(
-                        buttonVariants({ variant: "ghost" }),
-                        "h-10 px-3",
-                      )}
-                    >
-                      Log in
-                    </button>
-                  </SignInButton>
-                  <SignUpButton>
-                    <button className={cn(buttonVariants(), "h-10 px-4")}>
-                      Sign up
-                    </button>
-                  </SignUpButton>
-                </Show>
-                <Show when="signed-in">
-                  <NotificationBell />
-                  <AccountMenu />
-                </Show>
+                <HeaderAuth />
               </nav>
             </div>
           </header>
