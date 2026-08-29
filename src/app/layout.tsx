@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
@@ -14,6 +13,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { clerkShadcnAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/utils";
 import { jsonLd } from "@/lib/seo";
 
@@ -106,7 +106,10 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
-        <ClerkProvider appearance={{ theme: shadcn }} prefetchUI={false}>
+        <ClerkProvider
+          appearance={{ theme: clerkShadcnAppearance }}
+          prefetchUI={false}
+        >
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
               <Link
