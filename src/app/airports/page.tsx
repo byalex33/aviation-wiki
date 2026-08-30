@@ -36,6 +36,7 @@ export default async function AirportsPage() {
         emptyTitle="Help create the airport directory"
         emptyDescription="Create the first approved airport or airfield article."
       />
+      <nav className="mt-10 rounded-xl border bg-muted/30 p-5 text-sm" aria-label="Airports by country"><span className="mr-3 font-semibold">Browse by country</span><Link href="/airports/united-kingdom" className="article-link">United Kingdom airports</Link></nav>
     </main>
   );
 }
