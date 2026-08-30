@@ -18,6 +18,14 @@ Media from Wikimedia Commons remains under the license shown on each file's Comm
 
 OpenFlights airport, airline, plane, and route databases are offered under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/), with individual database contents under the [Database Contents License](https://opendatacommons.org/licenses/dbcl/1-0/). Public derived databases must retain OpenFlights attribution and satisfy the ODbL share-alike requirements.
 
+## Curated aviation datasets
+
+Small project-authored datasets may record non-copyrightable aviation facts
+from cited public pages. Each assertion retains its source and retrieval date;
+a citation does not imply that the source database, page text, or media has
+been relicensed. Bulk importers must document and comply with the source's
+licence before they are enabled.
+
 ## Citations and trademarks
 
 Links and citations identify sources; they do not grant permission to copy the linked material. Names, logos, aircraft marks, and airline marks belong to their respective owners.

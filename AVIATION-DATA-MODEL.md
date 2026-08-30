@@ -52,3 +52,23 @@ The migration creates new tables and indexes without changing article tables.
 Rollback therefore consists of deploying the previous application version;
 the additive tables can remain in place during the rollback window. Never drop
 them until a verified backup exists and the retention window has passed.
+
+## British Airways A350-1000 reference slice
+
+Preview the versioned, deterministic import plan:
+
+```sh
+npm run data:import:ba-a350
+```
+
+After applying the schema migration, import it with:
+
+```sh
+npm run data:import:ba-a350 -- --apply
+```
+
+The curated slice includes all 18 aircraft reported by British Airways on 30
+August 2026, with MSN, registration assignment, delivery event, operator, and
+configuration evidence. It intentionally retains the competing 26 and 29 July
+2019 first-delivery dates as an unresolved reconciliation case. Re-running the
+same dataset fingerprint is a no-op.
