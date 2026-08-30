@@ -196,6 +196,25 @@ export default async function FleetPage({
           </div>
         </section>
 
+        <Link
+          href="/fleet/british-airways"
+          className="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5 transition-colors hover:bg-primary/10"
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              New individual-airframe view
+            </p>
+            <h2 className="mt-1 text-lg font-semibold">
+              British Airways A350-1000 fleet history
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Explore 18 MSNs with temporal registrations, delivery events,
+              cabin configuration, provenance, and reconciliation state.
+            </p>
+          </div>
+          <ArrowUpRight className="size-5 text-primary" />
+        </Link>
+
         <form
           action="/fleet"
           className="mt-9 grid gap-3 rounded-xl border bg-card p-4 shadow-sm lg:grid-cols-[minmax(220px,1fr)_220px_170px_170px_auto]"
