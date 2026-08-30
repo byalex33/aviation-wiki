@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
+import { ArticleMarkdown } from "../src/components/article-markdown";
 import { getAircraftArticleTitles, getArticleHeadings, getArticleMentionParts, parseArticleImageShorthand, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
@@ -7,6 +10,28 @@ assert.deepEqual(valid.errors, []);
 assert.equal(valid.citations.length, 1);
 assert.equal(valid.citations[0].number, 1);
 assert.equal(valid.citations[0].occurrences, 2);
+const citationPreviewMarkup = renderToStaticMarkup(
+  createElement(ArticleMarkdown, {
+    root: valid.root,
+    citations: valid.citations,
+    citationSources: [
+      {
+        identifier: "alpha",
+        title: "Aircraft reference",
+        publisher: "Example publisher",
+        url: "https://example.com/source",
+        accessedAt: "2026-08-30",
+      },
+    ],
+  }),
+);
+assert.match(citationPreviewMarkup, /role="tooltip"/);
+assert.match(citationPreviewMarkup, /Aircraft reference/);
+assert.match(citationPreviewMarkup, /Example publisher · example\.com/);
+assert.equal(
+  new Set([...citationPreviewMarkup.matchAll(/id="(citation-preview-[^"]+)"/g)].map((match) => match[1])).size,
+  2,
+);
 
 const ordered = parseArticleMarkdown("Second first.[^b] First second.[^a]\n\n[^a]: https://example.com/a\n[^b]: https://example.com/b");
 assert.deepEqual(ordered.citations.map((citation) => [citation.identifier, citation.number]), [["b", 1], ["a", 2]]);
