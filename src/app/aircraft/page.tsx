@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Plane } from "lucide-react";
+import { Dices, Plane } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { buttonVariants } from "@/components/ui/button";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
@@ -36,6 +37,20 @@ export default async function AircraftIndexPage() {
         emptyTitle="No approved aircraft articles yet"
         emptyDescription="Contributors can create the first aircraft article."
       />
+      {articles.length > 0 && (
+        <section className="mt-10 flex flex-col items-start justify-between gap-4 rounded-xl border bg-muted/30 p-5 sm:flex-row sm:items-center sm:p-6">
+          <div>
+            <h2 className="font-semibold">Not sure where to start?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Jump to a different approved aircraft article every time.
+            </p>
+          </div>
+          <Link href="/aircraft/random" className={buttonVariants()} prefetch={false}>
+            <Dices />
+            Random aircraft
+          </Link>
+        </section>
+      )}
     </main>
   );
 }
