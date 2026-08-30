@@ -13,7 +13,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:charts && npm run test:chart-roundtrip && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:aviation-data && npm run test:importer && npm run test:import-collisions && npm run test:notifications && npm run test:fleet && npm run test:source-health && npm run test:sitemap && npm run test:commercial-aircraft",
-    "db:migrate:aviation-data": "node --conditions=react-server --import tsx scripts/migrate-aviation-data.ts",
+    "db:migrate:aviation-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/migrate-aviation-data.ts",
     "test:db": "node scripts/check-database.mjs",
     "test:charts": "tsx scripts/test-charts.tsx",
     "test:chart-roundtrip": "node --conditions=react-server --import tsx scripts/test-chart-roundtrip.ts",
