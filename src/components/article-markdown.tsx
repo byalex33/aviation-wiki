@@ -22,11 +22,14 @@ import {
   type MarkdownNode,
   type MarkdownRoot,
 } from "@/lib/article-markdown";
+import { sourceForCitation, sourceTitle } from "@/lib/article-citations";
+import type { SourceLink } from "@/lib/wiki-types";
 import { cn } from "@/lib/utils";
 
 type Definitions = Map<string, { url: string; title?: string | null }>;
 
 type CitationMap = Map<string, Citation>;
+type CitationSourceMap = Map<string, SourceLink>;
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 
@@ -143,15 +146,24 @@ function renderText(
   return rendered;
 }
 
-function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact: boolean, articleLinks: ArticleMentionLink[]): ReactNode {
-  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, headingIds, compact, articleLinks));
+function citationHost(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
-function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, headingIds: Map<MarkdownNode, string>, compact = false, articleLinks: ArticleMentionLink[] = []): ReactNode {
+function renderChildren(node: MarkdownNode, definitions: Definitions, citations: CitationMap, citationSources: CitationSourceMap, headingIds: Map<MarkdownNode, string>, compact: boolean, articleLinks: ArticleMentionLink[]): ReactNode {
+  return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, citationSources, headingIds, compact, articleLinks));
+}
+
+function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, citationSources: CitationSourceMap, headingIds: Map<MarkdownNode, string>, compact = false, articleLinks: ArticleMentionLink[] = []): ReactNode {
   const children = renderChildren(
     node,
     definitions,
     citations,
+    citationSources,
     headingIds,
     compact,
     node.type === "link" || node.type === "linkReference" ? [] : articleLinks,
@@ -160,8 +172,8 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     case "text": return renderText(node.value ?? "", key, compact, articleLinks);
     case "paragraph": {
       const onlyChild = node.children?.length === 1 ? node.children[0] : null;
-      if (onlyChild?.type === "image") return renderNode(onlyChild, key, definitions, citations, headingIds, compact);
-      if (onlyChild?.type === "imageReference") return renderNode(onlyChild, key, definitions, citations, headingIds, compact);
+      if (onlyChild?.type === "image") return renderNode(onlyChild, key, definitions, citations, citationSources, headingIds, compact);
+      if (onlyChild?.type === "imageReference") return renderNode(onlyChild, key, definitions, citations, citationSources, headingIds, compact);
       if (onlyChild?.type === "text") {
         const image = parseArticleImageShorthand(onlyChild.value ?? "");
         if (image) return <ArticleImageDisplay key={key} image={image} />;
@@ -203,7 +215,43 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     }
     case "footnoteReference": {
       const citation = citations.get(node.identifier?.toLowerCase() ?? "");
-      return citation ? <sup key={key} className="ml-0.5 align-super text-[0.72em]"><a href={`#source-${citation.number}`} id={`citation-${citation.number}`} className="font-semibold text-primary hover:underline" aria-label={`Citation ${citation.number}`}>[{citation.number}]</a></sup> : null;
+      if (!citation) return null;
+      const source = citationSources.get(citation.identifier) ?? {
+        identifier: citation.identifier,
+        url: citation.url,
+      };
+      const occurrenceId = `${citation.number}-${node.position?.start.offset ?? key}`;
+      return (
+        <sup key={key} className="group/citation relative ml-0.5 inline-block align-super text-[0.72em]">
+          <a
+            href={`#source-${citation.number}`}
+            id={`citation-${occurrenceId}`}
+            className="rounded-sm font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Citation ${citation.number}: ${sourceTitle(source)}`}
+            aria-describedby={`citation-preview-${occurrenceId}`}
+          >
+            [{citation.number}]
+          </a>
+          <span
+            id={`citation-preview-${occurrenceId}`}
+            role="tooltip"
+            className="pointer-events-none fixed inset-x-4 bottom-4 z-50 hidden rounded-lg border bg-popover p-3 text-left font-sans text-xs font-normal leading-5 text-popover-foreground shadow-xl group-focus-within/citation:block group-hover/citation:block sm:absolute sm:inset-x-auto sm:bottom-full sm:left-1/2 sm:mb-2 sm:w-72 sm:-translate-x-1/2"
+          >
+            <strong className="block text-sm font-semibold leading-5">
+              {sourceTitle(source)}
+            </strong>
+            <span className="mt-1 block text-muted-foreground">
+              {[source.publisher, citationHost(source.url)]
+                .filter(Boolean)
+                .join(" · ")}
+              {source.accessedAt ? ` · Accessed ${source.accessedAt}` : ""}
+            </span>
+            <span className="mt-1 block font-medium text-primary">
+              Open source details
+            </span>
+          </span>
+        </sup>
+      );
     }
     case "footnoteDefinition": return null;
     case "table": return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm"><tbody>{children}</tbody></table></div>;
@@ -230,7 +278,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
   }
 }
 
-export function ArticleMarkdown({ root, citations = [], compact = false, hideSidebar = false, articleLinks = [] }: { root: MarkdownRoot; citations?: Citation[]; compact?: boolean; hideSidebar?: boolean; articleLinks?: ArticleMentionLink[] }) {
+export function ArticleMarkdown({ root, citations = [], citationSources = [], compact = false, hideSidebar = false, articleLinks = [] }: { root: MarkdownRoot; citations?: Citation[]; citationSources?: SourceLink[]; compact?: boolean; hideSidebar?: boolean; articleLinks?: ArticleMentionLink[] }) {
   const definitions: Definitions = new Map();
   for (const node of root.children) {
     if (node.type === "definition" && node.identifier && node.url) {
@@ -239,6 +287,12 @@ export function ArticleMarkdown({ root, citations = [], compact = false, hideSid
   }
 
   const citationMap = new Map(citations.map((citation) => [citation.identifier, citation]));
+  const citationSourceMap = new Map(
+    citations.map((citation) => [
+      citation.identifier,
+      sourceForCitation(citation, citationSources),
+    ]),
+  );
   const headingIds = new Map(getArticleHeadings(root).map((heading) => [heading.node, heading.id]));
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   const mainNodes = root.children.filter((node) => !sidebarNodes.includes(node));
@@ -246,8 +300,8 @@ export function ArticleMarkdown({ root, citations = [], compact = false, hideSid
 
   return (
     <div className={compact ? "" : showSidebar ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
-      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, headingIds, compact, articleLinks))}</article>
-      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, headingIds, false, articleLinks))}</aside>}
+      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, citationSourceMap, headingIds, compact, articleLinks))}</article>
+      {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, citationSourceMap, headingIds, false, articleLinks))}</aside>}
     </div>
   );
 }
