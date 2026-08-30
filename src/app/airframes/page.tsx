@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { AirframeCards, CompletenessPanel } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
+import { ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
 import {
   loadAirframeProjections,
   loadAviationGraphCompleteness,
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AirframesPage() {
+  ensureAviationDataEnabled();
   const [airframes, completeness] = await Promise.all([
     loadAirframeProjections(),
     loadAviationGraphCompleteness(),

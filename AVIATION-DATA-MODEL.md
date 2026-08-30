@@ -102,3 +102,35 @@ The public projections are available at `/airframes`, `/registrations`,
 `/production-lists/a350-1000`, and `/fleet/british-airways`. The approved Airbus
 A350 and British Airways encyclopedia articles link to these factual modules;
 the graph does not replace their human-written knowledge layer.
+
+## Production rollout
+
+The schema is additive but is never created from a web request in production,
+and the pages must not be publicly reachable before the tables and the first
+import exist. The `AVIATION_DATA_ENABLED` env var gates every route, navigation
+entry, and sitemap URL for the feature. It defaults on in development and test
+(where `ensureSchema()` creates the tables) and off in production until set to
+`"true"`. If the flag is on but the migration has not run, `loadAviationGraphSnapshot()`
+still degrades to an empty snapshot rather than a 500.
+
+Roll out in this order:
+
+1. Merge and deploy. `AVIATION_DATA_ENABLED` is unset, so the routes render the
+   404 page and nothing links to them — the change is dark and reversible by a
+   redeploy.
+2. From a trusted environment with a backed-up `DATABASE_URL`:
+   ```sh
+   npm run db:migrate:aviation-data -- --apply
+   npm run data:import:ba-a350 -- --apply
+   ```
+3. Optionally resolve the seeded delivery-date conflict:
+   ```sh
+   npm run data:reconcile -- --case <case-id> --canonical <assertion-id> \
+     --reviewer <reviewer-id> --note <decision>
+   ```
+4. Set `AVIATION_DATA_ENABLED=true` in the deployment environment and redeploy.
+   The routes, `/fleet` and article cross-links, and the sitemap entries appear
+   only from this point.
+
+To take the feature back down, unset the variable and redeploy; the additive
+tables can stay in place.

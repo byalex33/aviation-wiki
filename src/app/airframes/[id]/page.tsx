@@ -6,6 +6,10 @@ import { notFound } from "next/navigation";
 
 import { aviationDate, SourceList } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
+import {
+  aviationDataEnabled,
+  ensureAviationDataEnabled,
+} from "@/lib/aviation-data-flags";
 import { getAirframeProjection } from "@/lib/aviation-data-public";
 import type { GraphSource } from "@/lib/aviation-data-projections";
 import { jsonLd } from "@/lib/seo";
@@ -16,6 +20,7 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!aviationDataEnabled) return { title: "Airframe not found", robots: { index: false } };
   const airframe = await getAirframeProjection((await params).id);
   if (!airframe) return { title: "Airframe not found", robots: { index: false } };
   const registration = airframe.currentRegistration?.registration ?? airframe.publicId;
@@ -39,6 +44,7 @@ function configuration(value: unknown) {
 }
 
 export default async function AirframePage({ params }: { params: Params }) {
+  ensureAviationDataEnabled();
   const airframe = await getAirframeProjection((await params).id);
   if (!airframe) notFound();
   const registration = airframe.currentRegistration?.registration ?? airframe.publicId;

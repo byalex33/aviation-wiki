@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { aviationDate, CompletenessPanel } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
+import { ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
 import {
   listProductionAirframes,
   loadAviationGraphCompleteness,
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function A350ProductionListPage() {
+  ensureAviationDataEnabled();
   const [airframes, completeness] = await Promise.all([
     listProductionAirframes("A350-1041"),
     loadAviationGraphCompleteness(),

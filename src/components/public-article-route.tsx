@@ -24,6 +24,7 @@ import {
   listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
+import { aviationDataEnabled } from "@/lib/aviation-data-flags";
 import {
   listOperatorFleet,
   listProductionAirframes,
@@ -53,8 +54,9 @@ export async function PublicArticleRoute({
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     return <MissingArticleState slug={slug} contentType={contentType} />;
-  const structuredData =
-    contentType === "airline" && slug === "british-airways"
+  const structuredData = !aviationDataEnabled
+    ? undefined
+    : contentType === "airline" && slug === "british-airways"
       ? { href: "/fleet/british-airways", label: "Fleet history", records: (await listOperatorFleet("british-airways")).length }
       : contentType === "aircraft" && ["airbus-a350", "airbus-a350-1000"].includes(slug)
         ? { href: "/production-lists/a350-1000", label: "A350-1000 production data", records: (await listProductionAirframes("A350-1041")).length }

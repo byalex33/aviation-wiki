@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { AirframeCards, aviationDate, CompletenessPanel } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
+import { ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
 import {
   listOperatorFleet,
   listOperatorFleetHistory,
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BritishAirwaysFleetPage() {
+  ensureAviationDataEnabled();
   const [current, history, completeness] = await Promise.all([
     listOperatorFleet("british-airways"),
     listOperatorFleetHistory("british-airways"),

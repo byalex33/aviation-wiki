@@ -6,6 +6,10 @@ import { notFound } from "next/navigation";
 import { AirframeCards, CompletenessPanel } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
 import {
+  aviationDataEnabled,
+  ensureAviationDataEnabled,
+} from "@/lib/aviation-data-flags";
+import {
   findAirframesByRegistration,
   listAirframesByRegistrationPrefix,
   loadAviationGraphCompleteness,
@@ -17,6 +21,7 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ value: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!aviationDataEnabled) return { title: "Not found", robots: { index: false } };
   const value = decodeURIComponent((await params).value).toUpperCase();
   const prefix = value.length === 1;
   return {
@@ -27,6 +32,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function RegistrationPage({ params }: { params: Params }) {
+  ensureAviationDataEnabled();
   const value = decodeURIComponent((await params).value).toUpperCase();
   const isPrefix = /^[A-Z]$/.test(value);
   const [airframes, completeness] = await Promise.all([

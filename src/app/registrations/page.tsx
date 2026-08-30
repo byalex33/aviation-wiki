@@ -3,6 +3,7 @@ import { Flag, Search } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
 
 export const metadata: Metadata = {
   title: "Aircraft registration database",
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function RegistrationsPage() {
+  ensureAviationDataEnabled();
   return (
     <main className="mx-auto w-full max-w-[1000px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="mb-7 text-sm text-muted-foreground"><Link href="/" className="article-link">Main</Link> / Registrations</nav>
