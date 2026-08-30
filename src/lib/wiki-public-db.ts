@@ -947,6 +947,44 @@ export const listPublicSearchDocuments = unstable_cache(
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 
+export type PublicStructuredSourceArticle = {
+  id: string;
+  title: string;
+  slug: string;
+  contentType: ContentType;
+  fields: RevisionRecord["fields"];
+  updatedAt: string;
+};
+
+async function loadPublicStructuredSourceData(): Promise<PublicStructuredSourceArticle[]> {
+  await ready();
+  const values = await rows<{
+    id: string;
+    title: string;
+    slug: string;
+    content_type: ContentType;
+    fields_json: unknown;
+    updated_at: Date | string;
+  }>(`SELECT a.id,r.title,a.slug,a.content_type,r.fields_json,COALESCE(r.reviewed_at,r.updated_at) updated_at
+      FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+      ORDER BY a.content_type,r.title`);
+  return values.map((value) => ({
+    id: value.id,
+    title: value.title,
+    slug: value.slug,
+    contentType: value.content_type,
+    fields: json(value.fields_json, []),
+    updatedAt: iso(value.updated_at),
+  }));
+}
+
+export const listPublicStructuredSourceData = unstable_cache(
+  loadPublicStructuredSourceData,
+  ["public-structured-source-data"],
+  { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
+
 export async function listPublicFleetSourceData(): Promise<{
   articles: FleetSourceArticle[];
   relationships: FleetSourceRelationship[];
