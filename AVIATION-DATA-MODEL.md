@@ -72,3 +72,15 @@ August 2026, with MSN, registration assignment, delivery event, operator, and
 configuration evidence. It intentionally retains the competing 26 and 29 July
 2019 first-delivery dates as an unresolved reconciliation case. Re-running the
 same dataset fingerprint is a no-op.
+
+## Canonical read models
+
+`src/lib/aviation-data-projections.ts` is the single projection policy for
+airframe, production-list, and fleet views. A typed record is canonical only
+when its assertion is accepted and its subject/predicate has no open
+reconciliation case. Conflicting claims remain available to the airframe view,
+but are excluded from canonical dates and counts until review resolves them.
+
+Production lists filter the resulting airframes by model. Current fleet views
+filter the same airframes by the operator on the active temporal registration.
+Neither view owns a duplicate production or fleet dataset.
