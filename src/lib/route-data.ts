@@ -18,7 +18,10 @@ export type AviationRouteDefinition = {
   origin: RouteAirport;
   destination: RouteAirport;
   checkedAt: string;
+  /** Long advisory sentence shown in the great-circle disclaimer banner. */
   typicalFlightTime: string;
+  /** Short value + caption for the "typical flight time" fact tile. */
+  flightTime: { summary: string; detail: string };
   currentAirlines: Array<{ name: string; note?: string }>;
   aircraft: Array<{ name: string; note: string }>;
   historicOperators: Array<{ name: string; note: string }>;
@@ -47,6 +50,19 @@ export function routeDistance(definition: AviationRouteDefinition) {
   };
 }
 
+export function routeIataPair(definition: AviationRouteDefinition) {
+  return `${definition.origin.iata}–${definition.destination.iata}`;
+}
+
+/** Span of years covered by the sourced history entries, or null if none. */
+export function routeHistoryRange(definition: AviationRouteDefinition) {
+  const years = definition.history.flatMap((item) =>
+    (item.year.match(/\d{4}/g) ?? []).map(Number),
+  );
+  if (!years.length) return null;
+  return { from: String(Math.min(...years)), to: String(Math.max(...years)) };
+}
+
 export const aviationRoutes: AviationRouteDefinition[] = [
   {
     slug: "lhr-jfk",
@@ -54,6 +70,7 @@ export const aviationRoutes: AviationRouteDefinition[] = [
     destination: { iata: "JFK", name: "John F. Kennedy International Airport", city: "New York", latitude: 40.6413, longitude: -73.7781 },
     checkedAt: "2026-08-30",
     typicalFlightTime: "About 7–8 hours westbound; eastbound services are often shorter with favourable winds.",
+    flightTime: { summary: "About 7–8 hours", detail: "Direction, winds and routing vary" },
     currentAirlines: [
       { name: "American Airlines" },
       { name: "British Airways", note: "Nine Heathrow–JFK flights announced for the 2026 summer schedule." },
