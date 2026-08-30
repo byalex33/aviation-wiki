@@ -163,3 +163,86 @@ export function canonicalAssertionId({
   return accepted.length === 1 ? accepted[0].id : null;
 }
 
+export type ReconciliationCaseForResolution = {
+  id: string;
+  subjectType: AviationSubjectType;
+  subjectId: string;
+  predicate: string;
+  status: "open" | "resolved" | "dismissed";
+  assertionIds: string[];
+};
+
+export type ReconciliationResolutionInput = {
+  canonicalAssertionId: string;
+  reviewer: string;
+  note: string;
+};
+
+export type ReconciliationResolutionPlan = {
+  caseId: string;
+  canonicalAssertionId: string;
+  reviewer: string;
+  note: string;
+  assertionUpdates: Array<{
+    assertionId: string;
+    reviewStatus: "accepted" | "rejected";
+  }>;
+};
+
+/**
+ * Validates a human reconciliation decision without discarding any claim.
+ * Persistence adapters apply these status changes and append an audit event.
+ */
+export function planReconciliationResolution({
+  reconciliationCase,
+  assertions,
+  resolution,
+}: {
+  reconciliationCase: ReconciliationCaseForResolution;
+  assertions: AssertionForConflict[];
+  resolution: ReconciliationResolutionInput;
+}): ReconciliationResolutionPlan {
+  if (reconciliationCase.status !== "open") {
+    throw new Error("Only an open reconciliation case can be resolved");
+  }
+  const reviewer = resolution.reviewer.trim();
+  const note = resolution.note.trim();
+  if (!reviewer) throw new Error("A reviewer is required");
+  if (!note) throw new Error("A resolution note is required");
+  if (reconciliationCase.assertionIds.length < 2) {
+    throw new Error("A reconciliation case must contain competing assertions");
+  }
+
+  const assertionById = new Map(
+    assertions.map((assertion) => [assertion.id, assertion]),
+  );
+  const assertionIds = new Set(reconciliationCase.assertionIds);
+  if (!assertionIds.has(resolution.canonicalAssertionId)) {
+    throw new Error("The canonical assertion must belong to the reconciliation case");
+  }
+  for (const assertionId of assertionIds) {
+    const assertion = assertionById.get(assertionId);
+    if (!assertion) {
+      throw new Error(`Missing assertion ${assertionId}`);
+    }
+    if (
+      assertion.subjectType !== reconciliationCase.subjectType ||
+      assertion.subjectId !== reconciliationCase.subjectId ||
+      assertion.predicate !== reconciliationCase.predicate
+    ) {
+      throw new Error(`Assertion ${assertionId} does not match the reconciliation case`);
+    }
+  }
+
+  return {
+    caseId: reconciliationCase.id,
+    canonicalAssertionId: resolution.canonicalAssertionId,
+    reviewer,
+    note,
+    assertionUpdates: reconciliationCase.assertionIds.map((assertionId) => ({
+      assertionId,
+      reviewStatus:
+        assertionId === resolution.canonicalAssertionId ? "accepted" : "rejected",
+    })),
+  };
+}

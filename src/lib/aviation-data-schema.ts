@@ -220,6 +220,20 @@ CREATE TABLE IF NOT EXISTS reconciliation_case_assertions (
   PRIMARY KEY(case_id, assertion_id)
 );
 
+CREATE TABLE IF NOT EXISTS aviation_reconciliation_events (
+  id text PRIMARY KEY,
+  case_id text NOT NULL REFERENCES reconciliation_cases(id),
+  actor_id text NOT NULL,
+  action text NOT NULL CHECK (action IN ('resolved','dismissed','reopened')),
+  canonical_assertion_id text REFERENCES aviation_assertions(id),
+  before_json jsonb NOT NULL,
+  after_json jsonb NOT NULL,
+  note text NOT NULL,
+  created_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS aviation_reconciliation_events_case_idx
+  ON aviation_reconciliation_events(case_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS aviation_data_migrations (
   id text PRIMARY KEY,
   applied_at timestamptz NOT NULL
