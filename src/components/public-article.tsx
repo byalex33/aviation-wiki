@@ -360,7 +360,7 @@ export function PublicArticle({
               This approved revision cannot be rendered safely.
             </p>
           ) : (
-            <ArticleMarkdown root={parsed.root} citations={parsed.citations} hideSidebar articleLinks={articleLinks} />
+            <ArticleMarkdown root={parsed.root} citations={parsed.citations} citationSources={revision.sources} hideSidebar articleLinks={articleLinks} />
           )}
           {relatedComparisons.length > 0 && (
             <section className="mt-10 rounded-xl border bg-muted/30 p-5 sm:p-6">

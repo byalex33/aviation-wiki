@@ -404,6 +404,7 @@ export function RevisionEditor({
                   <ArticleMarkdown
                     root={parsed.root}
                     citations={parsed.citations}
+                    citationSources={sources}
                     hideSidebar
                   />
                 </div>
