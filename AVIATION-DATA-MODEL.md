@@ -13,8 +13,10 @@ must not become a second store for aviation facts.
   `airframe_events`, `airframe_configurations`, and `airframe_media` hold typed
   aviation records.
 - Every typed record points to one `aviation_assertions` row. The assertion
-  retains its source, observed and effective dates, confidence, import run or
-  manual provenance, and review state.
+  retains its primary source, observed and effective dates, confidence, import
+  run or manual provenance, and review state. `aviation_assertion_evidence`
+  attaches additional supporting or contradicting sources without duplicating
+  the typed fact.
 - `reconciliation_cases` retains competing claims. An unresolved case has no
   canonical assertion and projections must expose the conflict instead of
   picking a value.
@@ -50,4 +52,3 @@ The migration creates new tables and indexes without changing article tables.
 Rollback therefore consists of deploying the previous application version;
 the additive tables can remain in place during the rollback window. Never drop
 them until a verified backup exists and the retention window has passed.
-

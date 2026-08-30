@@ -84,6 +84,7 @@ for (const table of [
   "airframe_events",
   "aviation_sources",
   "aviation_assertions",
+  "aviation_assertion_evidence",
   "reconciliation_cases",
 ]) {
   assert.match(
@@ -99,4 +100,3 @@ assert.match(AVIATION_DATA_SCHEMA_SQL, /provenance_type/);
 assert.match(AVIATION_DATA_SCHEMA_SQL, /review_status/);
 
 console.log("Aviation data model and conflict tests passed");
-

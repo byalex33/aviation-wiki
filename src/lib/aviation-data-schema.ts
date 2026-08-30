@@ -93,6 +93,18 @@ CREATE INDEX IF NOT EXISTS aviation_assertions_subject_idx
 CREATE INDEX IF NOT EXISTS aviation_assertions_source_idx
   ON aviation_assertions(source_id, observed_at DESC);
 
+CREATE TABLE IF NOT EXISTS aviation_assertion_evidence (
+  assertion_id text NOT NULL REFERENCES aviation_assertions(id) ON DELETE CASCADE,
+  source_id text NOT NULL REFERENCES aviation_sources(id),
+  evidence_role text NOT NULL CHECK (evidence_role IN ('primary','supporting','contradicting')),
+  locator text,
+  note text,
+  observed_at timestamptz NOT NULL,
+  PRIMARY KEY(assertion_id, source_id)
+);
+CREATE INDEX IF NOT EXISTS aviation_assertion_evidence_source_idx
+  ON aviation_assertion_evidence(source_id, assertion_id);
+
 CREATE TABLE IF NOT EXISTS airframe_model_assignments (
   id text PRIMARY KEY,
   airframe_id text NOT NULL REFERENCES airframes(id) ON DELETE CASCADE,
@@ -213,4 +225,3 @@ CREATE TABLE IF NOT EXISTS aviation_data_migrations (
   applied_at timestamptz NOT NULL
 );
 `;
-
