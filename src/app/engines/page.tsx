@@ -36,6 +36,7 @@ export default async function EnginesPage() {
         emptyTitle="Help create the engine directory"
         emptyDescription="Create the first approved aircraft engine article."
       />
+      <nav className="mt-10 rounded-xl border bg-muted/30 p-5 text-sm" aria-label="Engines by manufacturer"><span className="mr-3 font-semibold">Browse by manufacturer</span><Link href="/engines/rolls-royce" className="article-link">Rolls-Royce engines</Link></nav>
     </main>
   );
 }

@@ -51,6 +51,7 @@ export default async function AircraftIndexPage() {
           </Link>
         </section>
       )}
+      <nav className="mt-10 flex flex-wrap gap-3 rounded-xl border bg-muted/30 p-5" aria-label="Aircraft by manufacturer"><span className="mr-2 self-center text-sm font-semibold">Browse by manufacturer</span><Link href="/aircraft/airbus" className="article-link">Airbus aircraft</Link><Link href="/aircraft/boeing" className="article-link">Boeing aircraft</Link></nav>
     </main>
   );
 }
