@@ -57,7 +57,7 @@ export async function RevisionComparison({ current, proposed }: { current: Revis
           {parsedProposed.errors.length ? (
             <p className="text-sm text-destructive">The proposed Markdown cannot be rendered safely.</p>
           ) : (
-            <ArticleMarkdown root={parsedProposed.root} citations={parsedProposed.citations} compact />
+            <ArticleMarkdown root={parsedProposed.root} citations={parsedProposed.citations} citationSources={proposed.sources} compact />
           )}
         </div>
       </Card>
