@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Compass,
+  CalendarDays,
   Newspaper,
   Network,
   Plane,
@@ -31,6 +32,8 @@ import {
   featuredArticles,
 } from "@/lib/growth-content";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
+import { eventsOnDate } from "@/lib/on-this-day-data";
+import { loadDatedAviationEvents } from "@/lib/public-events";
 
 export const metadata: Metadata = {
   title: "aviation.wiki",
@@ -94,7 +97,11 @@ const categories = featuredAviationCategoryIds.map((id) => ({
 }));
 
 export default async function Home() {
-  const documents = await listPublicSearchDocuments();
+  const [documents, datedEvents] = await Promise.all([
+    listPublicSearchDocuments(),
+    loadDatedAviationEvents(),
+  ]);
+  const todayEvents = eventsOnDate(datedEvents, new Date());
   const categoryCounts = getAviationCategoryCounts(documents);
   const featured = featuredArticles(documents);
   const missions = contributionMissions(documents);
@@ -193,6 +200,24 @@ export default async function Home() {
             {categoryCounts.news === 1 ? "report" : "reports"}
             <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </span>
+        </Link>
+        <Link
+          href="/on-this-day"
+          className="group mt-4 flex items-center justify-between gap-5 rounded-[22px] border bg-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md sm:p-7"
+        >
+          <span className="flex items-start gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <CalendarDays className="size-5" />
+            </span>
+            <span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Daily history</span>
+              <strong className="mt-1 block text-xl">On This Day in Aviation</strong>
+              <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+                {todayEvents.length ? `${todayEvents.length} approved ${todayEvents.length === 1 ? "event" : "events"} happened on this date.` : "Explore aviation anniversaries from approved event reports."}
+              </span>
+            </span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
         </section>
         <FeaturedArticles articles={featured} />
