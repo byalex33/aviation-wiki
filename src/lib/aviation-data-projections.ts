@@ -79,6 +79,15 @@ export type GraphConfiguration = GraphFact & {
   validFrom: string | null;
   validTo: string | null;
 };
+export type GraphMedia = GraphFact & {
+  imageUrl: string;
+  sourcePage: string;
+  creator: string;
+  licence: string;
+  licenceUrl: string;
+  caption: string | null;
+  capturedOn: string | null;
+};
 export type GraphConflict = {
   id: string;
   subjectId: string;
@@ -99,6 +108,7 @@ export type AviationGraphSnapshot = {
   registrations: GraphRegistration[];
   events: GraphEvent[];
   configurations: GraphConfiguration[];
+  media: GraphMedia[];
   conflicts: GraphConflict[];
 };
 
@@ -117,6 +127,7 @@ export type AirframeProjection = {
   currentOperator: GraphOrganization | null;
   events: Array<ProjectedFact<GraphEvent>>;
   currentConfiguration: ProjectedFact<GraphConfiguration> | null;
+  media: Array<ProjectedFact<GraphMedia>>;
   status: string;
   conflicts: Array<{
     id: string;
@@ -129,6 +140,7 @@ export type AirframeProjection = {
     registrationHistory: boolean;
     deliveryDate: boolean;
     configuration: boolean;
+    photo: boolean;
   };
 };
 
@@ -255,6 +267,14 @@ export function buildAirframeProjections(
             (item): item is ProjectedFact<GraphConfiguration> => Boolean(item),
           )
           .findLast((item) => currentOn(item, asOf)) ?? null;
+      const media = snapshot.media
+        .filter((item) => item.airframeId === airframe.id)
+        .map(projected)
+        .filter((item): item is ProjectedFact<GraphMedia> => Boolean(item))
+        .toSorted(
+          (first, second) =>
+            asTimestamp(second.capturedOn, 0) - asTimestamp(first.capturedOn, 0),
+        );
       const conflicts = snapshot.conflicts
         .filter(
           (conflict) =>
@@ -281,6 +301,7 @@ export function buildAirframeProjections(
         currentOperator,
         events,
         currentConfiguration,
+        media,
         status: latestStatus?.statusAfter ?? (currentRegistration ? "registered" : "unknown"),
         conflicts,
         completeness: {
@@ -289,6 +310,7 @@ export function buildAirframeProjections(
           registrationHistory: registrationHistory.length > 0,
           deliveryDate: events.some((event) => event.type === "delivered"),
           configuration: Boolean(currentConfiguration),
+          photo: media.length > 0,
         },
       };
     })
@@ -311,6 +333,7 @@ export function aviationGraphCompleteness(
     registrationHistoriesComplete: count("registrationHistory"),
     deliveryDatesCanonical: count("deliveryDate"),
     configurationsKnown: count("configuration"),
+    photosKnown: count("photo"),
     unresolvedConflicts: projections.reduce(
       (total, airframe) => total + airframe.conflicts.length,
       0,
@@ -373,6 +396,7 @@ export function snapshotFromImportPlan(
       location: null,
     })),
     configurations: plan.configurations,
+    media: plan.media,
     conflicts: plan.reconciliationCases.map((item) => ({
       id: item.id,
       subjectId: item.subjectId,
@@ -382,4 +406,3 @@ export function snapshotFromImportPlan(
     })),
   };
 }
-

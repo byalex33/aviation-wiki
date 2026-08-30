@@ -24,6 +24,10 @@ import {
   listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
+import {
+  listOperatorFleet,
+  listProductionAirframes,
+} from "@/lib/aviation-data-public";
 
 export async function PublicArticleRoute({
   params,
@@ -49,6 +53,12 @@ export async function PublicArticleRoute({
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     return <MissingArticleState slug={slug} contentType={contentType} />;
+  const structuredData =
+    contentType === "airline" && slug === "british-airways"
+      ? { href: "/fleet/british-airways", label: "Fleet history", records: (await listOperatorFleet("british-airways")).length }
+      : contentType === "aircraft" && ["airbus-a350", "airbus-a350-1000"].includes(slug)
+        ? { href: "/production-lists/a350-1000", label: "A350-1000 production data", records: (await listProductionAirframes("A350-1041")).length }
+        : undefined;
   const [watching, entities] = await Promise.all([
     session.userId ? isWatchingArticle(session.userId, article.id) : false,
     listApprovedEntityOptions(),
@@ -71,6 +81,7 @@ export async function PublicArticleRoute({
       watching={watching}
       signedIn={Boolean(session.userId)}
       articleLinks={articleLinks}
+      structuredData={structuredData}
     />
   );
 }

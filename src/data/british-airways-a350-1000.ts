@@ -65,6 +65,17 @@ export const britishAirwaysA350Sources: AviationSeedSource[] = [
       "Manufacturer release dated 29 July 2019 reporting BA's first A350-1000 delivery and the 56/56/219 cabin layout.",
     retrievedAt: "2026-08-30T00:00:00.000Z",
   },
+  {
+    key: "commons-g-xwba-photo",
+    type: "community",
+    title: "British Airways G-XWBA Airbus A350-1041 at London Heathrow",
+    publisher: "Wikimedia Commons",
+    url: "https://commons.wikimedia.org/wiki/File:British_Airways_G-XWBA_Airbus_A350-1041_London_Heathrow_Airport_(LHR_EGLL)_(52677834060).jpg",
+    citation:
+      "Photograph identifying G-XWBA, MSN 326, at London Heathrow on 6 February 2023.",
+    licence: "CC BY-SA 2.0",
+    retrievedAt: "2026-08-30T00:00:00.000Z",
+  },
 ];
 
 /**
@@ -224,5 +235,17 @@ export const britishAirwaysA350Dataset = {
       note: "Airbus's dated release says BA took delivery on 29 July; the fleet database reports 26 July.",
     },
   ],
+  media: [
+    {
+      registration: "G-XWBA",
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/British_Airways_G-XWBA_Airbus_A350-1041_London_Heathrow_Airport_%28LHR_EGLL%29_%2852677834060%29.jpg/1920px-British_Airways_G-XWBA_Airbus_A350-1041_London_Heathrow_Airport_%28LHR_EGLL%29_%2852677834060%29.jpg",
+      sourceKey: "commons-g-xwba-photo",
+      creator: "Mitchul Hope",
+      licence: "CC BY-SA 2.0",
+      licenceUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+      caption: "G-XWBA arriving at London Heathrow as BA272 on 6 February 2023.",
+      capturedOn: "2023-02-06",
+    },
+  ],
 } as const;
-

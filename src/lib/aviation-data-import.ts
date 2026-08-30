@@ -103,6 +103,18 @@ export type PlannedConfiguration = {
   validTo: null;
   assertionId: string;
 };
+export type PlannedMedia = {
+  id: string;
+  airframeId: string;
+  imageUrl: string;
+  sourcePage: string;
+  creator: string;
+  licence: string;
+  licenceUrl: string;
+  caption: string;
+  capturedOn: string;
+  assertionId: string;
+};
 export type PlannedReconciliationCase = {
   id: string;
   subjectType: "airframe";
@@ -130,6 +142,7 @@ export type AviationImportPlan = {
   registrations: PlannedRegistration[];
   events: PlannedEvent[];
   configurations: PlannedConfiguration[];
+  media: PlannedMedia[];
   reconciliationCases: PlannedReconciliationCase[];
 };
 
@@ -205,6 +218,7 @@ function planBritishAirwaysA350Import(): AviationImportPlan {
   const registrations: PlannedRegistration[] = [];
   const events: PlannedEvent[] = [];
   const configurations: PlannedConfiguration[] = [];
+  const media: PlannedMedia[] = [];
 
   function assertion({
     airframeId,
@@ -466,6 +480,39 @@ function planBritishAirwaysA350Import(): AviationImportPlan {
     },
   );
 
+  for (const item of dataset.media) {
+    const record = dataset.airframes.find(
+      (airframe) => airframe.registration === item.registration,
+    );
+    const airframe = record ? airframeByMsn.get(record.msn) : undefined;
+    if (!airframe) throw new Error(`Photo references unknown airframe ${item.registration}`);
+    const mediaAssertionId = assertion({
+      airframeId: airframe.id,
+      predicate: "media.photo",
+      value: {
+        imageUrl: item.imageUrl,
+        creator: item.creator,
+        licence: item.licence,
+        capturedOn: item.capturedOn,
+      },
+      sourceKey: item.sourceKey,
+      confidence: 100,
+      effectiveFrom: item.capturedOn,
+    });
+    media.push({
+      id: stableAviationId("amedia", mediaAssertionId),
+      airframeId: airframe.id,
+      imageUrl: item.imageUrl,
+      sourcePage: source(item.sourceKey).url,
+      creator: item.creator,
+      licence: item.licence,
+      licenceUrl: item.licenceUrl,
+      caption: item.caption,
+      capturedOn: item.capturedOn,
+      assertionId: mediaAssertionId,
+    });
+  }
+
   return {
     datasetId: dataset.id,
     importer,
@@ -485,6 +532,7 @@ function planBritishAirwaysA350Import(): AviationImportPlan {
     registrations,
     events,
     configurations,
+    media,
     reconciliationCases,
   };
 }
@@ -501,7 +549,7 @@ export function summarizeAviationImportPlan(plan: AviationImportPlan) {
     registrations: plan.registrations.length,
     fleetEvents: plan.events.length,
     configurations: plan.configurations.length,
+    media: plan.media.length,
     unresolvedConflicts: plan.reconciliationCases.length,
   };
 }
-

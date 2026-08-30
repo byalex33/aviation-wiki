@@ -71,7 +71,20 @@ The curated slice includes all 18 aircraft reported by British Airways on 30
 August 2026, with MSN, registration assignment, delivery event, operator, and
 configuration evidence. It intentionally retains the competing 26 and 29 July
 2019 first-delivery dates as an unresolved reconciliation case. Re-running the
-same dataset fingerprint is a no-op.
+same dataset fingerprint is a no-op. The G-XWBA record also exercises licensed
+media provenance with a Wikimedia Commons photograph, creator, licence, source
+page, and capture date.
+
+Resolve a reviewed conflict with the dry-run-by-default CLI:
+
+```sh
+npm run data:reconcile -- --case <case-id> --canonical <assertion-id> \
+  --reviewer <reviewer-id> --note <decision>
+```
+
+Add `--apply` only after checking the selected assertion. Resolution retains
+all competing claims, records their before/after review states, and appends an
+`aviation_reconciliation_events` audit record.
 
 ## Canonical read models
 
@@ -84,3 +97,8 @@ but are excluded from canonical dates and counts until review resolves them.
 Production lists filter the resulting airframes by model. Current fleet views
 filter the same airframes by the operator on the active temporal registration.
 Neither view owns a duplicate production or fleet dataset.
+
+The public projections are available at `/airframes`, `/registrations`,
+`/production-lists/a350-1000`, and `/fleet/british-airways`. The approved Airbus
+A350 and British Airways encyclopedia articles link to these factual modules;
+the graph does not replace their human-written knowledge layer.

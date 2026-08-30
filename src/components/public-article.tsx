@@ -6,6 +6,7 @@ import {
   GitCompareArrows,
   History,
   MessageSquareWarning,
+  Database,
 } from "lucide-react";
 
 import { InformationSidebar } from "@/components/article-information-sidebar";
@@ -226,12 +227,14 @@ export function PublicArticle({
   watching,
   signedIn,
   articleLinks,
+  structuredData,
 }: {
   article: ArticleRecord;
   revision: RevisionRecord;
   watching: boolean;
   signedIn: boolean;
   articleLinks: ArticleMentionLink[];
+  structuredData?: { href: string; label: string; records: number };
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
   const headings = getArticleHeadings(parsed.root);
@@ -337,6 +340,23 @@ export function PublicArticle({
       <div className="mt-5">
         <ArticleMetadata revision={revision} />
       </div>
+      {structuredData && (
+        <Link
+          href={structuredData.href}
+          className="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4 transition-colors hover:bg-primary/10"
+        >
+          <div>
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+              <Database className="size-4" /> Structured aviation data
+            </p>
+            <p className="mt-1 font-semibold">{structuredData.label}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {structuredData.records} individual airframe records with temporal facts and provenance
+            </p>
+          </div>
+          <span className="article-link text-sm font-semibold">Explore data →</span>
+        </Link>
+      )}
       <div className={`mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] ${headings.length ? "xl:grid-cols-[190px_minmax(0,1fr)_320px]" : ""}`}>
         {headings.length > 0 && (
           <aside className="hidden xl:sticky xl:top-20 xl:block">

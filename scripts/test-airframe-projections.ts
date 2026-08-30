@@ -51,6 +51,8 @@ const first = projections.find((airframe) => airframe.msn === "326");
 assert.ok(first);
 assert.equal(first.events.some((event) => event.type === "delivered"), false);
 assert.equal(first.conflicts.length, 1);
+assert.equal(first.media.length, 1);
+assert.equal(first.media[0].licence, "CC BY-SA 2.0");
 assert.deepEqual(
   first.conflicts[0].claims
     .map((claim) => (claim.value as { occurredOn: string }).occurredOn)
@@ -67,9 +69,9 @@ assert.deepEqual(completeness, {
   registrationHistoriesComplete: 18,
   deliveryDatesCanonical: 17,
   configurationsKnown: 18,
+  photosKnown: 1,
   unresolvedConflicts: 1,
   lastReconciledAt: "2026-08-30T00:00:00.000Z",
 });
 
 console.log("Airframe, fleet, production, and completeness projection tests passed");
-

@@ -280,6 +280,32 @@ export async function writeAviationImportPlan(
     "assertion_id",
     "created_at",
   )} ON CONFLICT (id) DO NOTHING`;
+  await transaction`INSERT INTO airframe_media ${transaction(
+    plan.media.map((item) => ({
+      id: item.id,
+      airframe_id: item.airframeId,
+      image_url: item.imageUrl,
+      source_page: item.sourcePage,
+      creator: item.creator,
+      licence: item.licence,
+      licence_url: item.licenceUrl,
+      caption: item.caption,
+      captured_on: item.capturedOn,
+      assertion_id: item.assertionId,
+      created_at: plan.reconciledAt,
+    })),
+    "id",
+    "airframe_id",
+    "image_url",
+    "source_page",
+    "creator",
+    "licence",
+    "licence_url",
+    "caption",
+    "captured_on",
+    "assertion_id",
+    "created_at",
+  )} ON CONFLICT (id) DO NOTHING`;
   await transaction`INSERT INTO reconciliation_cases ${transaction(
     plan.reconciliationCases.map((item) => ({
       id: item.id,

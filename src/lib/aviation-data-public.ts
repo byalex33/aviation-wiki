@@ -15,6 +15,7 @@ import {
   type GraphIdentifier,
   type GraphModel,
   type GraphModelAssignment,
+  type GraphMedia,
   type GraphOrganization,
   type GraphRegistration,
   type GraphSource,
@@ -54,6 +55,7 @@ export const loadAviationGraphSnapshot = cache(
       registrationRows,
       eventRows,
       configurationRows,
+      mediaRows,
       conflictRows,
       reconciliationRows,
     ] = await Promise.all([
@@ -95,6 +97,10 @@ export const loadAviationGraphSnapshot = cache(
       rows<Record<string, unknown>>(
         `SELECT id,airframe_id,configuration_type,configuration_json::text configuration_json,
           valid_from,valid_to,assertion_id FROM airframe_configurations ORDER BY id`,
+      ),
+      rows<Record<string, unknown>>(
+        `SELECT id,airframe_id,image_url,source_page,creator,licence,licence_url,
+          caption,captured_on,assertion_id FROM airframe_media ORDER BY id`,
       ),
       rows<Record<string, unknown>>(
         `SELECT c.id,c.subject_id,c.predicate,c.status,
@@ -204,6 +210,18 @@ export const loadAviationGraphSnapshot = cache(
         validTo: date(item.valid_to),
         assertionId: String(item.assertion_id),
       })),
+      media: mediaRows.map<GraphMedia>((item) => ({
+        id: String(item.id),
+        airframeId: String(item.airframe_id),
+        imageUrl: String(item.image_url),
+        sourcePage: String(item.source_page),
+        creator: String(item.creator),
+        licence: String(item.licence),
+        licenceUrl: String(item.licence_url),
+        caption: item.caption ? String(item.caption) : null,
+        capturedOn: date(item.captured_on),
+        assertionId: String(item.assertion_id),
+      })),
       conflicts: conflictRows.map<GraphConflict>((item) => ({
         id: String(item.id),
         subjectId: String(item.subject_id),
@@ -238,6 +256,58 @@ export async function listOperatorFleet(operatorSlug: string) {
   );
 }
 
+export async function listOperatorFleetHistory(operatorSlug: string) {
+  const snapshot = await loadAviationGraphSnapshot();
+  const organizationIds = new Set(
+    snapshot.organizations
+      .filter((organization) => organization.slug === operatorSlug)
+      .map((organization) => organization.id),
+  );
+  const airframeIds = new Set(
+    snapshot.registrations
+      .filter(
+        (registration) =>
+          (registration.operatorId && organizationIds.has(registration.operatorId)) ||
+          (registration.ownerId && organizationIds.has(registration.ownerId)),
+      )
+      .map((registration) => registration.airframeId),
+  );
+  for (const event of snapshot.events) {
+    if (
+      (event.fromOperatorId && organizationIds.has(event.fromOperatorId)) ||
+      (event.toOperatorId && organizationIds.has(event.toOperatorId))
+    ) {
+      airframeIds.add(event.airframeId);
+    }
+  }
+  return (await loadAirframeProjections()).filter((airframe) =>
+    airframeIds.has(airframe.id),
+  );
+}
+
+export async function findAirframesByRegistration(value: string) {
+  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return (await loadAirframeProjections()).filter((airframe) =>
+    airframe.registrationHistory.some(
+      (registration) =>
+        registration.registration.toUpperCase().replace(/[^A-Z0-9]/g, "") ===
+        normalized,
+    ),
+  );
+}
+
+export async function listAirframesByRegistrationPrefix(prefix: string) {
+  const normalized = prefix.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return (await loadAirframeProjections()).filter((airframe) =>
+    airframe.registrationHistory.some((registration) =>
+      registration.registration
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .startsWith(normalized),
+    ),
+  );
+}
+
 export async function loadAviationGraphCompleteness() {
   const [snapshot, projections] = await Promise.all([
     loadAviationGraphSnapshot(),
@@ -254,4 +324,3 @@ export function filterCurrentFleet(
     (airframe) => airframe.currentOperator?.slug === operatorSlug,
   );
 }
-
