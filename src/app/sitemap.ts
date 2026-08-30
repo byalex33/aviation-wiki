@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { aviationRoutes } from "@/lib/route-data";
 import { SITE_URL } from "@/lib/site";
 import { sitemapImageUrl } from "@/lib/sitemap-images";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
@@ -36,6 +37,7 @@ const staticRoutes = [
   "/compare/airbus-a380-vs-boeing-747",
   "/compare/f-16-vs-mig-29",
   "/compare/star-alliance-vs-oneworld-vs-skyteam",
+  "/routes",
   "/pro",
   "/privacy",
   "/contact",
@@ -66,5 +68,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  return [...staticEntries, ...articleEntries];
+  const routeEntries: MetadataRoute.Sitemap = aviationRoutes.map((route) => ({
+    url: new URL(`/routes/${route.slug}`, SITE_URL).toString(),
+    lastModified: route.checkedAt ? new Date(route.checkedAt) : generatedAt,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...routeEntries, ...articleEntries];
 }

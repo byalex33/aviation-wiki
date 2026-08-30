@@ -242,6 +242,12 @@ export default async function RootLayout({
                       Comparison guides
                     </Link>
                     <Link
+                      href="/routes"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Route guides
+                    </Link>
+                    <Link
                       href="/aviation-news"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
