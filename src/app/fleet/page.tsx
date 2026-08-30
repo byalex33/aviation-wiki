@@ -4,6 +4,7 @@ import {
   Database,
   Download,
   Filter,
+  Factory,
   GitCompareArrows,
   Search,
 } from "lucide-react";
@@ -166,6 +167,15 @@ export default async function FleetPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <TrackedLink
+              href="/production-lists"
+              eventName="production_lists_open"
+              eventProperties={{ surface: "fleet_header" }}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <Factory />
+              Production lists
+            </TrackedLink>
             <TrackedLink
               href="/fleet/compare"
               eventName="fleet_compare_open"
