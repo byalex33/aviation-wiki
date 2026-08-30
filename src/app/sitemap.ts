@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { aviationDataEnabled } from "@/lib/aviation-data-flags";
 import { aviationRoutes } from "@/lib/route-data";
 import { SITE_URL } from "@/lib/site";
 import { sitemapImageUrl } from "@/lib/sitemap-images";
@@ -43,6 +44,17 @@ const staticRoutes = [
   "/contact",
 ] as const;
 
+// Included only once the aviation data graph is live in this environment
+// (AVIATION_DATA_ENABLED). Until then these routes render the 404 page.
+const aviationDataRoutes = [
+  "/airframes",
+  "/registrations",
+  "/registrations/g",
+  "/production-lists",
+  "/production-lists/a350-1000",
+  "/fleet/british-airways",
+];
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const documents = await listPublicSearchDocuments();
   const generatedAt = new Date();
@@ -75,5 +87,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...routeEntries, ...articleEntries];
+  const aviationDataEntries: MetadataRoute.Sitemap = aviationDataEnabled
+    ? aviationDataRoutes.map((pathname) => ({
+        url: new URL(pathname, SITE_URL).toString(),
+        lastModified: generatedAt,
+        changeFrequency: "weekly",
+        priority: 0.5,
+      }))
+    : [];
+
+  return [
+    ...staticEntries,
+    ...aviationDataEntries,
+    ...routeEntries,
+    ...articleEntries,
+  ];
 }
