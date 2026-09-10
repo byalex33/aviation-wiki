@@ -114,8 +114,25 @@ try {
   const memberStatuses = await sql<{ status: string }[]>`SELECT status FROM notification_email_deliveries WHERE notification_id IN ${sql(manualHold.members.map(value => value.id))}`;
   assert.ok(memberStatuses.every(value => value.status === "held"));
 
+  await notifications.saveNotificationPreferences(userId, "immediate", { custom: true });
+  const knownImmediate = [await notification(), await notification()];
+  for (const member of knownImmediate) await store.queueImmediateEmailDelivery(member.id, userId);
+  await sql`UPDATE notification_email_deliveries SET status = 'failed' WHERE notification_id = ${knownImmediate[1].id}`;
+  await sql`UPDATE notification_email_deliveries SET updated_at = ${new Date(now.getTime() - 16 * 60_000)} WHERE notification_id IN ${sql(knownImmediate.map(value => value.id))}`;
+  await notifications.saveNotificationPreferences(userId, "daily", { custom: true, revision_approved: true });
+  await store.holdLegacyDigestDeliveries(now);
+  assert.equal((await store.queueImmediateEmailDelivery(knownImmediate[0].id, userId))?.status, "pending",
+    "Known pending immediate delivery survives a later daily preference");
+  assert.equal((await store.queueImmediateEmailDelivery(knownImmediate[1].id, userId))?.status, "failed",
+    "Known failed immediate delivery remains available for individual retry");
+  const [provenanceCount] = await sql<{ count: number }[]>`SELECT COUNT(*)::integer AS count FROM notification_immediate_deliveries WHERE notification_id IN ${sql(knownImmediate.map(value => value.id))}`;
+  assert.equal(provenanceCount.count, 2, "Immediate retry preserves its original provenance");
+
   const legacy = await notification();
   await notifications.queueEmailDelivery(legacy.id, userId);
+  await store.queueImmediateEmailDelivery(legacy.id, userId);
+  const unknownMarker = await sql`SELECT notification_id FROM notification_immediate_deliveries WHERE notification_id = ${legacy.id}`;
+  assert.equal(unknownMarker.length, 0, "An older delivery does not acquire guessed immediate provenance");
   await sql`UPDATE notification_email_deliveries SET updated_at = ${new Date(now.getTime() - 15 * 60_000)} WHERE notification_id = ${legacy.id}`;
   assert.ok(await store.holdLegacyDigestDeliveries(now) >= 1);
   const [legacyHold] = await sql<{ status: string; failure_reason: string }[]>`SELECT status, failure_reason FROM notification_email_deliveries WHERE notification_id = ${legacy.id}`;

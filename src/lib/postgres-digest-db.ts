@@ -170,6 +170,7 @@ export async function holdLegacyDigestDeliveries(now = new Date()): Promise<numb
     WHERE d.status IN ('pending', 'failed') AND d.updated_at <= ${new Date(now.getTime() - 15 * 60_000)}
       AND EXISTS (SELECT 1 FROM notification_preferences p WHERE p.user_id = d.user_id AND p.email_frequency = 'daily')
       AND NOT EXISTS (SELECT 1 FROM notification_digest_items i WHERE i.notification_id = d.notification_id)
+      AND NOT EXISTS (SELECT 1 FROM notification_immediate_deliveries i WHERE i.notification_id = d.notification_id)
     RETURNING d.id
   `;
   return records.length;
@@ -189,11 +190,17 @@ export async function queueImmediateEmailDelivery(notificationId: string, userId
     `;
     if (membership) return undefined;
     const now = new Date();
-    await transaction`
+    const reserved = await transaction<{ notification_id: string }[]>`
       INSERT INTO notification_email_deliveries (id, notification_id, user_id, status, created_at, updated_at)
       VALUES (${randomUUID()}, ${notificationId}, ${userId}, 'pending', ${now}, ${now})
       ON CONFLICT (notification_id) DO NOTHING
+      RETURNING notification_id
     `;
+    if (reserved.length) {
+      await transaction`
+        INSERT INTO notification_immediate_deliveries (notification_id) VALUES (${notificationId})
+      `;
+    }
     const [delivery] = await transaction<Record<string, unknown>[]>`
       SELECT d.* FROM notification_email_deliveries d
       WHERE d.notification_id = ${notificationId} AND d.user_id = ${userId} AND d.status <> 'held'

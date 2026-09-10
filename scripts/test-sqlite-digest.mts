@@ -121,6 +121,26 @@ try {
   db.prepare("UPDATE notification_email_deliveries SET status='held' WHERE notification_id=?").run(immediateOwned.id);
   assert.equal(digest.queueImmediateEmailDelivery(immediateOwned.id, "reader", now), null, "Held individual outcomes require review before sending");
 
+  for (const deliveryStatus of ["pending", "failed"] as const) {
+    const provenanceUser = `immediate-provenance-${deliveryStatus}`;
+    notifications.saveNotificationPreferences(provenanceUser, "immediate", { custom: true });
+    const individual = notice(provenanceUser);
+    digest.queueImmediateEmailDelivery(individual.id, provenanceUser, at(-16 * 60_000));
+    db.prepare("UPDATE notification_email_deliveries SET status=?,updated_at=? WHERE notification_id=?")
+      .run(deliveryStatus, at(-16 * 60_000).toISOString(), individual.id);
+    notifications.saveNotificationPreferences(provenanceUser, "daily", { custom: true });
+    digest.holdLegacyDigestDeliveries(now);
+    assert.equal(digest.queueImmediateEmailDelivery(individual.id, provenanceUser, now)?.status, deliveryStatus, "Known individual attempts remain retryable after switching to daily email");
+    assert.equal((db.prepare("SELECT COUNT(*) count FROM notification_immediate_deliveries WHERE notification_id=?").get(individual.id) as { count: number }).count, 1, "An immediate retry preserves its original provenance");
+  }
+  const unknown = notice();
+  notifications.queueEmailDelivery(unknown.id, "reader");
+  db.prepare("UPDATE notification_email_deliveries SET updated_at=? WHERE notification_id=?").run(at(-16 * 60_000).toISOString(), unknown.id);
+  digest.queueImmediateEmailDelivery(unknown.id, "reader", now);
+  assert.equal((db.prepare("SELECT COUNT(*) count FROM notification_immediate_deliveries WHERE notification_id=?").get(unknown.id) as { count: number }).count, 0, "Existing ambiguous deliveries are not retroactively labeled immediate");
+  assert.equal(digest.holdLegacyDigestDeliveries(now), 1, "Unknown legacy attempts still require review");
+  assert.equal(digest.queueImmediateEmailDelivery(unknown.id, "reader", now), null);
+
   // Force a member update to fail and verify the batch and every member roll back.
   const atomicFirst = notice();
   const atomicSecond = notice();

@@ -36,6 +36,9 @@ db.exec(`
     batch_id TEXT NOT NULL REFERENCES notification_digest_batches(id)
   );
   CREATE INDEX IF NOT EXISTS notification_digest_items_batch_idx ON notification_digest_items(batch_id);
+  CREATE TABLE IF NOT EXISTS notification_immediate_deliveries (
+    notification_id TEXT PRIMARY KEY REFERENCES notifications(id)
+  );
 `);
 
 type BatchRow = {
@@ -149,19 +152,22 @@ export function holdLegacyDigestDeliveries(now = new Date()): number {
   return db.prepare(`UPDATE notification_email_deliveries SET status='held',failure_reason=?,updated_at=?
     WHERE status IN ('pending','failed') AND updated_at<=?
       AND user_id IN (SELECT user_id FROM notification_preferences WHERE email_frequency='daily')
-      AND NOT EXISTS (SELECT 1 FROM notification_digest_items i WHERE i.notification_id=notification_email_deliveries.notification_id)`)
+      AND NOT EXISTS (SELECT 1 FROM notification_digest_items i WHERE i.notification_id=notification_email_deliveries.notification_id)
+      AND NOT EXISTS (SELECT 1 FROM notification_immediate_deliveries i WHERE i.notification_id=notification_email_deliveries.notification_id)`)
     .run(LEGACY_DIGEST_HOLD_REASON, now.toISOString(), new Date(now.getTime() - 15 * 60_000).toISOString()).changes;
 }
 
 export function queueImmediateEmailDelivery(notificationId: string, userId: string, now = new Date()): Record<string, unknown> | null {
   return db.transaction(() => {
     const timestamp = now.toISOString();
-    db.prepare(`INSERT OR IGNORE INTO notification_email_deliveries
+    const inserted = db.prepare(`INSERT OR IGNORE INTO notification_email_deliveries
       (id,notification_id,user_id,status,created_at,updated_at)
       SELECT ?,n.id,n.user_id,'pending',?,? FROM notifications n
       WHERE n.id=? AND n.user_id=?
         AND NOT EXISTS (SELECT 1 FROM notification_digest_items i WHERE i.notification_id=n.id)`)
       .run(randomUUID(), timestamp, timestamp, notificationId, userId);
+    if (inserted.changes > 0)
+      db.prepare("INSERT INTO notification_immediate_deliveries (notification_id) VALUES (?)").run(notificationId);
     const delivery = db.prepare(`SELECT d.* FROM notification_email_deliveries d
       WHERE d.notification_id=? AND d.user_id=? AND d.status!='held'
         AND NOT EXISTS (SELECT 1 FROM notification_digest_items i WHERE i.notification_id=d.notification_id)`)

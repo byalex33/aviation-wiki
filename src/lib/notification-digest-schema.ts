@@ -1,4 +1,7 @@
 export const NOTIFICATION_DIGEST_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS notification_immediate_deliveries (
+    notification_id text PRIMARY KEY REFERENCES notifications(id)
+  );
   CREATE TABLE IF NOT EXISTS notification_digest_batches (
     id text PRIMARY KEY,
     user_id text NOT NULL,
