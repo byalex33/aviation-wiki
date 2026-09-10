@@ -54,14 +54,14 @@ for (const seed of seeds) {
 }
 
 async function publish() {
-  const { createOrGetArticle, getArticleBySlug, saveDraft, transitionRevision, publishRevision } = await import("../src/lib/wiki-public-db");
+  const { createArticleIfAbsent, saveDraft, transitionRevision, publishRevision } = await import("../src/lib/wiki-public-db");
   for (const seed of seeds) {
     // Never overwrite an existing contributor article or draft.
-    if (await getArticleBySlug(seed.slug, "event")) {
+    const article = await createArticleIfAbsent(seed.slug, seed.title, "event");
+    if (!article) {
       console.log(`Skipped existing article: ${seed.slug}`);
       continue;
     }
-    const article = await createOrGetArticle(seed.slug, seed.title, "event");
     const draft = await saveDraft({ articleId: article.id, proposedSlug: seed.slug, contributorId: "system-aviation-history", contributorName: "aviation.wiki", editSummary: "Add aviation anniversary with a primary source", content: content(seed), parentRevisionId: article.liveRevisionId });
     await transitionRevision(draft.id, "system-aviation-history", "pending_review", { note: "Exact date and original summary checked against the linked primary source." });
     await publishRevision(draft.id, "system-aviation-history", "Approved sourced aviation history starter article.");

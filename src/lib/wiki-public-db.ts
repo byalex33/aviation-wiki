@@ -629,6 +629,22 @@ export async function createOrGetArticle(slug: string, title: string, contentTyp
   return article;
 }
 
+/** Only the caller that inserts the article receives it; concurrent callers get null. */
+export async function createArticleIfAbsent(slug: string, title: string, contentType: ContentType) {
+  await ready();
+  const id = randomUUID();
+  const now = new Date();
+  return sql.begin(async (transaction) => {
+    const reserved = await transaction`SELECT 1 FROM article_slug_redirects WHERE content_type=${contentType} AND old_slug=${slug} LIMIT 1`;
+    if (reserved.length) return null;
+    const inserted = await transaction<ArticleRow[]>`
+      INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at)
+      VALUES (${id},${slug},${title},${contentType},NULL,${now},${now})
+      ON CONFLICT (content_type,slug) DO NOTHING RETURNING *`;
+    return inserted[0] ? mapArticle(inserted[0]) : null;
+  });
+}
+
 export async function saveDraft(input: { revisionId?: string; articleId: string; proposedSlug: string; contributorId: string; contributorName: string; editSummary: string; content: RevisionContent; parentRevisionId: string | null }) {
   await ready();
   const id = input.revisionId || randomUUID();
