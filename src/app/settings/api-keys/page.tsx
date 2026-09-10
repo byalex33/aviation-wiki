@@ -50,7 +50,7 @@ export default async function ApiKeysPage() {
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Create a new key</h2>
             <p className="text-sm text-muted-foreground">
-              Give the key a name so you can identify it later.
+              Give the key a name so you can identify it later. You can keep up to five active keys.
             </p>
           </div>
         </div>

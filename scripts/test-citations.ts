@@ -51,11 +51,11 @@ assert.ok(unused.warnings.some((warning) => warning.message.includes("not cited"
 assert.deepEqual(parseStructuredFieldMarkdown("f![gr] Greece; f![usa] United States").errors, []);
 assert.equal(resolveFlagCode("usa"), "us");
 assert.match(parseArticleMarkdown("f![greece]").errors[0]?.message || "", /Unknown flag code/);
-assert.match(parseStructuredFieldMarkdown("![Logo](https://example.com/logo.png)").errors[0]?.message || "", /only support inline Markdown/);
+assert.match(parseStructuredFieldMarkdown("![Logo](https://upload.wikimedia.org/logo.png)").errors[0]?.message || "", /only support inline Markdown/);
 assert.match(parseStructuredFieldMarkdown("## Heading").errors[0]?.message || "", /only support inline Markdown/);
 
-assert.deepEqual(parseArticleImageShorthand("![https://example.com/photo.jpg | Photo by Jane Smith]"), {
-  url: "https://example.com/photo.jpg",
+assert.deepEqual(parseArticleImageShorthand("![https://upload.wikimedia.org/photo.jpg | Photo by Jane Smith]"), {
+  url: "https://upload.wikimedia.org/photo.jpg",
   credit: "Photo by Jane Smith",
 });
 const linkedImageCredit = "![https://cdn.jetphotos.com/full/6/example.jpg | Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)]";
@@ -63,12 +63,12 @@ assert.deepEqual(parseArticleImageShorthand(linkedImageCredit), {
   url: "https://cdn.jetphotos.com/full/6/example.jpg",
   credit: "Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)",
 });
-assert.deepEqual(parseArticleMarkdown("![https://example.com/photo.jpg]").errors, []);
+assert.deepEqual(parseArticleMarkdown("![https://upload.wikimedia.org/photo.jpg]").errors, []);
 assert.match(parseArticleMarkdown("![javascript:alert(1)]").errors[0]?.message || "", /unsupported image URL/);
-assert.match(parseStructuredFieldMarkdown("![https://example.com/photo.jpg]").errors[0]?.message || "", /only support inline Markdown/);
+assert.match(parseStructuredFieldMarkdown("![https://upload.wikimedia.org/photo.jpg]").errors[0]?.message || "", /only support inline Markdown/);
 
 const sidebar = parseArticleMarkdown(`<Sidebar>
-![https://example.com/aircraft.jpg | Photo by Jane Smith]
+![https://upload.wikimedia.org/aircraft.jpg | Photo by Jane Smith]
 IATA code: A3
 ICAO code: AEE
 Callsign: AEGEAN
@@ -85,7 +85,7 @@ assert.deepEqual(sidebar.sidebarFields, [
 ]);
 assert.deepEqual(sidebar.sidebarImages, [
   {
-    url: "https://example.com/aircraft.jpg",
+    url: "https://upload.wikimedia.org/aircraft.jpg",
     credit: "Photo by Jane Smith",
   },
 ]);

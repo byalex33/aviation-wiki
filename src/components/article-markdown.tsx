@@ -8,6 +8,7 @@ import {
   UnavailableArticleChart,
 } from "@/components/article-chart";
 import {
+  isSafeImageUrl,
   getArticleHeadings,
   getArticleImageShorthandMatches,
   getArticleMentionParts,
@@ -42,6 +43,7 @@ export function ArticleImageDisplay({
   alt?: string;
   flush?: boolean;
 }) {
+  if (!isSafeImageUrl(image.url)) return <p className="my-4 text-sm text-muted-foreground">Image unavailable: this host is not supported.</p>;
   const credit = image.credit
     ? parseStructuredFieldMarkdown(image.credit)
     : null;
@@ -159,7 +161,7 @@ function renderChildren(node: MarkdownNode, definitions: Definitions, citations:
 }
 
 function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, citationSources: CitationSourceMap, headingIds: Map<MarkdownNode, string>, compact = false, articleLinks: ArticleMentionLink[] = []): ReactNode {
-  const children = renderChildren(
+  const children = node.type === "table" ? null : renderChildren(
     node,
     definitions,
     citations,
@@ -254,7 +256,13 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
       );
     }
     case "footnoteDefinition": return null;
-    case "table": return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm"><tbody>{children}</tbody></table></div>;
+    case "table": {
+      const [header, ...rows] = node.children ?? [];
+      return <div key={key} className="my-5 overflow-x-auto rounded-lg border"><table className="w-full border-collapse text-left text-sm">
+        {header && <thead><tr className="border-b bg-muted/40">{header.children?.map((cell, index) => <th key={index} scope="col" className="border-r px-3 py-2.5 align-top font-semibold last:border-0">{renderChildren(cell, definitions, citations, citationSources, headingIds, compact, articleLinks)}</th>)}</tr></thead>}
+        <tbody>{rows.map((row, index) => renderNode(row, `row-${index}`, definitions, citations, citationSources, headingIds, compact, articleLinks))}</tbody>
+      </table></div>;
+    }
     case "tableRow": return <tr key={key} className="border-b last:border-0">{children}</tr>;
     case "tableCell": return <td key={key} className="border-r px-3 py-2.5 align-top last:border-0 first:font-medium">{children}</td>;
     case "mdxJsxFlowElement":

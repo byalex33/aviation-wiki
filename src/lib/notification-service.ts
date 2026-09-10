@@ -1,7 +1,7 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   createNotification,
@@ -10,11 +10,12 @@ import {
   listPendingDigestNotifications,
   queueEmailDelivery,
   updateEmailDelivery,
-} from "@/lib/notification-db";
+} from "@/lib/notification-storage";
 import type {
   NotificationRecord,
   NotificationType,
 } from "@/lib/notification-types";
+import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import type { RevisionRecord } from "@/lib/wiki-types";
 
 type NotificationInput = {
@@ -46,12 +47,12 @@ async function verifiedPrimaryEmail(userId: string) {
 export async function deliverNotificationEmail(
   notification: NotificationRecord,
 ) {
-  const delivery = queueEmailDelivery(notification.id, notification.userId);
+  const delivery = await queueEmailDelivery(notification.id, notification.userId);
   if (!delivery || delivery.status === "sent") return;
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFICATION_EMAIL_FROM;
   if (!apiKey || !from) {
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "failed",
       failureReason: "Resend is not configured.",
@@ -83,13 +84,13 @@ export async function deliverNotificationEmail(
     };
     if (!response.ok)
       throw new Error(result.message || `Resend returned ${response.status}.`);
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "sent",
       providerMessageId: result.id || null,
     });
   } catch (error) {
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "failed",
       failureReason:
@@ -101,8 +102,8 @@ export async function deliverNotificationEmail(
 
 export async function emitNotification(input: NotificationInput) {
   if (!input.recipientId || input.recipientId === input.actorId) return null;
-  const preferences = getNotificationPreferences(input.recipientId);
-  const notification = createNotification({
+  const preferences = await getNotificationPreferences(input.recipientId);
+  const notification = await createNotification({
     ...input,
     userId: input.recipientId,
   });
@@ -122,8 +123,8 @@ export async function emitCustomNotification(input: {
   message: string;
   href: string;
 }) {
-  const preferences = getNotificationPreferences(input.recipientId);
-  const notification = createNotification({
+  const preferences = await getNotificationPreferences(input.recipientId);
+  const notification = await createNotification({
     userId: input.recipientId,
     type: "custom",
     title: input.title,
@@ -148,7 +149,7 @@ export async function emitRevisionOutcome(input: {
   previousLiveRevision?: RevisionRecord | null;
 }) {
   const { actorId, revision, outcome, note, previousLiveRevision } = input;
-  const href = `/contribute/${revision.proposedSlug}?type=${revision.contentType}`;
+  const href = `/contribute/${outcome === "approved" ? revision.proposedSlug : revision.articleSlug}?type=${revision.contentType}`;
   const outcomeContent = {
     approved: {
       type: "revision_approved" as const,
@@ -202,14 +203,14 @@ export async function emitRevisionOutcome(input: {
         ? "Article restored"
         : "Article revision superseded",
       message: `${revision.title} now has a newer approved revision.`,
-      href: `/history/${revision.proposedSlug}`,
+      href: articleHistoryPath(revision.contentType, revision.proposedSlug),
       articleId: revision.articleId,
       revisionId: revision.id,
       dedupeKey: `revision:${revision.id}:supersedes:${previousLiveRevision.id}`,
     });
   }
 
-  for (const watcherId of listArticleWatcherIds(revision.articleId)) {
+  for (const watcherId of await listArticleWatcherIds(revision.articleId)) {
     if (watcherId === revision.contributorId) continue;
     await emitNotification({
       recipientId: watcherId,
@@ -217,7 +218,7 @@ export async function emitRevisionOutcome(input: {
       type: "watched_article_edited",
       title: "Watched article updated",
       message: `${revision.title} has a newly approved revision.`,
-      href: `/wiki/${revision.proposedSlug}`,
+      href: articlePath(revision.contentType, revision.proposedSlug),
       articleId: revision.articleId,
       revisionId: revision.id,
       dedupeKey: `watch:${watcherId}:revision:${revision.id}`,
@@ -278,7 +279,7 @@ export async function emitRevisionOutcome(input: {
 }
 
 export async function deliverDailyDigests() {
-  const pending = listPendingDigestNotifications();
+  const pending = await listPendingDigestNotifications();
   const byUser = new Map<string, NotificationRecord[]>();
   for (const notification of pending)
     byUser.set(notification.userId, [
@@ -287,13 +288,13 @@ export async function deliverDailyDigests() {
     ]);
   let sent = 0;
   for (const [userId, notifications] of byUser) {
-    const preferences = getNotificationPreferences(userId);
+    const preferences = await getNotificationPreferences(userId);
     const enabled = notifications.filter(
       (notification) => preferences.enabledTypes[notification.type],
     );
     if (!enabled.length) continue;
     for (const notification of enabled)
-      queueEmailDelivery(notification.id, userId);
+      await queueEmailDelivery(notification.id, userId);
     try {
       const apiKey = process.env.RESEND_API_KEY;
       const from = process.env.NOTIFICATION_EMAIL_FROM;
@@ -306,7 +307,7 @@ export async function deliverDailyDigests() {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "Idempotency-Key": `aviation-wiki-digest-${userId}-${new Date().toISOString().slice(0, 10)}`,
+          "Idempotency-Key": `aviation-wiki-digest-${createHash("sha256").update(enabled.map((notification) => notification.id).sort().join(":" )).digest("hex")}`,
         },
         body: JSON.stringify({
           from,
@@ -329,7 +330,7 @@ export async function deliverDailyDigests() {
           result.message || `Resend returned ${response.status}.`,
         );
       for (const notification of enabled)
-        updateEmailDelivery({
+        await updateEmailDelivery({
           notificationId: notification.id,
           status: "sent",
           providerMessageId: result.id || null,
@@ -337,7 +338,7 @@ export async function deliverDailyDigests() {
       sent += enabled.length;
     } catch (error) {
       for (const notification of enabled)
-        updateEmailDelivery({
+        await updateEmailDelivery({
           notificationId: notification.id,
           status: "failed",
           failureReason:

@@ -51,11 +51,11 @@ export type FleetFilters = {
 };
 
 function fieldValue(fields: StructuredField[], ...keys: string[]) {
-  const expected = new Set(keys.map((key) => key.toLowerCase()));
-  return (
-    fields.find((field) => expected.has(field.key.trim().toLowerCase()))
-      ?.value || ""
-  ).trim();
+  for (const key of keys) {
+    const value = fields.find((field) => field.key.trim().toLowerCase() === key.toLowerCase())?.value.trim();
+    if (value) return value;
+  }
+  return "";
 }
 
 function plainText(value: string) {
@@ -180,34 +180,40 @@ export function buildFleetRecords({
           (operator): operator is FleetSourceArticle =>
             Boolean(operator && operator.contentType === "airline"),
         );
-      const fieldOperators = airlines.filter((airline) =>
-        fleetFieldReferencesAircraft(
-          fieldValue(airline.fields, "Fleet", "Future fleet"),
-          article.title,
-        ),
-      );
-      const operators = new Map(
-        [...relationshipOperators, ...fieldOperators].map((operator) => [
-          operator.id,
-          operator,
-        ]),
-      );
       const currentOperators: FleetOperator[] = [];
       const historicOperators: FleetOperator[] = [];
-
-      for (const operator of operators.values()) {
-        const airlineStatus = fieldValue(operator.fields, "Status");
+      for (const operator of airlines) {
+        const related = relationshipOperators.some((item) => item.id === operator.id);
+        const mentions = operator.fields.flatMap((field) => {
+          const key = field.key.trim().toLowerCase();
+          if (!["fleet", "current fleet", "former fleet", "historic fleet", "future fleet"].includes(key)) return [];
+          return field.value.split(/[;\n]|\.(?:\s|$)/).flatMap((sentence) => {
+            const clauses = sentence.split(",");
+            return clauses.filter((clause) => fleetFieldReferencesAircraft(clause, article.title)).map((clause) => {
+              const text = plainText(clause);
+              // A mention can deny ownership or operation. Do not infer a fleet from it.
+              if (/\b(?:no|not|never|without|neither)\b/i.test(text)) return "unknown";
+              const context = `${key} ${text}`;
+              if (/\b(?:future|planned|ordered|orders?|on order|will|expected|proposed)\b/i.test(context)) return "planned";
+              if (/\b(?:currently|current|now|operates|operating)\b/i.test(text)) return "current";
+              if (key === "current fleet" && !/\b(?:former|formerly|historical|previously|retired|withdrawn|used to)\b/i.test(text)) return "current";
+              if (/\b(?:former|formerly|historic|historical|previously|retired|withdrawn|operated|used to)\b/i.test(context)) return "historic";
+              // A leading qualifier can apply to a comma-separated list. Without a
+              // local qualifier, do not turn a former or planned list into current aircraft.
+              const leading = plainText(clauses[0]);
+              if (clauses.length > 1 && !/\b(?:currently|current|now|operates|operating)\b/i.test(leading) && /\b(?:former|formerly|historic|historical|previously|retired|withdrawn|operated|future|planned|ordered|expected|proposed|no|not|never|without)\b/i.test(leading)) return "unknown";
+              return "current";
+            });
+          });
+        });
+        if (!related && !mentions.some((mention) => mention === "current" || mention === "historic")) continue;
         const item: FleetOperator = {
           name: operator.title,
           href: `/commercial/${operator.slug}`,
-          evidence: relationshipOperators.some(
-            (related) => related.id === operator.id,
-          )
-            ? "relationship"
-            : "approved fleet field",
+          evidence: related ? "relationship" : "approved fleet field",
         };
-        if (/\b(?:ceased|historic|defunct|inactive)\b/i.test(airlineStatus))
-          historicOperators.push(item);
+        if (/\b(?:ceased|historic|defunct|inactive)\b/i.test(fieldValue(operator.fields, "Status")) ||
+            (!related && !mentions.includes("current"))) historicOperators.push(item);
         else currentOperators.push(item);
       }
 
@@ -227,7 +233,6 @@ export function buildFleetRecords({
           "Entry into service",
           "Introduced",
           "Introduction",
-          "First flight",
         ),
       );
 

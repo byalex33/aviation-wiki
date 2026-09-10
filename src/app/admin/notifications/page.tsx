@@ -17,9 +17,7 @@ export default async function AdminNotificationDiagnosticsPage({
   searchParams: Promise<{ sent?: string }>;
 }) {
   if ((await getStaffUser())?.role !== "admin") notFound();
-  const { listFailedEmailDeliveries } = process.env.DATABASE_URL
-    ? await import("@/lib/wiki-public-db")
-    : await import("@/lib/notification-db");
+  const { listFailedEmailDeliveries } = await import("@/lib/notification-storage");
   const [failures, users, params] = await Promise.all([
     listFailedEmailDeliveries(),
     listAdminUsers(),

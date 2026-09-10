@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CHART_ATTRIBUTES, CHART_TEMPLATE } from "@/lib/article-chart";
 import { contentTypes, type EntityOption, type EntityRelationship, type RevisionContent, type SourceLink } from "@/lib/wiki-types";
+import { ARTICLE_IMAGE_GUIDANCE } from "@/lib/image-policy";
 import { formatDisplayLabel } from "@/lib/display";
 import {
   initialFormActionState,
@@ -31,6 +32,14 @@ type RevisionEditorProps = {
   slug: string;
   revisionId?: string;
   articleId?: string;
+  parentRevisionId?: string | null;
+  reconciliation?: {
+    base: RevisionContent | null;
+    live: RevisionContent | null;
+    liveRevisionId: string | null;
+    draftUpdatedAt: string;
+  };
+  reconcileAction?: FormStateAction;
   initialContent: RevisionContent;
   relationshipTargets: EntityOption[];
   initialSummary?: string;
@@ -51,6 +60,19 @@ type EditorTab = (typeof editorTabs)[number];
 
 async function unavailableAction(): Promise<FormActionState> {
   return { error: "This action is not available." };
+}
+
+function comparisonSnapshot(content: RevisionContent) {
+  return JSON.stringify({
+    title: content.title,
+    slug: "proposedSlug" in content ? content.proposedSlug : undefined,
+    contentType: content.contentType,
+    markdown: content.markdown,
+    fields: content.fields,
+    sections: content.sections,
+    sources: content.sources,
+    relationships: content.relationships,
+  }, null, 2);
 }
 
 function highlightChartTag(line: string) {
@@ -146,11 +168,14 @@ export function RevisionEditor({
   slug,
   revisionId,
   articleId,
+  parentRevisionId = null,
+  reconciliation,
+  reconcileAction,
   initialContent,
   relationshipTargets,
   initialSummary = "",
   mode = "contributor",
-  returnTo = `/contribute/${slug}`,
+  returnTo = `/contribute/${slug}?type=${initialContent.contentType}`,
   saveAction,
   submitAction,
   moderatorAction,
@@ -180,6 +205,11 @@ export function RevisionEditor({
     submitAction ?? unavailableAction,
     initialFormActionState,
   );
+  const [reconcileState, reconcileFormAction, reconcilePending] = useActionState(
+    reconcileAction ?? unavailableAction,
+    initialFormActionState,
+  );
+  const [reconciliationConfirmed, setReconciliationConfirmed] = useState(false);
   const parsed = useMemo(() => parseArticleMarkdown(markdown), [markdown]);
   const fields = useMemo(() => parsed.sidebarFields ?? [], [parsed.sidebarFields]);
   const fieldErrors = useMemo(() => fields.flatMap((field, index) => parseStructuredFieldMarkdown(field.value).errors.map((error) => `Field ${index + 1}: ${error.message}`)), [fields]);
@@ -241,6 +271,30 @@ export function RevisionEditor({
       <input type="hidden" name="markdown" value={markdown} />
       <input type="hidden" name="revisionId" value={revisionId || ""} />
       <input type="hidden" name="articleId" value={articleId || ""} />
+      <input type="hidden" name="parentRevisionId" value={parentRevisionId || ""} />
+      {reconciliation && <>
+        <input type="hidden" name="reconcileLiveRevisionId" value={reconciliation.liveRevisionId || ""} />
+        <input type="hidden" name="draftUpdatedAt" value={reconciliation.draftUpdatedAt} />
+        <section className="space-y-4 rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+          <h2 className="font-semibold">The live article changed since this draft began</h2>
+          <p className="text-sm">Compare the original base and latest publication below with your draft in the editor. Incorporate the changes you want to keep, then save a reconciled draft. It will still need submission and moderator review.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[{ label: "Original base", content: reconciliation.base }, { label: "Latest publication", content: reconciliation.live }].map(({ label, content }) => (
+              <details key={label} className="min-w-0 rounded border border-amber-300 p-3" open>
+                <summary className="cursor-pointer font-medium">{label}</summary>
+                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs">{content ? comparisonSnapshot(content) : "No published version."}</pre>
+              </details>
+            ))}
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="reconciliationConfirmed" checked={reconciliationConfirmed} onChange={(event) => setReconciliationConfirmed(event.target.checked)} />
+            I compared all versions and reconciled the changes in my draft below.
+          </label>
+          <Button type="submit" formAction={reconcileFormAction} disabled={!reconciliationConfirmed || !reconcileAction || reconcilePending || primaryPending || submitPending || parsed.errors.length > 0 || fieldErrors.length > 0}>
+            {reconcilePending ? "Saving reconciled draft…" : "Save reconciled draft"}
+          </Button>
+        </section>
+      </>}
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="fields" value={JSON.stringify(fields)} />
       <input type="hidden" name="sections" value={JSON.stringify(sections)} />
@@ -295,7 +349,7 @@ export function RevisionEditor({
               The same safe parser and component registry are used for preview and
               publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
               Add photos with <code>![https://example.com/photo.jpg]</code>, or add a small credit with <code>![https://example.com/photo.jpg | Photo by Jane Smith]</code>.
-              Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one image shortcode or <code>Label: value</code> per line.
+              Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one image shortcode or <code>Label: value</code> per line. {ARTICLE_IMAGE_GUIDANCE}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -541,13 +595,13 @@ export function RevisionEditor({
             maxLength={500}
           />
         </label>
-        {(primaryState.error || submitState.error) && (
+        {(primaryState.error || submitState.error || reconcileState.error) && (
           <p
             role="alert"
             aria-live="polite"
             className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            {submitState.error || primaryState.error}
+            {reconcileState.error || submitState.error || primaryState.error}
           </p>
         )}
         <div className="mt-5 flex flex-wrap justify-end gap-3">
@@ -556,14 +610,14 @@ export function RevisionEditor({
               <Button
                 type="submit"
                 variant="outline"
-                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !saveAction || primaryPending || submitPending}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !saveAction || primaryPending || submitPending || reconcilePending}
               >
                 {primaryPending ? "Saving…" : "Save draft"}
               </Button>
               <Button
                 type="submit"
                 formAction={submitFormAction}
-                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction || primaryPending || submitPending}
+                disabled={parsed.errors.length > 0 || fieldErrors.length > 0 || !submitAction || Boolean(reconciliation) || primaryPending || submitPending || reconcilePending}
               >
                 {submitPending ? "Submitting…" : "Submit"}
               </Button>
