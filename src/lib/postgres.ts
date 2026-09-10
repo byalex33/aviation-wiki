@@ -2,6 +2,8 @@ import "server-only";
 
 import postgres, { type Sql } from "postgres";
 
+import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "@/lib/notification-digest-schema";
+
 import { AVIATION_DATA_SCHEMA_SQL } from "@/lib/aviation-data-schema";
 
 declare global {
@@ -183,6 +185,7 @@ async function createSchema() {
     CREATE INDEX IF NOT EXISTS api_keys_user_idx ON api_keys(user_id, created_at DESC);
     `);
     await transaction.unsafe(AVIATION_DATA_SCHEMA_SQL);
+    await transaction.unsafe(NOTIFICATION_DIGEST_SCHEMA_SQL);
   });
 }
 
