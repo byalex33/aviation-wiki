@@ -952,6 +952,7 @@ export type PublicEventSourceArticle = {
   title: string;
   slug: string;
   fields: RevisionRecord["fields"];
+  sources: RevisionRecord["sources"];
   updatedAt: string;
 };
 
@@ -962,8 +963,9 @@ async function loadPublicEventSourceData(): Promise<PublicEventSourceArticle[]> 
     title: string;
     slug: string;
     fields_json: unknown;
+    sources_json: unknown;
     updated_at: Date | string;
-  }>(`SELECT a.id,r.title,a.slug,r.fields_json,COALESCE(r.reviewed_at,r.updated_at) updated_at
+  }>(`SELECT a.id,r.title,a.slug,r.fields_json,r.sources_json,COALESCE(r.reviewed_at,r.updated_at) updated_at
       FROM articles a JOIN revisions r ON r.id=a.live_revision_id
       WHERE a.content_type='event' AND r.status='approved'
         AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
@@ -973,13 +975,14 @@ async function loadPublicEventSourceData(): Promise<PublicEventSourceArticle[]> 
     title: value.title,
     slug: value.slug,
     fields: json(value.fields_json, []),
+    sources: json(value.sources_json, []),
     updatedAt: iso(value.updated_at),
   }));
 }
 
 export const listPublicEventSourceData = unstable_cache(
   loadPublicEventSourceData,
-  ["public-event-source-data"],
+  ["public-event-source-data-v2"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 
