@@ -128,3 +128,49 @@ contributions are licensed. All participation is covered by the
 The software is licensed under [GNU AGPL v3](LICENSE); see [NOTICE](NOTICE) for the copyright notice. Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
 
 By contributing code, you agree to license it under AGPL-3.0-only. By contributing original editorial content, you agree to license it under CC BY-SA 4.0.
+
+## On this day in aviation
+
+`GET /api/v1/on-this-day` returns today's aviation anniversaries in UTC.
+Use `?date=12-17` for another calendar day. No key is required and browser
+requests from other origins are supported. The page at `/on-this-day` uses
+the same approved event articles. See `/api-docs#on-this-day` and
+`/openapi.json` for the response format. Dates without entries return an
+empty list; this is not a complete historical calendar.
+
+### Get source material
+
+Wikipedia's [aviation anniversary calendar](https://en.wikipedia.org/wiki/Portal:Aviation/Anniversaries)
+provides date-specific event lists. Fetch a day through the MediaWiki API:
+
+```sh
+node --import tsx scripts/fetch-aviation-anniversaries.ts 09-10 /tmp/aviation-september-10.json
+```
+
+The command saves the original wikitext with its revision URL, attribution
+and CC BY-SA 4.0 license. It refuses to overwrite an existing file. This is
+a source download, not an automatic publisher or a scheduled feed.
+
+Check each candidate against its linked article and primary sources, remove
+duplicate events, and distinguish exact dates from date ranges. For example,
+the September 10 source lists the 1976 Zagreb collision twice. Write a full
+event article with a concise title and introduction, citations, and an
+`Event date` field in `YYYY-MM-DD` format. Submit it through the existing
+contributor review workflow. Approved articles automatically appear in both
+the calendar and API. Retain the applicable attribution and share-alike
+license when adapting Wikipedia text; source images have their own licenses.
+
+NASA History, the Smithsonian National Air and Space Museum, and manufacturer
+archives are useful primary references for checking and expanding candidates.
+The public API reads our published articles, so upstream outages do not remove
+previously published events.
+
+Three original, primary-source starter articles can be validated with:
+
+```sh
+node --conditions=react-server --import tsx scripts/publish-aviation-history.ts
+```
+
+An operator can publish these to the configured database by adding
+`--env-file-if-exists=.env.local` to the Node options and `--publish` after
+the script path. Existing articles and drafts with those slugs are skipped.

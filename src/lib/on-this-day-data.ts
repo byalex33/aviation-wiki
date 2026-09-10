@@ -1,4 +1,4 @@
-import type { StructuredField } from "@/lib/wiki-types";
+import type { SourceLink, StructuredField } from "@/lib/wiki-types";
 
 export type DatedAviationEvent = {
   id: string;
@@ -11,6 +11,7 @@ export type DatedAviationEvent = {
   day: number;
   location?: string;
   eventType?: string;
+  sources?: SourceLink[];
 };
 
 const monthNumbers = new Map(
@@ -75,4 +76,12 @@ export function sortByAnniversary(events: DatedAviationEvent[]) {
       first.year - second.year ||
       first.title.localeCompare(second.title),
   );
+}
+
+/** A leap year allows February 29 to be browsed in any year. */
+export function anniversaryDate(value: string | undefined, now = new Date()) {
+  if (value === undefined) return new Date(Date.UTC(2000, now.getUTCMonth(), now.getUTCDate()));
+  if (!/^\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = parseExactEventDate(`2000-${value}`);
+  return parsed ? new Date(Date.UTC(2000, parsed.month - 1, parsed.day)) : null;
 }
