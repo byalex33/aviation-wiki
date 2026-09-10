@@ -15,7 +15,7 @@
       "post": {
         "operationId": "createArticleDraft",
         "summary": "Create an aviation.wiki article draft",
-        "description": "Create a draft only after the user explicitly asks for it. Research and verify factual claims, include the sources used, then return the `url` from the response so the user can review the draft. This action never publishes an article.",
+        "description": "Create a draft only after the user explicitly asks for it. Research and verify factual claims, include the sources used, then return the `url` from the response so the user can review the draft. This action never publishes an article. The account shares a limit of 10 draft requests per minute across all its API keys.",
         "security": [
           {
             "bearerAuth": []

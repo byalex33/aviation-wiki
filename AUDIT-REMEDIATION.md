@@ -36,3 +36,5 @@ The smaller accessibility and operations observations are also addressed: missin
 Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:postgres`, and `npm audit --omit=dev --audit-level=high`. CI runs these checks with a disposable PostgreSQL 18 service. PostgreSQL tests require a loopback test database and development mode. They do not use deployment credentials or send email.
 
 Local checks use synthetic and repository-owned fixtures. They do not change live editorial records or migrate the production database. Production latency must be measured after deployment; local development timings are not evidence of production improvement.
+
+A separate interrupted-digest recovery defect discovered during regression testing is tracked in [issue #28](https://github.com/byalex33/aviation-wiki/issues/28). Its fix needs persisted batch identity and leases to avoid duplicate mail after an uncertain provider response.
