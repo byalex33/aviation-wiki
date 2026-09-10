@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "aviation.wiki Draft API",
-    "description": "Create article drafts for manual review on aviation.wiki. This API cannot publish articles.",
+    "title": "aviation.wiki API",
+    "description": "Read public aviation anniversaries and create authenticated article drafts for manual review.",
     "version": "1.0.0"
   },
   "servers": [
@@ -62,6 +62,128 @@
           },
           "500": {
             "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/on-this-day": {
+      "get": {
+        "operationId": "getAviationAnniversaries",
+        "summary": "Get aviation events for a calendar day",
+        "description": "Defaults to today in UTC. Returns approved event articles with exact dates, in year order. Coverage is incomplete. No API key required.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "MM-DD. February 29 is valid in every year.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{2}-\\d{2}$"
+            },
+            "example": "12-17"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anniversaries, possibly empty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "date",
+                    "timezone",
+                    "count",
+                    "events"
+                  ],
+                  "properties": {
+                    "date": {
+                      "type": "string"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "const": "UTC"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "year",
+                          "date",
+                          "title",
+                          "summary",
+                          "url",
+                          "sources"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "date": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "year": {
+                            "type": "integer"
+                          },
+                          "sources": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "url"
+                              ],
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "publisher": {
+                                  "type": "string"
+                                },
+                                "identifier": {
+                                  "type": "string"
+                                },
+                                "accessedAt": {
+                                  "type": "string"
+                                },
+                                "archiveUrl": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or repeated date parameter"
+          },
+          "503": {
+            "description": "Temporary data failure; retry after 60 seconds"
           }
         }
       }
