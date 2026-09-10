@@ -1,3 +1,4 @@
+import { canonicalizeArticleLinks } from "@/lib/article-link-policy";
 import Link from "next/link";
 import {
   CalendarClock,
@@ -227,6 +228,7 @@ export function PublicArticle({
   watching,
   signedIn,
   articleLinks,
+  availableArticlePaths,
   structuredData,
 }: {
   article: ArticleRecord;
@@ -234,9 +236,12 @@ export function PublicArticle({
   watching: boolean;
   signedIn: boolean;
   articleLinks: ArticleMentionLink[];
+  availableArticlePaths?: string[];
   structuredData?: { href: string; label: string; records: number };
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
+  if (availableArticlePaths) parsed.root = canonicalizeArticleLinks(parsed.root, availableArticlePaths);
+  parsed.root = { ...parsed.root, children: parsed.root.children.filter((node) => !(node.type === "heading" && node.depth === 1 && node.children?.map((child) => child.value ?? "").join("").trim().toLowerCase() === revision.title.trim().toLowerCase())) };
   const headings = getArticleHeadings(parsed.root);
   const url = new URL(articlePath(revision.contentType, article.slug), siteUrl);
   const image = articleImageDetails(revision.markdown);

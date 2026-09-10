@@ -163,7 +163,7 @@ function currentOn(
 
 export function buildAirframeProjections(
   snapshot: AviationGraphSnapshot,
-  asOf = "2026-08-30",
+  asOf = new Date().toISOString().slice(0, 10),
 ): AirframeProjection[] {
   const assertions = new Map(
     snapshot.assertions.map((assertion) => [assertion.id, assertion]),
@@ -289,7 +289,7 @@ export function buildAirframeProjections(
               (claim): claim is ProjectedFact<GraphAssertion> => Boolean(claim),
             ),
         }));
-      const latestStatus = events.findLast((event) => event.statusAfter);
+      const latestStatus = events.findLast((event) => event.statusAfter && event.occurredOn && event.occurredOn <= asOf);
       return {
         id: airframe.id,
         publicId: airframe.publicId,
@@ -319,6 +319,15 @@ export function buildAirframeProjections(
         numeric: true,
       }),
     );
+}
+
+/** Membership is derived only from accepted, undisputed projected facts. */
+export function operatorFleetHistory(projections: AirframeProjection[], organizationIds: ReadonlySet<string>) {
+  const belongs = (id: string | null) => id !== null && organizationIds.has(id);
+  return projections.filter((airframe) =>
+    airframe.registrationHistory.some((registration) => belongs(registration.operatorId) || belongs(registration.ownerId)) ||
+    airframe.events.some((event) => belongs(event.fromOperatorId) || belongs(event.toOperatorId)),
+  );
 }
 
 export function aviationGraphCompleteness(

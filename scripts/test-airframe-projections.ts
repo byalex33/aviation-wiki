@@ -5,6 +5,7 @@ import {
   aviationGraphCompleteness,
   buildAirframeProjections,
   snapshotFromImportPlan,
+  operatorFleetHistory,
 } from "../src/lib/aviation-data-projections";
 
 const snapshot = snapshotFromImportPlan(britishAirwaysA350ImportPlan);
@@ -74,4 +75,25 @@ assert.deepEqual(completeness, {
   lastReconciledAt: "2026-08-30T00:00:00.000Z",
 });
 
+
+
+const temporal = structuredClone(snapshot);
+const registration = temporal.registrations[0];
+registration.validTo = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+assert.equal(buildAirframeProjections(temporal).find((item) => item.id === registration.airframeId)?.currentRegistration, null, "default projection uses today's date");
+const event = temporal.events.find((item) => temporal.assertions.some((assertion) => assertion.id === item.assertionId && assertion.reviewStatus === "accepted") && !temporal.conflicts.some((conflict) => conflict.assertionIds.includes(item.assertionId)))!;
+event.occurredOn = "2099-01-01";
+event.statusAfter = "retired";
+assert.notEqual(buildAirframeProjections(temporal, "2026-09-10").find((item) => item.id === event.airframeId)?.status, "retired");
+assert.equal(buildAirframeProjections(temporal, "2099-01-01").find((item) => item.id === event.airframeId)?.status, "retired");
+const membership = structuredClone(snapshot);
+const association = membership.registrations[0];
+association.operatorId = "audit-operator";
+const assertion = membership.assertions.find((item) => item.id === association.assertionId)!;
+assert.equal(operatorFleetHistory(buildAirframeProjections(membership), new Set(["audit-operator"])).length, 1);
+assertion.reviewStatus = "rejected";
+assert.equal(operatorFleetHistory(buildAirframeProjections(membership), new Set(["audit-operator"])).length, 0);
+assertion.reviewStatus = "accepted";
+membership.conflicts.push({ id: "audit-conflict", subjectId: assertion.subjectId, predicate: assertion.predicate, status: "open", assertionIds: [assertion.id] });
+assert.equal(operatorFleetHistory(buildAirframeProjections(membership), new Set(["audit-operator"])).length, 0);
 console.log("Airframe, fleet, production, and completeness projection tests passed");

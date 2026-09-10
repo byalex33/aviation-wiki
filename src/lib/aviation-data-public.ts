@@ -5,6 +5,7 @@ import { cache } from "react";
 import {
   aviationGraphCompleteness,
   buildAirframeProjections,
+  operatorFleetHistory,
   type AirframeProjection,
   type AviationGraphSnapshot,
   type GraphAssertion,
@@ -306,26 +307,7 @@ export async function listOperatorFleetHistory(operatorSlug: string) {
       .filter((organization) => organization.slug === operatorSlug)
       .map((organization) => organization.id),
   );
-  const airframeIds = new Set(
-    snapshot.registrations
-      .filter(
-        (registration) =>
-          (registration.operatorId && organizationIds.has(registration.operatorId)) ||
-          (registration.ownerId && organizationIds.has(registration.ownerId)),
-      )
-      .map((registration) => registration.airframeId),
-  );
-  for (const event of snapshot.events) {
-    if (
-      (event.fromOperatorId && organizationIds.has(event.fromOperatorId)) ||
-      (event.toOperatorId && organizationIds.has(event.toOperatorId))
-    ) {
-      airframeIds.add(event.airframeId);
-    }
-  }
-  return (await loadAirframeProjections()).filter((airframe) =>
-    airframeIds.has(airframe.id),
-  );
+  return operatorFleetHistory(await loadAirframeProjections(), organizationIds);
 }
 
 export async function findAirframesByRegistration(value: string) {

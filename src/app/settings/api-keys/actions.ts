@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createApiKey, revokeApiKey, regenerateApiKey } from "@/lib/api-keys";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireContributor } from "@/lib/wiki-auth";
 import { UserFacingError } from "@/lib/user-facing-error";
 
@@ -23,6 +24,7 @@ export async function createApiKeyAction(
 ): Promise<CreateKeyState> {
   try {
     const contributor = await requireContributor();
+    await enforceRateLimit({ scope: "api-key-settings", subject: contributor.userId, limit: 20, windowMs: 60_000 });
     const name = String(formData.get("name") ?? "").trim().slice(0, 100);
     if (!name) return { error: "A key name is required." };
     const { rawToken, key } = await createApiKey({
@@ -45,6 +47,7 @@ export async function revokeApiKeyAction(
 ): Promise<KeyActionState> {
   try {
     const contributor = await requireContributor();
+    await enforceRateLimit({ scope: "api-key-settings", subject: contributor.userId, limit: 20, windowMs: 60_000 });
     const keyId = String(formData.get("keyId") ?? "").trim();
     if (!keyId) return { error: "Key ID is required." };
     const revoked = await revokeApiKey(keyId, contributor.userId);
@@ -63,6 +66,7 @@ export async function regenerateApiKeyAction(
 ): Promise<KeyActionState> {
   try {
     const contributor = await requireContributor();
+    await enforceRateLimit({ scope: "api-key-settings", subject: contributor.userId, limit: 20, windowMs: 60_000 });
     const keyId = String(formData.get("keyId") ?? "").trim();
     if (!keyId) return { error: "Key ID is required." };
     const result = await regenerateApiKey(keyId, contributor.userId);

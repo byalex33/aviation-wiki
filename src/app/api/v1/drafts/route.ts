@@ -38,16 +38,16 @@ export async function POST(request: Request) {
   if (!apiKey.scopes.includes("articles:draft"))
     return errorResponse("This API key does not have the articles:draft scope.", 403);
 
-  // 2. Rate limit: 10 requests per minute per key
+  // 2. All keys for one account share the draft request allowance.
   const rateLimit = await consumeRateLimit({
-    scope: "api-v1-draft-create",
-    subject: `key:${apiKey.keyId}`,
+    scope: "api-v1-draft-create-account",
+    subject: apiKey.userId,
     limit: 10,
     windowMs: 60_000,
   });
   if (!rateLimit.allowed)
     return Response.json(
-      { error: "Rate limit exceeded. You may submit up to 10 drafts per minute." },
+      { error: "Rate limit exceeded. Each account may submit up to 10 drafts per minute across all its API keys." },
       { status: 429, headers: { ...rateLimitHeaders(rateLimit), "Cache-Control": "private, no-store" } },
     );
 
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
         draftId: revision.id,
         articleId: article.id,
         slug: revision.articleSlug,
-        url: absoluteUrl(`/contribute/${revision.articleSlug}`),
+        url: absoluteUrl(`/contribute/${revision.articleSlug}?type=${revision.contentType}`),
       },
       {
         status: 201,

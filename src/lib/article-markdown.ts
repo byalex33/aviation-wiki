@@ -1,3 +1,4 @@
+import { isAllowedArticleImage, ARTICLE_IMAGE_GUIDANCE } from "@/lib/image-policy";
 import { unified } from "unified";
 import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
@@ -174,16 +175,7 @@ export function isSafeUrl(value: string) {
     url.startsWith("http://") || url.startsWith("mailto:");
 }
 
-export function isSafeImageUrl(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === "https:" && !url.username && !url.password;
-  } catch {
-    return false;
-  }
-}
+export const isSafeImageUrl = isAllowedArticleImage;
 
 export function parseArticleImageShorthand(value: string): ArticleImage | null {
   const shorthand = value.trim();
@@ -446,6 +438,12 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       if (!node.url || !isSafeUrl(node.url)) report(node, `Unsafe or unsupported URL: ${node.url ?? "empty URL"}.`);
     }
 
+    if (node.type === "image" && (!node.url || !isSafeImageUrl(node.url))) report(node, `Unsupported image URL. ${ARTICLE_IMAGE_GUIDANCE}`);
+    if (node.type === "imageReference") {
+      const definition = root.children.find((item) => item.type === "definition" && item.identifier?.toLowerCase() === node.identifier?.toLowerCase());
+      if (!definition?.url || !isSafeImageUrl(definition.url)) report(node, `Unsupported image URL. ${ARTICLE_IMAGE_GUIDANCE}`);
+    }
+
     if (node.type === "text") {
       for (const match of node.value?.matchAll(/f!\[([^\]]+)\]/g) ?? []) {
         if (!resolveFlagCode(match[1])) report(node, `Unknown flag code: ${match[1]}. Use a two-letter country code.`);
@@ -453,7 +451,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       for (const shorthand of getArticleImageShorthands(node.value ?? "")) {
         const image = parseArticleImageShorthand(shorthand);
         if (!image) report(node, "Images use ![https://example.com/photo.jpg] or ![https://example.com/photo.jpg | Photo credit].");
-        else if (!isSafeImageUrl(image.url)) report(node, `Unsafe or unsupported image URL: ${image.url}. Use HTTPS or a local path.`);
+        else if (!isSafeImageUrl(image.url)) report(node, `Unsafe or unsupported image URL: ${image.url}. ${ARTICLE_IMAGE_GUIDANCE}`);
       }
     }
 

@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:charts && npm run test:chart-roundtrip && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:aviation-data && npm run test:aviation-data-flags && npm run test:ba-a350-import && npm run test:airframe-projections && npm run test:aviation-data-reconciliation && npm run test:importer && npm run test:import-collisions && npm run test:notifications && npm run test:fleet && npm run test:on-this-day && npm run test:random-aircraft && npm run test:routes && npm run test:source-health && npm run test:sitemap && npm run test:commercial-aircraft",
+    "test": "npm run test:charts && npm run test:chart-roundtrip && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:aviation-data && npm run test:aviation-data-flags && npm run test:ba-a350-import && npm run test:airframe-projections && npm run test:aviation-data-reconciliation && npm run test:importer && npm run test:import-collisions && npm run test:notifications && npm run test:fleet && npm run test:on-this-day && npm run test:random-aircraft && npm run test:routes && npm run test:source-health && npm run test:sitemap && npm run test:commercial-aircraft && npm run test:frontend-audit && npm run test:csv && npm run test:editorial-ui",
     "db:migrate:aviation-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/migrate-aviation-data.ts",
     "data:import:ba-a350": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/import-ba-a350-1000.ts",
     "data:reconcile": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/reconcile-aviation-data.ts",
@@ -38,7 +38,14 @@
     "test:source-health": "node --conditions=react-server --import tsx scripts/test-source-health.ts",
     "test:sitemap": "tsx scripts/test-sitemap.ts",
     "test:commercial-aircraft": "node --conditions=react-server --import tsx scripts/publish-commercial-aircraft.ts",
-    "indexnow": "node scripts/submit-indexnow.mjs"
+    "indexnow": "node scripts/submit-indexnow.mjs",
+    "test:frontend-audit": "node --import tsx scripts/test-frontend-audit.tsx",
+    "test:csv": "node --import tsx scripts/test-csv.ts",
+    "test:editorial-postgres": "node --conditions=react-server --import tsx scripts/test-editorial-postgres.ts",
+    "test:postgres-notifications": "node --conditions=react-server --import tsx scripts/test-postgres-notifications.mts",
+    "test:api-account-limits": "node --conditions=react-server --import tsx scripts/test-api-account-limits.mts",
+    "test:postgres": "npm run test:editorial-postgres && npm run test:postgres-notifications && npm run test:api-account-limits",
+    "test:editorial-ui": "node --import tsx scripts/test-editorial-ui.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -82,7 +89,7 @@
   "overrides": {
     "@hono/node-server": "2.0.11",
     "postcss": "8.5.26",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "uuid": "11.1.1"
   }
 }

@@ -1,3 +1,4 @@
+import { airlineDirectoryGroups as groups, airlineDirectory as identities, directoryArticleName } from "@/lib/airline-directory";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,80 +16,8 @@ export const metadata: Metadata = {
   description: "Browse commercial airlines alphabetically on aviation.wiki.",
 };
 
-const groups = [
-  { letter: "A", airlines: [
-    { name: "Aegean Airlines", iata: "A3", icao: "AEE", callsign: "AEGEAN", status: "Active", hub: "Athens", countryCode: "gr", country: "Greece" },
-    { name: "Aer Lingus", iata: "EI", icao: "EIN", callsign: "SHAMROCK", status: "Active", hub: "Dublin", countryCode: "ie", country: "Ireland" },
-    { name: "Air Canada", iata: "AC", icao: "ACA", callsign: "AIR CANADA", status: "Active", hub: "Toronto Pearson", countryCode: "ca", country: "Canada" },
-    { name: "Air France", iata: "AF", icao: "AFR", callsign: "AIRFRANS", status: "Active", hub: "Paris Charles de Gaulle", countryCode: "fr", country: "France" },
-    { name: "Air India", iata: "AI", icao: "AIC", callsign: "AIR INDIA", status: "Active", hub: "Delhi", countryCode: "in", country: "India" },
-    { name: "Alitalia", iata: "AZ", icao: "AZA", callsign: "ALITALIA", status: "Ceased", hub: "Rome Fiumicino", countryCode: "it", country: "Italy" },
-    { name: "American Airlines", iata: "AA", icao: "AAL", callsign: "AMERICAN", status: "Active", hub: "Dallas / Fort Worth", countryCode: "us", country: "United States" },
-  ]},
-  { letter: "B", airlines: [
-    { name: "British Airways", iata: "BA", icao: "BAW", callsign: "SPEEDBIRD", status: "Active", hub: "London Heathrow", countryCode: "gb", country: "United Kingdom" },
-  ]},
-  { letter: "C", airlines: [
-    { name: "Cathay Pacific", iata: "CX", icao: "CPA", callsign: "CATHAY", status: "Active", hub: "Hong Kong", countryCode: "hk", country: "Hong Kong" },
-  ]},
-  { letter: "D", airlines: [
-    { name: "Delta Air Lines", iata: "DL", icao: "DAL", callsign: "DELTA", status: "Active", hub: "Atlanta", countryCode: "us", country: "United States" },
-  ]},
-  { letter: "E", airlines: [
-    { name: "easyJet", iata: "U2", icao: "EZY", callsign: "EASY", status: "Active", hub: "London Gatwick", countryCode: "gb", country: "United Kingdom" },
-    { name: "Emirates", iata: "EK", icao: "UAE", callsign: "EMIRATES", status: "Active", hub: "Dubai", countryCode: "ae", country: "United Arab Emirates" },
-    { name: "Ethiopian Airlines", iata: "ET", icao: "ETH", callsign: "ETHIOPIAN", status: "Active", hub: "Addis Ababa", countryCode: "et", country: "Ethiopia" },
-    { name: "Etihad Airways", iata: "EY", icao: "ETD", callsign: "ETIHAD", status: "Active", hub: "Abu Dhabi", countryCode: "ae", country: "United Arab Emirates" },
-  ]},
-  { letter: "F", airlines: [
-    { name: "Finnair", iata: "AY", icao: "FIN", callsign: "FINNAIR", status: "Active", hub: "Helsinki", countryCode: "fi", country: "Finland" },
-    { name: "Flybe", iata: "BE", icao: "BEE", callsign: "JERSEY", status: "Ceased", hub: "Birmingham", countryCode: "gb", country: "United Kingdom" },
-  ]},
-  { letter: "I", airlines: [
-    { name: "Iberia", iata: "IB", icao: "IBE", callsign: "IBERIA", status: "Active", hub: "Madrid", countryCode: "es", country: "Spain" },
-  ]},
-  { letter: "J", airlines: [
-    { name: "Japan Airlines", iata: "JL", icao: "JAL", callsign: "JAPANAIR", status: "Active", hub: "Tokyo Haneda", countryCode: "jp", country: "Japan" },
-  ]},
-  { letter: "K", airlines: [
-    { name: "KLM", iata: "KL", icao: "KLM", callsign: "KLM", status: "Active", hub: "Amsterdam Schiphol", countryCode: "nl", country: "Netherlands" },
-    { name: "Korean Air", iata: "KE", icao: "KAL", callsign: "KOREANAIR", status: "Active", hub: "Seoul Incheon", countryCode: "kr", country: "South Korea" },
-  ]},
-  { letter: "L", airlines: [
-    { name: "Lufthansa", iata: "LH", icao: "DLH", callsign: "LUFTHANSA", status: "Active", hub: "Frankfurt", countryCode: "de", country: "Germany" },
-  ]},
-  { letter: "P", airlines: [
-    { name: "Pan Am", iata: "PA", icao: "PAA", callsign: "CLIPPER", status: "Ceased", hub: "New York JFK", countryCode: "us", country: "United States" },
-  ]},
-  { letter: "Q", airlines: [
-    { name: "Qantas", iata: "QF", icao: "QFA", callsign: "QANTAS", status: "Active", hub: "Sydney", countryCode: "au", country: "Australia" },
-    { name: "Qatar Airways", iata: "QR", icao: "QTR", callsign: "QATARI", status: "Active", hub: "Doha", countryCode: "qa", country: "Qatar" },
-  ]},
-  { letter: "R", airlines: [
-    { name: "Ryanair", iata: "FR", icao: "RYR", callsign: "RYANAIR", status: "Active", hub: "Dublin", countryCode: "ie", country: "Ireland" },
-  ]},
-  { letter: "S", airlines: [
-    { name: "Singapore Airlines", iata: "SQ", icao: "SIA", callsign: "SINGAPORE", status: "Active", hub: "Singapore Changi", countryCode: "sg", country: "Singapore" },
-    { name: "Southwest Airlines", iata: "WN", icao: "SWA", callsign: "SOUTHWEST", status: "Active", hub: "Dallas Love Field", countryCode: "us", country: "United States" },
-    { name: "SWISS", iata: "LX", icao: "SWR", callsign: "SWISS", status: "Active", hub: "Zürich", countryCode: "ch", country: "Switzerland" },
-  ]},
-  { letter: "T", airlines: [
-    { name: "Trans World Airlines", iata: "TW", icao: "TWA", callsign: "TWA", status: "Ceased", hub: "St. Louis", countryCode: "us", country: "United States" },
-    { name: "Turkish Airlines", iata: "TK", icao: "THY", callsign: "TURKISH", status: "Active", hub: "Istanbul", countryCode: "tr", country: "Türkiye" },
-  ]},
-  { letter: "U", airlines: [
-    { name: "United Airlines", iata: "UA", icao: "UAL", callsign: "UNITED", status: "Active", hub: "Chicago O’Hare", countryCode: "us", country: "United States" },
-  ]},
-  { letter: "V", airlines: [
-    { name: "Virgin Atlantic", iata: "VS", icao: "VIR", callsign: "VIRGIN", status: "Active", hub: "London Heathrow", countryCode: "gb", country: "United Kingdom" },
-  ]},
-  { letter: "W", airlines: [
-    { name: "Wizz Air", iata: "W6", icao: "WZZ", callsign: "WIZZ AIR", status: "Active", hub: "Budapest", countryCode: "hu", country: "Hungary" },
-  ]},
-];
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-const iataCodes = groups.flatMap((group) => group.airlines.map((airline) => airline.iata));
 
 type CommercialPageProps = {
   searchParams: Promise<{ country?: string | string[]; status?: string | string[]; sort?: string | string[] }>;
@@ -97,7 +26,7 @@ type CommercialPageProps = {
 export default async function CommercialAirlinesPage({ searchParams }: CommercialPageProps) {
   const { userId } = await auth();
   const query = await searchParams;
-  const openFlightsAirlines = await getOpenFlightsAirlines(iataCodes);
+  const openFlightsAirlines = await getOpenFlightsAirlines(identities);
   const statusFilter = query.status === "active" || query.status === "historic" ? query.status : "all";
   const sortOrder = query.sort === "desc" ? "desc" : "asc";
   const countryOptions = [...new Set(groups.flatMap((group) => group.airlines.map((airline) => openFlightsAirlines.get(airline.iata)?.country || airline.country)))].toSorted((a, b) => a.localeCompare(b));
@@ -108,7 +37,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
       airlines: group.airlines
         .filter((airline) => {
           const openFlights = openFlightsAirlines.get(airline.iata);
-          const isActive = openFlights ? openFlights.active : airline.status === "Active";
+          const isActive = airline.status === "Active";
           const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);
           const country = openFlights?.country || airline.country;
           return matchesStatus && (countryFilter === "all" || country === countryFilter);
@@ -183,13 +112,13 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.airlines.map((airline) => {
                 const openFlights = openFlightsAirlines.get(airline.iata);
-                const name = openFlights?.name || airline.name;
-                const status = openFlights ? (openFlights.active ? "Active" : "Ceased") : airline.status;
+                const name = airline.name;
+                const status = airline.status;
 
                 return (
                 <Link
                   key={airline.name}
-                  href={`/commercial/${normalizeSlug(name)}?iata=${encodeURIComponent(airline.iata)}`}
+                  href={`/commercial/${normalizeSlug(directoryArticleName(name))}?iata=${encodeURIComponent(airline.iata)}&icao=${encodeURIComponent(airline.icao)}`}
                   className="group block"
                   aria-label={`View ${name}`}
                 >

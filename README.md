@@ -128,3 +128,9 @@ contributions are licensed. All participation is covered by the
 The software is licensed under [GNU AGPL v3](LICENSE); see [NOTICE](NOTICE) for the copyright notice. Original project-authored editorial content and imported third-party data/media have separate terms described in [CONTENT-LICENSE.md](CONTENT-LICENSE.md).
 
 By contributing code, you agree to license it under AGPL-3.0-only. By contributing original editorial content, you agree to license it under CC BY-SA 4.0.
+
+### Audit regression tests
+
+`npm test` includes fleet date/status, CSV, article link, image policy, search, and source URL regressions. `npm run test:postgres` exercises editorial races, notification storage/delivery, and account API limits against a disposable local PostgreSQL database. Set `NODE_ENV=development` and `DATABASE_URL` to a loopback database named `audit_*` or `test_*`. These tests create their own fixtures. CI provisions PostgreSQL for them.
+
+The notification digest runs daily at 06:00 UTC via the authenticated `/api/notifications/digest` cron route. Configure `CRON_SECRET` and email delivery settings for the deployment.
