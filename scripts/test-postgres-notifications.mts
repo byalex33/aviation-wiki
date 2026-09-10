@@ -90,9 +90,10 @@ try {
   await store.queueEmailDelivery(retry.id,watcher);
   await store.updateEmailDelivery({notificationId:retry.id,status:"failed",failureReason:"Temporary test failure",incrementRetry:true});
   assert.ok((await store.listFailedEmailDeliveries()).some(value => value.notification_id===retry.id));
+  await sql`UPDATE notification_email_deliveries SET updated_at=NOW()-INTERVAL '16 minutes' WHERE notification_id=${retry.id}`;
   await service.deliverDailyDigests();
-  assert.equal(messages.length,3,"A failed digest delivery is retried");
-  assert.equal((await store.queueEmailDelivery(retry.id,watcher))?.status,"sent");
+  assert.equal(messages.length,2,"Legacy delivery without a saved batch is not blindly resent");
+  assert.equal((await store.queueEmailDelivery(retry.id,watcher))?.status,"held");
   const renamedDraft = { ...revision, id: randomUUID(), proposedSlug: `new-${id}`, status: "changes_requested" as const };
   await service.emitRevisionOutcome({ actorId: moderator, revision: renamedDraft, outcome: "changes_requested" });
   const changes = (await store.listNotifications(author)).items.find(value => value.revisionId === renamedDraft.id);

@@ -37,4 +37,4 @@ Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:postgres`, an
 
 Local checks use synthetic and repository-owned fixtures. They do not change live editorial records or migrate the production database. Production latency must be measured after deployment; local development timings are not evidence of production improvement.
 
-A separate interrupted-digest recovery defect discovered during regression testing is tracked in [issue #28](https://github.com/byalex33/aviation-wiki/issues/28). Its fix needs persisted batch identity and leases to avoid duplicate mail after an uncertain provider response.
+The interrupted-digest defect in [issue #28](https://github.com/byalex33/aviation-wiki/issues/28) is covered by durable batch identity, leases, hourly recovery, and process-termination regression tests. See DATABASE-OPERATIONS.md for deployment and held-delivery handling.

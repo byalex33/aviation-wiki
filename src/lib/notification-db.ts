@@ -289,7 +289,7 @@ export function listFailedEmailDeliveries(limit = 100) {
     .prepare(
       `SELECT d.id,d.notification_id,d.status,d.provider_message_id,d.failure_reason,d.retry_count,d.created_at,d.updated_at,
        n.type,n.article_id,n.revision_id FROM notification_email_deliveries d
-       JOIN notifications n ON n.id=d.notification_id WHERE d.status='failed'
+       JOIN notifications n ON n.id=d.notification_id WHERE d.status IN ('failed','held')
        ORDER BY d.updated_at DESC LIMIT ?`,
     )
     .all(Math.min(500, Math.max(1, limit))) as Array<Record<string, unknown>>;
@@ -300,7 +300,7 @@ export function listPendingDigestNotifications() {
     .prepare(
       `SELECT n.* FROM notifications n JOIN notification_preferences p ON p.user_id=n.user_id
        LEFT JOIN notification_email_deliveries d ON d.notification_id=n.id
-       WHERE p.email_frequency='daily' AND (d.id IS NULL OR d.status='failed') AND n.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-2 days')
+       WHERE p.email_frequency='daily' AND d.id IS NULL AND n.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-2 days')
        ORDER BY n.user_id,n.created_at`,
     )
     .all() as NotificationRow[];
