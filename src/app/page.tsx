@@ -12,6 +12,8 @@ import {
   Shield,
 } from "lucide-react";
 
+import { AnnotatedText } from "@/components/ui/annotated-text";
+import styles from "./home.module.css";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -121,11 +123,17 @@ export default async function Home() {
         <Badge variant="outline" className="mb-5 h-7 rounded-full bg-card px-3 font-medium text-muted-foreground">
           <span className="mr-1 size-1.5 rounded-full bg-primary" />{documents.length} approved {documents.length === 1 ? "article" : "articles"}
         </Badge>
-        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">The free encyclopedia of everything that flies</h1>
-        <form className="relative mx-auto mt-8 max-w-[600px]" action="/search">
-          <Search className="absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-          <Input name="q" className="h-[52px] rounded-xl bg-card pl-12 pr-28 text-base shadow-md" placeholder="Search names, codes, registrations…" aria-label="Search aviation.wiki" />
-          <button type="submit" className={cn(buttonVariants({ size: "lg" }), "absolute right-1.5 top-1.5 h-10 px-5")}>Search</button>
+        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">The free encyclopedia of everything <AnnotatedText>that flies</AnnotatedText></h1>
+        {/* Adapted from OpenSourceUI SearchInput and DepthOutlineButton; see THIRD_PARTY_NOTICES.md. */}
+        <form className="mx-auto mt-8 max-w-[600px]" action="/search" role="search">
+          <div className="flex items-center gap-2 rounded-2xl border bg-card p-2 shadow-sm transition-colors focus-within:border-primary">
+            <div className="relative min-w-0 flex-1">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" name="q" className="h-12 rounded-lg border-0 bg-transparent pl-10 pr-2 text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent" placeholder="Search aviation…" aria-label="Search aviation.wiki" aria-describedby="home-search-hint" />
+            </div>
+            <button type="submit" className={cn(buttonVariants({ variant: "outline", size: "lg" }), styles.depthButton, "h-12 rounded-xl px-5")}>Search</button>
+          </div>
+          <p id="home-search-hint" className="mt-3 text-xs text-muted-foreground">Find aircraft, airports, airlines, codes, and registrations.</p>
         </form>
         </section>
 

@@ -13,6 +13,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { ContributionMission } from "@/lib/growth-content";
 import type { SearchDocument } from "@/lib/search-types";
 
+import type { ContentType } from "@/lib/wiki-types";
+
+const contentTypeLabel: Record<ContentType, string> = {
+  aircraft: "Aircraft",
+  airline: "Airline",
+  airport: "Airport",
+  manufacturer: "Manufacturer",
+  engine: "Engine",
+  alliance: "Alliance",
+  event: "Aviation news",
+};
+
 export function FeaturedArticles({
   articles,
 }: {
@@ -57,17 +69,23 @@ export function FeaturedArticles({
             }}
             className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <Card className="relative h-full min-h-48 gap-0 overflow-hidden py-0 shadow-xs transition-all group-hover:-translate-y-0.5 group-hover:border-primary/35 group-hover:shadow-md">
-              <ArticleCardBackdrop imageUrl={article.imageUrl} />
-              <CardContent className="relative z-10 flex h-full flex-col p-5">
-                <Sparkles className="size-5 text-primary" />
-                <h3 className="mt-5 text-lg font-semibold tracking-tight group-hover:text-primary">
+            {/* MuseumPlacardCard layout adapted from OpenSourceUI (MIT); see THIRD_PARTY_NOTICES.md. */}
+            <Card className="h-full gap-0 overflow-hidden rounded-xl py-0 shadow-sm transition-[border-color,box-shadow] group-hover:border-primary/35 group-hover:shadow-md motion-reduce:transition-none">
+              <div className="relative isolate flex h-36 items-center justify-center overflow-hidden border-b bg-muted/40" aria-hidden="true">
+                <Sparkles className="size-10 text-primary/20" strokeWidth={1} />
+                <ArticleCardBackdrop imageUrl={article.imageUrl} />
+              </div>
+              <CardContent className="flex flex-1 flex-col p-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  {contentTypeLabel[article.contentType]}
+                </p>
+                <h3 className="mt-3 font-serif text-xl leading-snug italic group-hover:text-primary">
                   {article.title}
                 </h3>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                <p className="mb-5 mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
                   {article.description}
                 </p>
-                <span className="mt-auto flex items-center gap-1 pt-5 text-sm font-semibold">
+                <span className="mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs font-medium">
                   Read article
                   <ArrowUpRight className="size-3.5" />
                 </span>
