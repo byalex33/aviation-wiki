@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { renderToStaticMarkup } from "react-dom/server";
+import { RevisionEditor } from "../src/components/revision-editor";
+import type { RevisionContent } from "../src/lib/wiki-types";
+
+const content: RevisionContent = { title: "Same slug engine", contentType: "engine", markdown: "Contributor's own draft.", fields: [], sections: [], sources: [], relationships: [] };
+const action = async () => ({ error: null });
+const initial = renderToStaticMarkup(<RevisionEditor slug="same-slug" articleId="engine-id" parentRevisionId="displayed-v1" initialContent={content} relationshipTargets={[]} saveAction={action} submitAction={action} />);
+assert.match(initial, /name="parentRevisionId" value="displayed-v1"/);
+assert.match(initial, /name="articleId" value="engine-id"/);
+assert.match(initial, /name="returnTo" value="\/contribute\/same-slug\?type=engine"/);
+const stale = renderToStaticMarkup(<RevisionEditor slug="same-slug" articleId="engine-id" revisionId="draft-id" parentRevisionId="displayed-v1" initialContent={content} relationshipTargets={[]} saveAction={action} submitAction={action} reconcileAction={action} reconciliation={{ base: { ...content, markdown: "Original base text." }, live: { ...content, markdown: "New published text." }, liveRevisionId: "live-v2", draftUpdatedAt: "2026-09-10T12:00:00.000Z" }} />);
+assert.match(stale, /Original base text/);
+assert.match(stale, /New published text/);
+assert.match(stale, /Contributor&#x27;s own draft/);
+assert.match(stale, /name="reconcileLiveRevisionId" value="live-v2"/);
+assert.match(stale, /name="draftUpdatedAt" value="2026-09-10T12:00:00.000Z"/);
+assert.match(stale, /name="reconciliationConfirmed"/);
+assert.match(stale, /<button[^>]*disabled=""[^>]*>Save reconciled draft<\/button>/);
+assert.match(stale, /<button[^>]*disabled=""[^>]*>Submit<\/button>/);
+console.log("Editorial UI regressions passed: displayed base, typed return destination, version comparison, explicit reconciliation and review guard.");

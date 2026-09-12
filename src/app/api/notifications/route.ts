@@ -20,9 +20,7 @@ export async function GET() {
       { error: "Too many notification requests" },
       { status: 429, headers: rateLimitHeaders(rateLimit) },
     );
-  const { getUnreadCount, listNotifications } = process.env.DATABASE_URL
-    ? await import("@/lib/wiki-public-db")
-    : await import("@/lib/notification-db");
+  const { getUnreadCount, listNotifications } = await import("@/lib/notification-storage");
 
   return Response.json(
     {

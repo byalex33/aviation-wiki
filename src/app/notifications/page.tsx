@@ -15,7 +15,7 @@ import {
   getNotificationPreferences,
   getUnreadCount,
   listNotifications,
-} from "@/lib/notification-db";
+} from "@/lib/notification-storage";
 import { notificationTypes } from "@/lib/notification-types";
 
 export default async function NotificationsPage({
@@ -27,9 +27,9 @@ export default async function NotificationsPage({
   if (!session.isAuthenticated || !session.userId)
     redirect(`/sign-in?redirect_url=${encodeURIComponent("/notifications")}`);
   const page = Math.max(1, Number((await searchParams).page) || 1);
-  const notifications = listNotifications(session.userId, page, 20);
-  const unreadCount = getUnreadCount(session.userId);
-  const preferences = getNotificationPreferences(session.userId);
+  const notifications = await listNotifications(session.userId, page, 20);
+  const unreadCount = await getUnreadCount(session.userId);
+  const preferences = await getNotificationPreferences(session.userId);
 
   return (
     <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-8 sm:px-6">

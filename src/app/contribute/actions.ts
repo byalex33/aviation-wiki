@@ -55,9 +55,14 @@ function parseArray<T>(formData: FormData, key: string): T[] {
 
 function safeReturnTo(formData: FormData, fallback: string) {
   const value = String(formData.get("returnTo") || "");
-  return value.startsWith("/editor?") || value.startsWith("/contribute/")
-    ? value
-    : fallback;
+  // Resolve identity from the saved revision even if a new article's type or
+  // slug changed in the form. Never send the editor back to an untyped lookup.
+  const destination = new URL(fallback, "https://aviation.wiki");
+  if (value.startsWith("/editor?")) {
+    const slug = destination.pathname.split("/").at(-1) || "";
+    return `/editor?type=${destination.searchParams.get("type")}&slug=${encodeURIComponent(slug)}`;
+  }
+  return fallback;
 }
 
 function parseContent(
@@ -186,6 +191,7 @@ async function persistFromForm(
   formData: FormData,
   requireSubmissionFields = false,
   contributor?: Awaited<ReturnType<typeof requireContributor>>,
+  reconcile = false,
 ) {
   const authenticatedContributor = contributor || await requireContributor();
   const content = parseContent(formData, requireSubmissionFields);
@@ -237,7 +243,12 @@ async function persistFromForm(
     contributorName: authenticatedContributor.name,
     editSummary,
     content,
-    parentRevisionId: article.liveRevisionId,
+    // This is the version displayed when the editor opened, not a fresh read.
+    parentRevisionId: String(formData.get("parentRevisionId") || "") || null,
+    reconcile: reconcile ? {
+      expectedUpdatedAt: String(formData.get("draftUpdatedAt") || ""),
+      liveRevisionId: String(formData.get("reconcileLiveRevisionId") || "") || null,
+    } : undefined,
   });
 }
 
@@ -277,7 +288,7 @@ export async function saveDraftAction(formData: FormData) {
   revalidatePath("/contribute");
   const returnTo = safeReturnTo(
     formData,
-    `/contribute/${revision.articleSlug}`,
+    `/contribute/${revision.articleSlug}?type=${revision.contentType}`,
   );
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`);
 }
@@ -289,6 +300,25 @@ export async function saveDraftFormAction(
   try {
     await saveDraftAction(formData);
     return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
+}
+
+export async function reconcileDraftFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    const contributor = await requireContributor();
+    await enforceRateLimit({ scope: "contribution-draft-write", subject: contributor.userId, limit: 30, windowMs: 60_000 });
+    if (formData.get("reconciliationConfirmed") !== "on")
+      throw new UserFacingError("Compare the original and latest versions, then confirm that your draft includes the changes you intend to preserve.");
+    if (!formData.get("revisionId")) throw new UserFacingError("Save your draft before reconciling it.");
+    const revision = await persistFromForm(formData, false, contributor, true);
+    revalidatePath("/contribute");
+    const returnTo = safeReturnTo(formData, `/contribute/${revision.articleSlug}?type=${revision.contentType}`);
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`);
   } catch (error) {
     return formActionError(error);
   }
@@ -348,7 +378,7 @@ export async function submitRevisionAction(formData: FormData) {
   }
   const returnTo = safeReturnTo(
     formData,
-    `/contribute/${revision.articleSlug}`,
+    `/contribute/${revision.articleSlug}?type=${revision.contentType}`,
   );
   redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}submitted=1`);
 }
@@ -373,10 +403,7 @@ export async function moderateRevisionAction(formData: FormData) {
     limit: 20,
     windowMs: 60_000,
   });
-  const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
-    import("@/lib/admin-db"),
-    import("@/lib/notification-service"),
-  ]);
+  const { emitRevisionOutcome } = await import("@/lib/notification-service");
   const revisionId = String(formData.get("revisionId") || "");
   const intent = String(formData.get("intent") || "");
   const note = String(formData.get("moderatorNote") || "")
@@ -386,22 +413,34 @@ export async function moderateRevisionAction(formData: FormData) {
   if (!revision || !["pending_review", "verifying"].includes(revision.status))
     throw new UserFacingError("This revision is not awaiting review.");
   await assertPostgresArticleEditable(revision.articleId, moderator.role);
-  const beforeStatus = revision.status;
+  const audit = {
+    actorId: moderator.userId,
+    actorName: moderator.name,
+    action: `revision.${intent}`,
+    entityType: "revision",
+    entityId: revisionId,
+    articleId: revision.articleId,
+    revisionId,
+    before: { status: revision.status },
+    after: { status: intent === "approve" ? "approved" : intent === "request_changes" ? "changes_requested" : "rejected", note },
+  };
   const previousLiveRevision =
     (await getPostgresArticleById(revision.articleId))?.liveRevision || null;
   if (intent === "approve")
-    await publishPostgresRevision(revisionId, moderator.userId, note || null);
+    await publishPostgresRevision(revisionId, moderator.userId, note || null, audit);
   else if (intent === "request_changes") {
     if (!note) throw new UserFacingError("Explain the requested changes.");
     await transitionPostgresRevision(revisionId, moderator.userId, "changes_requested", {
       note,
       moderator: true,
+      audit,
     });
   } else if (intent === "reject") {
     if (!note) throw new UserFacingError("Explain why the revision was rejected.");
     await transitionPostgresRevision(revisionId, moderator.userId, "rejected", {
       note,
       moderator: true,
+      audit,
     });
   } else throw new UserFacingError("Invalid moderation action.");
   const moderatedRevision = await getPostgresRevision(revisionId);
@@ -418,17 +457,7 @@ export async function moderateRevisionAction(formData: FormData) {
       note,
       previousLiveRevision,
     });
-  recordAdminAudit({
-    actorId: moderator.userId,
-    actorName: moderator.name,
-    action: `revision.${intent}`,
-    entityType: "revision",
-    entityId: revisionId,
-    articleId: revision.articleId,
-    revisionId,
-    before: { status: beforeStatus },
-    after: { status: (await getPostgresRevision(revisionId))?.status, note },
-  });
+
   if (intent === "approve") revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
   revalidatePath("/moderation");
   revalidatePath(articlePath(revision.contentType, revision.articleSlug));
@@ -459,10 +488,7 @@ export async function editAndApproveAction(formData: FormData) {
     limit: 20,
     windowMs: 60_000,
   });
-  const [{ recordAdminAudit }, { emitRevisionOutcome }] = await Promise.all([
-    import("@/lib/admin-db"),
-    import("@/lib/notification-service"),
-  ]);
+  const { emitRevisionOutcome } = await import("@/lib/notification-service");
   const revisionId = String(formData.get("revisionId") || "");
   const content = parseContent(formData, true);
   const editSummary = String(formData.get("editSummary") || "")
@@ -495,6 +521,12 @@ export async function editAndApproveAction(formData: FormData) {
     revisionId,
     moderator.userId,
     "Edited and approved by moderator.",
+    {
+      actorId: moderator.userId, actorName: moderator.name,
+      action: "revision.edited_and_approved", entityType: "revision", entityId: revisionId,
+      articleId: before.articleId, revisionId, before,
+      after: { ...content, proposedSlug, status: "approved" },
+    },
   );
   const approvedRevision = await getPostgresRevision(revisionId);
   if (approvedRevision)
@@ -505,17 +537,7 @@ export async function editAndApproveAction(formData: FormData) {
       note: "Edited and approved by moderator.",
       previousLiveRevision,
     });
-  recordAdminAudit({
-    actorId: moderator.userId,
-    actorName: moderator.name,
-    action: "revision.edited_and_approved",
-    entityType: "revision",
-    entityId: revisionId,
-    articleId: article.id,
-    revisionId,
-    before,
-    after: await getPostgresRevision(revisionId),
-  });
+
   revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
   revalidatePath(articlePath(article.contentType, article.slug));
   revalidatePath(articleHistoryPath(article.contentType, article.slug));

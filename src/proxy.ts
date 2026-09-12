@@ -1,3 +1,4 @@
+import { ARTICLE_IMAGE_HOSTS } from "@/lib/image-policy";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 // Authorization stays in each protected page and Server Action. The proxy
@@ -26,12 +27,7 @@ export default clerkMiddleware({
         "'self'",
         "data:",
         "blob:",
-        "https://img.clerk.com",
-        "https://airhex.com",
-        "https://images.kiwi.com",
-        "https://flagcdn.com",
-        "https://upload.wikimedia.org",
-        "https://cdn.jetphotos.com",
+        ...ARTICLE_IMAGE_HOSTS.map((host) => `https://${host}`),
       ],
     },
   },

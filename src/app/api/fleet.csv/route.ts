@@ -4,9 +4,7 @@ import {
 } from "@/lib/fleet-data";
 import { loadFleetRecords } from "@/lib/public-fleet";
 
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
-}
+import { csvCell } from "@/lib/csv";
 
 export async function GET(request: Request) {
   const filters = fleetFiltersFromSearchParams(new URL(request.url).searchParams);

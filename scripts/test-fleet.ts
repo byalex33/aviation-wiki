@@ -137,4 +137,37 @@ assert.deepEqual(
   },
 );
 
+
+
+const datedAircraft: FleetSourceArticle = { ...articles[0], fields: [
+  { key: "First flight", value: "1994" },
+  { key: "Introduction", value: "1996" },
+  { key: "Entry into service", value: "1995" },
+] };
+const airline = (id: string, key: string, value: string): FleetSourceArticle => ({
+  ...articles[4], id, title: id, fields: [{ key, value }, { key: "Status", value: "Active" }],
+});
+const temporalFleet = buildFleetRecords({ articles: [datedAircraft,
+  airline("Future", "Future fleet", "Boeing 777"),
+  airline("Ordered", "Fleet", "Boeing 777 on order"),
+  airline("Former", "Fleet", "Formerly operated Boeing 777"),
+  airline("Historic", "Former fleet", "Boeing 777"),
+  airline("Mixed", "Fleet", "Current Boeing 777; future Airbus A350"),
+], relationships: [] })[0];
+assert.equal(temporalFleet.entryIntoService, "1995", "service date key priority is independent of field order");
+assert.deepEqual(temporalFleet.currentOperators.map((operator) => operator.name), ["Mixed"]);
+assert.deepEqual(temporalFleet.historicOperators.map((operator) => operator.name), ["Former", "Historic"]);
+assert.equal(buildFleetRecords({ articles: [{ ...datedAircraft, fields: [{ key: "First flight", value: "1994" }] }], relationships: [] })[0].entryIntoService, "Not recorded");
+const clauseFleet = buildFleetRecords({ articles: [datedAircraft,
+  airline("Current wording", "Fleet", "Currently operated Boeing 777"),
+  airline("Current field", "Current fleet", "Boeing 777 operated on long-haul services"),
+  airline("Mixed orders", "Fleet", "Boeing 777, Airbus A350 on order"),
+  airline("Changed fleet", "Fleet", "Formerly operated Airbus A350, now Boeing 777 only"),
+  airline("Negated", "Fleet", "No Boeing 777 aircraft"),
+  airline("Never operated", "Fleet", "Never operated Boeing 777"),
+  airline("Unclear former list", "Fleet", "Formerly operated Airbus A350, Boeing 777"),
+  airline("Former local clause", "Fleet", "Airbus A350, formerly operated Boeing 777"),
+], relationships: [] })[0];
+assert.deepEqual(clauseFleet.currentOperators.map((operator) => operator.name), ["Changed fleet", "Current field", "Current wording", "Mixed orders"]);
+assert.deepEqual(clauseFleet.historicOperators.map((operator) => operator.name), ["Former local clause"]);
 console.log("Fleet data tests passed");

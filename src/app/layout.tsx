@@ -122,8 +122,8 @@ export default async function RootLayout({
         />
         <ClerkProvider
           appearance={{ theme: clerkShadcnAppearance }}
-          prefetchUI={false}
         >
+          <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-background focus:p-3">Skip to main content</a>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
             <div className="relative mx-auto flex h-[60px] max-w-[1200px] items-center gap-2 px-5 sm:gap-6 sm:px-6">
               <Link
@@ -184,7 +184,7 @@ export default async function RootLayout({
               </nav>
             </div>
           </header>
-          {children}
+          <div id="main-content" tabIndex={-1}>{children}</div>
           <footer className="site-footer mt-auto overflow-hidden bg-foreground text-background">
             <div className="mx-auto max-w-[1200px] px-5 sm:px-6">
               <div className="grid gap-10 py-12 sm:py-14 md:grid-cols-[1.3fr_1fr_0.7fr] md:gap-14">

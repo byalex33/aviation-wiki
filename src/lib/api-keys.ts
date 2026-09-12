@@ -4,6 +4,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { randomUUID } from "node:crypto";
 
 import { ensureSchema, sql } from "@/lib/postgres";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { UserFacingError } from "@/lib/user-facing-error";
+
+export const MAX_ACTIVE_API_KEYS = 5;
 
 const KEY_DISPLAY_PREFIX_LENGTH = 7; // "aw_" + 4 random hex chars
 
@@ -70,15 +74,26 @@ export async function createApiKey(input: {
   scopes: string[];
 }): Promise<{ key: ApiKey; rawToken: string }> {
   await ensureSchema();
+  await enforceRateLimit({ scope: "api-key-create", subject: input.userId, limit: 10, windowMs: 3_600_000 }, "You can attempt to create up to 10 API keys per hour.");
   const rawToken = generateRawToken();
   const keyHash = hashToken(rawToken);
   const keyPrefix = rawToken.slice(0, KEY_DISPLAY_PREFIX_LENGTH);
   const id = randomUUID();
   const now = new Date();
-  await sql`
-    INSERT INTO api_keys (id, name, key_hash, key_prefix, user_id, user_name, scopes_json, created_at)
-    VALUES (${id}, ${input.name}, ${keyHash}, ${keyPrefix}, ${input.userId}, ${input.userName}, ${sql.json(input.scopes)}, ${now})
-  `;
+  await sql.begin(async (transaction) => {
+    // Serialize creations for one account, including its first key.
+    await transaction`SELECT pg_advisory_xact_lock(8247, hashtext(${input.userId}))`;
+    const [count] = await transaction<{ count: number }[]>`
+      SELECT COUNT(*)::integer AS count FROM api_keys
+      WHERE user_id = ${input.userId} AND revoked_at IS NULL
+    `;
+    if (count.count >= MAX_ACTIVE_API_KEYS)
+      throw new UserFacingError(`You can have up to ${MAX_ACTIVE_API_KEYS} active API keys. Revoke an existing key first.`);
+    await transaction`
+      INSERT INTO api_keys (id, name, key_hash, key_prefix, user_id, user_name, scopes_json, created_at)
+      VALUES (${id}, ${input.name}, ${keyHash}, ${keyPrefix}, ${input.userId}, ${input.userName}, ${transaction.json(input.scopes)}, ${now})
+    `;
+  });
   return {
     rawToken,
     key: {

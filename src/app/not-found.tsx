@@ -18,6 +18,7 @@ export default function NotFound() {
           <Link href="/" className={buttonVariants()}>
             Home
           </Link>
+          <Link href="/contribute" className={buttonVariants({ variant: "outline" })}>Contribute an article</Link>
           <Link
             href="/search"
             className={buttonVariants({ variant: "outline" })}

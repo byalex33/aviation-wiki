@@ -1,3 +1,5 @@
+import { ARTICLE_PATH_ALIASES } from "./src/lib/article-path-aliases";
+import { ARTICLE_IMAGE_HOSTS } from "./src/lib/image-policy";
 import type { NextConfig } from "next";
 
 // Applied to every response. The Content-Security-Policy is emitted separately
@@ -27,18 +29,18 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async redirects() {
+    return [
+      ...Object.entries(ARTICLE_PATH_ALIASES).map(([source, destination]) => ({ source, destination, permanent: true })),
+      ...["airline", "airlines"].map((prefix) => ({ source: `/${prefix}/:path*`, destination: "/commercial/:path*", permanent: true })),
+      { source: "/airport/:path*", destination: "/airports/:path*", permanent: true },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "img.clerk.com", pathname: "/**" },
-      { protocol: "https", hostname: "airhex.com", pathname: "/images/airline-logos/tail/**" },
-      { protocol: "https", hostname: "images.kiwi.com", pathname: "/airlines/64/**" },
-      { protocol: "https", hostname: "flagcdn.com", pathname: "/w40/**" },
-      { protocol: "https", hostname: "upload.wikimedia.org", pathname: "/**" },
-      { protocol: "https", hostname: "cdn.jetphotos.com", pathname: "/**" },
-    ],
+    remotePatterns: ARTICLE_IMAGE_HOSTS.map((hostname) => ({ protocol: "https" as const, hostname, port: "", pathname: "/**" })),
   },
 };
 

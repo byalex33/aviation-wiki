@@ -1,3 +1,4 @@
+import { canonicalCountry } from "@/lib/countries";
 import type { SearchDocument, SearchHit, SearchProvider, SearchRequest, SearchResponse, SearchTermKind } from "@/lib/search-types";
 
 export function normalizeSearchText(value: string) {
@@ -69,11 +70,11 @@ export class InMemorySearchProvider implements SearchProvider {
     const query = normalizeSearchText(request.query).slice(0, 120);
     const pageSize = Math.min(50, Math.max(1, request.pageSize || 12));
     const page = Math.max(1, request.page || 1);
-    const countries = [...new Set(this.documents.flatMap((document) => document.countries))].sort((a, b) => a.localeCompare(b));
+    const countries = [...new Set(this.documents.flatMap((document) => document.countries.map(canonicalCountry).filter(Boolean)))].sort((a, b) => a.localeCompare(b));
     if (!query) return { query, hits: [], total: 0, page: 1, pageSize, totalPages: 0, directHit: null, countries };
     const matches = this.documents
       .filter((document) => !request.contentType || document.contentType === request.contentType)
-      .filter((document) => !request.country || document.countries.some((country) => normalizeSearchText(country) === normalizeSearchText(request.country!)))
+      .filter((document) => !request.country || document.countries.some((country) => normalizeSearchText(canonicalCountry(country)) === normalizeSearchText(canonicalCountry(request.country!))))
       .map((document) => hitFor(document, query))
       .filter((hit): hit is SearchHit => Boolean(hit))
       .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));

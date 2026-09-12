@@ -8,14 +8,16 @@ import {
   getNotificationPreferences,
   listArticleWatcherIds,
   listPendingDigestNotifications,
-  queueEmailDelivery,
   updateEmailDelivery,
-} from "@/lib/notification-db";
+} from "@/lib/notification-storage";
 import type {
   NotificationRecord,
   NotificationType,
 } from "@/lib/notification-types";
+import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import type { RevisionRecord } from "@/lib/wiki-types";
+
+import { queueImmediateEmailDelivery, claimDigestBatch, createDigestBatch, finishDigestBatch, holdLegacyDigestDeliveries, listRecoverableDigestBatchIds } from "@/lib/notification-digest-storage";
 
 type NotificationInput = {
   recipientId: string;
@@ -46,12 +48,12 @@ async function verifiedPrimaryEmail(userId: string) {
 export async function deliverNotificationEmail(
   notification: NotificationRecord,
 ) {
-  const delivery = queueEmailDelivery(notification.id, notification.userId);
+  const delivery = await queueImmediateEmailDelivery(notification.id, notification.userId);
   if (!delivery || delivery.status === "sent") return;
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFICATION_EMAIL_FROM;
   if (!apiKey || !from) {
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "failed",
       failureReason: "Resend is not configured.",
@@ -83,13 +85,13 @@ export async function deliverNotificationEmail(
     };
     if (!response.ok)
       throw new Error(result.message || `Resend returned ${response.status}.`);
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "sent",
       providerMessageId: result.id || null,
     });
   } catch (error) {
-    updateEmailDelivery({
+    await updateEmailDelivery({
       notificationId: notification.id,
       status: "failed",
       failureReason:
@@ -101,8 +103,8 @@ export async function deliverNotificationEmail(
 
 export async function emitNotification(input: NotificationInput) {
   if (!input.recipientId || input.recipientId === input.actorId) return null;
-  const preferences = getNotificationPreferences(input.recipientId);
-  const notification = createNotification({
+  const preferences = await getNotificationPreferences(input.recipientId);
+  const notification = await createNotification({
     ...input,
     userId: input.recipientId,
   });
@@ -122,8 +124,8 @@ export async function emitCustomNotification(input: {
   message: string;
   href: string;
 }) {
-  const preferences = getNotificationPreferences(input.recipientId);
-  const notification = createNotification({
+  const preferences = await getNotificationPreferences(input.recipientId);
+  const notification = await createNotification({
     userId: input.recipientId,
     type: "custom",
     title: input.title,
@@ -148,7 +150,7 @@ export async function emitRevisionOutcome(input: {
   previousLiveRevision?: RevisionRecord | null;
 }) {
   const { actorId, revision, outcome, note, previousLiveRevision } = input;
-  const href = `/contribute/${revision.proposedSlug}?type=${revision.contentType}`;
+  const href = `/contribute/${outcome === "approved" ? revision.proposedSlug : revision.articleSlug}?type=${revision.contentType}`;
   const outcomeContent = {
     approved: {
       type: "revision_approved" as const,
@@ -202,14 +204,14 @@ export async function emitRevisionOutcome(input: {
         ? "Article restored"
         : "Article revision superseded",
       message: `${revision.title} now has a newer approved revision.`,
-      href: `/history/${revision.proposedSlug}`,
+      href: articleHistoryPath(revision.contentType, revision.proposedSlug),
       articleId: revision.articleId,
       revisionId: revision.id,
       dedupeKey: `revision:${revision.id}:supersedes:${previousLiveRevision.id}`,
     });
   }
 
-  for (const watcherId of listArticleWatcherIds(revision.articleId)) {
+  for (const watcherId of await listArticleWatcherIds(revision.articleId)) {
     if (watcherId === revision.contributorId) continue;
     await emitNotification({
       recipientId: watcherId,
@@ -217,7 +219,7 @@ export async function emitRevisionOutcome(input: {
       type: "watched_article_edited",
       title: "Watched article updated",
       message: `${revision.title} has a newly approved revision.`,
-      href: `/wiki/${revision.proposedSlug}`,
+      href: articlePath(revision.contentType, revision.proposedSlug),
       articleId: revision.articleId,
       revisionId: revision.id,
       dedupeKey: `watch:${watcherId}:revision:${revision.id}`,
@@ -277,74 +279,91 @@ export async function emitRevisionOutcome(input: {
   }
 }
 
-export async function deliverDailyDigests() {
-  const pending = listPendingDigestNotifications();
-  const byUser = new Map<string, NotificationRecord[]>();
-  for (const notification of pending)
-    byUser.set(notification.userId, [
-      ...(byUser.get(notification.userId) || []),
-      notification,
+async function digestRecipientEmail(userId: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      verifiedPrimaryEmail(userId),
+      new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error("Recipient verification timed out.")), 10_000); }),
     ]);
+  } finally { if (timeout) clearTimeout(timeout); }
+}
+
+export async function deliverDailyDigests({ recoveryOnly = false } = {}) {
+  await holdLegacyDigestDeliveries();
+  const deadline = Date.now() + 45_000;
+  let preparationFailures = 0;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.NOTIFICATION_EMAIL_FROM;
+  // Persist the complete request before any attempt can reach the provider.
+  if (!recoveryOnly && apiKey && from) {
+    const pending = await listPendingDigestNotifications();
+    const byUser = new Map<string, NotificationRecord[]>();
+    for (const notification of pending)
+      byUser.set(notification.userId, [...(byUser.get(notification.userId) || []), notification]);
+    for (const [userId, notifications] of byUser) {
+      if (Date.now() >= deadline) break;
+      try {
+        const preferences = await getNotificationPreferences(userId);
+        if (preferences.frequency !== "daily") continue;
+        const enabled = notifications.filter((notification) => preferences.enabledTypes[notification.type]);
+        if (!enabled.length) continue;
+        // A Clerk outage leaves notifications unclaimed and eligible for the next run.
+        const email = await digestRecipientEmail(userId);
+        if (!email) continue;
+        for (let offset = 0; offset < enabled.length; offset += 100) {
+          if (Date.now() >= deadline) break;
+          const batch = enabled.slice(offset, offset + 100);
+          await createDigestBatch({ userId, notifications: batch, payload: {
+            from, to: [email],
+            subject: `${batch.length} aviation.wiki update${batch.length === 1 ? "" : "s"}`,
+            text: batch.map((notification) => `${notification.title}\n${notification.message}\n${absoluteUrl(notification.href)}`).join("\n\n"),
+          } });
+        }
+      } catch { preparationFailures += 1; }
+    }
+  }
   let sent = 0;
-  for (const [userId, notifications] of byUser) {
-    const preferences = getNotificationPreferences(userId);
-    const enabled = notifications.filter(
-      (notification) => preferences.enabledTypes[notification.type],
-    );
-    if (!enabled.length) continue;
-    for (const notification of enabled)
-      queueEmailDelivery(notification.id, userId);
+  const users = new Set<string>();
+  for (const id of await listRecoverableDigestBatchIds()) {
+    if (Date.now() >= deadline) break;
+    // Do not start the provider's retry window while delivery is unconfigured.
+    if (!apiKey) break;
+    const batch = await claimDigestBatch(id);
+    if (!batch) continue;
+    users.add(batch.userId);
     try {
-      const apiKey = process.env.RESEND_API_KEY;
-      const from = process.env.NOTIFICATION_EMAIL_FROM;
-      if (!apiKey || !from) throw new Error("Resend is not configured.");
-      const email = await verifiedPrimaryEmail(userId);
-      if (!email)
-        throw new Error("No verified primary email address is available.");
+      const email = await digestRecipientEmail(batch.userId);
+      if (!email || batch.payload.to.length !== 1 || email !== batch.payload.to[0]) {
+        await finishDigestBatch({ id, leaseToken: batch.leaseToken, status: "held",
+          failureReason: "The verified recipient changed after this batch was prepared. Check the provider before taking further action.",
+        });
+        continue;
+      }
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(10_000),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "Idempotency-Key": `aviation-wiki-digest-${userId}-${new Date().toISOString().slice(0, 10)}`,
+          "Idempotency-Key": `aviation-wiki-digest-${batch.id}`,
         },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject: `${enabled.length} aviation.wiki update${enabled.length === 1 ? "" : "s"}`,
-          text: enabled
-            .map(
-              (notification) =>
-                `${notification.title}\n${notification.message}\n${absoluteUrl(notification.href)}`,
-            )
-            .join("\n\n"),
-        }),
+        body: JSON.stringify(batch.payload),
       });
-      const result = (await response.json().catch(() => ({}))) as {
-        id?: string;
-        message?: string;
-      };
-      if (!response.ok)
-        throw new Error(
-          result.message || `Resend returned ${response.status}.`,
-        );
-      for (const notification of enabled)
-        updateEmailDelivery({
-          notificationId: notification.id,
-          status: "sent",
-          providerMessageId: result.id || null,
-        });
-      sent += enabled.length;
+      const result = (await response.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
+      if (response.status === 409 && result.name === "invalid_idempotent_request") {
+        await finishDigestBatch({ id, leaseToken: batch.leaseToken, status: "held", failureReason: "The provider reported a different payload for this batch identity. Investigate before retrying." });
+        continue;
+      }
+      if (!response.ok || !result.id)
+        throw new Error(result.message || `Resend returned ${response.status} without a delivery confirmation.`);
+      if (await finishDigestBatch({ id, leaseToken: batch.leaseToken, status: "sent", providerMessageId: result.id }))
+        sent += batch.notificationIds.length;
     } catch (error) {
-      for (const notification of enabled)
-        updateEmailDelivery({
-          notificationId: notification.id,
-          status: "failed",
-          failureReason:
-            error instanceof Error ? error.message : "Digest delivery failed.",
-          incrementRetry: true,
-        });
+      await finishDigestBatch({ id, leaseToken: batch.leaseToken, status: "pending",
+        failureReason: error instanceof Error ? error.message : "Digest delivery failed.",
+      });
     }
   }
-  return { users: byUser.size, notifications: sent };
+  return { users: users.size, notifications: sent, preparationFailures };
 }

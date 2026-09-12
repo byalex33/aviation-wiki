@@ -2,7 +2,10 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { unstable_cache } from "next/cache";
+import type { Sql, TransactionSql } from "postgres";
 
+import { canonicalCountry } from "@/lib/countries";
+import { validateInternalArticleLinks } from "@/lib/article-link-policy";
 import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
@@ -10,6 +13,7 @@ import {
   isSafeImageUrl,
   parseArticleImageShorthand,
   parseArticleMarkdown,
+  parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
@@ -355,7 +359,7 @@ export async function updateSourceCheck(input: {
     ON CONFLICT (url) DO UPDATE SET status=EXCLUDED.status,strength=EXCLUDED.strength,note=EXCLUDED.note,checked_by=EXCLUDED.checked_by,checked_at=EXCLUDED.checked_at`;
 }
 
-export async function recordAdminAudit(input: {
+export type AdminAuditInput = {
   actorId: string;
   actorName: string;
   action: string;
@@ -365,11 +369,13 @@ export async function recordAdminAudit(input: {
   revisionId?: string | null;
   before?: unknown;
   after?: unknown;
-}) {
+};
+
+export async function recordAdminAudit(input: AdminAuditInput, database: Sql | TransactionSql = sql) {
   await ready();
-  await sql`INSERT INTO admin_audit_log (id,actor_id,actor_name,action,entity_type,entity_id,article_id,revision_id,before_json,after_json,created_at)
+  await database`INSERT INTO admin_audit_log (id,actor_id,actor_name,action,entity_type,entity_id,article_id,revision_id,before_json,after_json,created_at)
     VALUES (${randomUUID()},${input.actorId},${input.actorName},${input.action},${input.entityType},${input.entityId},${input.articleId ?? null},${input.revisionId ?? null},
-      ${input.before === undefined ? null : sql.json(input.before as never)},${input.after === undefined ? null : sql.json(input.after as never)},${new Date()})`;
+      ${input.before === undefined ? null : database.json(input.before as never)},${input.after === undefined ? null : database.json(input.after as never)},${new Date()})`;
 }
 
 export async function updateArticleAdmin(input: {
@@ -456,8 +462,8 @@ export async function ensureDirectoryAirlineArticle(
   await sql.begin(async (transaction) => {
     if (!existing)
       await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${slug},${airline.name},'airline',NULL,${now},${now}) ON CONFLICT (content_type,slug) DO NOTHING`;
-    const [article] = await transaction`SELECT id,live_revision_id FROM articles WHERE content_type='airline' AND slug=${slug} LIMIT 1 FOR UPDATE`;
-    if (!article || article.live_revision_id) return;
+    const [article] = await transaction`SELECT id,live_revision_id,archived_at,protection_level,is_locked,redirect_to_slug FROM articles WHERE content_type='airline' AND slug=${slug} LIMIT 1 FOR UPDATE`;
+    if (!article || article.live_revision_id || article.archived_at || article.is_locked || article.protection_level !== "open" || article.redirect_to_slug) return;
     await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${String(article.id)},'approved','system','aviation.wiki','Initial import from the OpenFlights airline directory',${airline.name},'airline',${markdown},${transaction.json(fields)},${transaction.json([])},${transaction.json([{ label: "OpenFlights airline database", url: "https://openflights.org/data.php", publisher: "OpenFlights" }])},${transaction.json([])},${slug},NULL,${now},${now},${now},${now},'system','Imported from the public airline directory')`;
     await transaction`UPDATE articles SET live_revision_id=${revisionId},updated_at=${now} WHERE id=${String(article.id)} AND live_revision_id IS NULL`;
   });
@@ -595,11 +601,11 @@ export async function assertArticleEditable(articleId: string, role: WikiRole, r
   if ((ranks[role] ?? 0) < (required[article.protection_level] ?? 0)) throw new UserFacingError("Your role cannot edit this protected article.");
 }
 
-export async function validateRelationships(articleId: string, sourceType: ContentType, relationships: EntityRelationship[], citationIdentifiers: Set<string>) {
+export async function validateRelationships(articleId: string, sourceType: ContentType, relationships: EntityRelationship[], citationIdentifiers: Set<string>, database: Sql | TransactionSql = sql) {
   if (!relationships.length) return;
   await ready();
   const targetIds = [...new Set(relationships.map((relationship) => relationship.targetArticleId))];
-  const values = await sql`SELECT a.id,a.content_type,a.archived_at,r.status FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id WHERE a.id IN ${sql(targetIds)}` as unknown as Array<{id:string;content_type:ContentType;archived_at:Date|string|null;status:RevisionStatus|null}>;
+  const values = await database`SELECT a.id,a.content_type,a.archived_at,r.status FROM articles a LEFT JOIN revisions r ON r.id=a.live_revision_id WHERE a.id IN ${database(targetIds)}` as unknown as Array<{id:string;content_type:ContentType;archived_at:Date|string|null;status:RevisionStatus|null}>;
   const targets = new Map(values.map((value) => [value.id, value]));
   const seen = new Set<string>();
   for (const relationship of relationships) {
@@ -629,19 +635,52 @@ export async function createOrGetArticle(slug: string, title: string, contentTyp
   return article;
 }
 
-export async function saveDraft(input: { revisionId?: string; articleId: string; proposedSlug: string; contributorId: string; contributorName: string; editSummary: string; content: RevisionContent; parentRevisionId: string | null }) {
+/** Only the caller that inserts the article receives it; concurrent callers get null. */
+export async function createArticleIfAbsent(slug: string, title: string, contentType: ContentType) {
+  await ready();
+  const id = randomUUID();
+  const now = new Date();
+  return sql.begin(async (transaction) => {
+    const reserved = await transaction`SELECT 1 FROM article_slug_redirects WHERE content_type=${contentType} AND old_slug=${slug} LIMIT 1`;
+    if (reserved.length) return null;
+    const inserted = await transaction<ArticleRow[]>`
+      INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at)
+      VALUES (${id},${slug},${title},${contentType},NULL,${now},${now})
+      ON CONFLICT (content_type,slug) DO NOTHING RETURNING *`;
+    return inserted[0] ? mapArticle(inserted[0]) : null;
+  });
+}
+
+export async function saveDraft(input: { revisionId?: string; articleId: string; proposedSlug: string; contributorId: string; contributorName: string; editSummary: string; content: RevisionContent; parentRevisionId: string | null; reconcile?: { expectedUpdatedAt: string; liveRevisionId: string | null } }) {
   await ready();
   const id = input.revisionId || randomUUID();
   const now = new Date();
   await sql.begin(async (transaction) => {
     if (input.revisionId) {
-      const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [input.revisionId]) as unknown as RevisionRow[];
+      const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE OF r`, [input.revisionId]) as unknown as RevisionRow[];
       const existing = values[0] ? mapRevision(values[0]) : null;
-      if (!existing || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new UserFacingError("This revision cannot be edited.");
+      if (!existing || existing.articleId !== input.articleId || existing.contentType !== input.content.contentType || existing.contributorId !== input.contributorId || !["draft", "changes_requested"].includes(existing.status)) throw new UserFacingError("This revision cannot be edited.");
+      if (input.reconcile) {
+        const [article] = await transaction`SELECT live_revision_id FROM articles WHERE id=${input.articleId} FOR UPDATE`;
+        if (existing.updatedAt !== input.reconcile.expectedUpdatedAt || existing.parentRevisionId !== input.parentRevisionId)
+          throw new UserFacingError("The draft changed while you were comparing versions. Reload and reconcile again.");
+        if (!article || article.live_revision_id !== input.reconcile.liveRevisionId)
+          throw new UserFacingError("The live article changed again. Reload and compare the latest version before reconciling.");
+        await transaction`UPDATE revisions SET parent_revision_id=${input.reconcile.liveRevisionId} WHERE id=${id}`;
+        await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at)
+          VALUES (${randomUUID()},${id},${input.contributorId},${existing.status},'draft',${`Contributor reconciled against live revision ${input.reconcile.liveRevisionId ?? "none"}; previous base ${existing.parentRevisionId ?? "none"}.`},${now})`;
+      }
       await transaction`UPDATE revisions SET status='draft',contributor_name=${input.contributorName},edit_summary=${input.editSummary},title=${input.content.title},content_type=${input.content.contentType},markdown=${input.content.markdown},fields_json=${transaction.json(input.content.fields)},sections_json=${transaction.json(input.content.sections)},sources_json=${transaction.json(input.content.sources)},relationships_json=${transaction.json(input.content.relationships)},proposed_slug=${input.proposedSlug},verification_json=NULL,moderator_note=NULL,updated_at=${now} WHERE id=${input.revisionId}`;
       await transaction`DELETE FROM revision_import_field_sources s WHERE s.revision_id=${input.revisionId} AND NOT EXISTS (SELECT 1 FROM jsonb_to_recordset(${transaction.json(input.content.fields)}::jsonb) AS f(key text,value text) WHERE f.key=s.field_key AND f.value=s.field_value)`;
       if (existing.status === "changes_requested") await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${input.revisionId},${input.contributorId},${existing.status},'draft','Contributor resumed the requested changes.',${now})`;
       return;
+    }
+    if (input.reconcile) throw new UserFacingError("Save a draft before reconciling it.");
+    const [article] = await transaction`SELECT content_type FROM articles WHERE id=${input.articleId}`;
+    if (!article || article.content_type !== input.content.contentType) throw new UserFacingError("Article content type does not match the draft.");
+    if (input.parentRevisionId) {
+      const [base] = await transaction`SELECT id FROM revisions WHERE id=${input.parentRevisionId} AND article_id=${input.articleId} AND status='approved'`;
+      if (!base) throw new UserFacingError("The displayed base revision does not belong to this article.");
     }
     await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at) VALUES (${id},${input.articleId},'draft',${input.contributorId},${input.contributorName},${input.editSummary},${input.content.title},${input.content.contentType},${input.content.markdown},${transaction.json(input.content.fields)},${transaction.json(input.content.sections)},${transaction.json(input.content.sources)},${transaction.json(input.content.relationships)},${input.proposedSlug},${input.parentRevisionId},${now},${now})`;
   });
@@ -650,17 +689,23 @@ export async function saveDraft(input: { revisionId?: string; articleId: string;
   return revision;
 }
 
-export async function transitionRevision(id: string, actorId: string, toStatus: RevisionStatus, options: { note?: string | null; verification?: VerificationResult | null; moderator?: boolean } = {}) {
+export async function transitionRevision(id: string, actorId: string, toStatus: RevisionStatus, options: { note?: string | null; verification?: VerificationResult | null; moderator?: boolean; audit?: AdminAuditInput } = {}) {
   const allowedTransitions: Record<RevisionStatus, RevisionStatus[]> = { draft: ["verifying", "pending_review"], verifying: ["pending_review", "changes_requested", "approved", "rejected"], pending_review: ["changes_requested", "approved", "rejected"], changes_requested: ["draft"], approved: [], rejected: [] };
   await ready();
   await sql.begin(async (transaction) => {
-    const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE`, [id]) as unknown as RevisionRow[];
+    const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE OF r`, [id]) as unknown as RevisionRow[];
     const revision = values[0] ? mapRevision(values[0]) : null;
     if (!revision) throw new UserFacingError("Revision not found.");
     if (!allowedTransitions[revision.status].includes(toStatus)) throw new UserFacingError(`Revision cannot move from ${revision.status} to ${toStatus}.`);
+    if (revision.status === "draft" && ["pending_review", "verifying"].includes(toStatus)) {
+      const [article] = await transaction`SELECT live_revision_id FROM articles WHERE id=${revision.articleId} FOR UPDATE`;
+      if (!article || article.live_revision_id !== revision.parentRevisionId)
+        throw new UserFacingError("Your draft was saved, but the live article changed. Reload the editor to compare and reconcile the versions before submitting.");
+    }
     const now = new Date();
     await transaction`UPDATE revisions SET status=${toStatus},verification_json=CASE WHEN ${Boolean(options.verification)} THEN ${options.verification ? transaction.json(options.verification) : null} ELSE verification_json END,moderator_id=CASE WHEN ${Boolean(options.moderator)} THEN ${actorId} ELSE moderator_id END,moderator_note=COALESCE(${options.note ?? null},moderator_note),submitted_at=CASE WHEN ${toStatus} IN ('verifying','pending_review') THEN COALESCE(submitted_at,${now}) ELSE submitted_at END,reviewed_at=CASE WHEN ${toStatus} IN ('approved','rejected','changes_requested') THEN ${now} ELSE reviewed_at END,updated_at=${now} WHERE id=${id}`;
     await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at) VALUES (${randomUUID()},${id},${actorId},${revision.status},${toStatus},${options.note ?? null},${now})`;
+    if (options.audit) await recordAdminAudit(options.audit, transaction);
   });
   const revision = await getRevision(id);
   if (!revision) throw new UserFacingError("Revision not found.");
@@ -683,22 +728,31 @@ export async function moderatorEditRevision(id: string, content: RevisionContent
   return revision;
 }
 
-export async function publishRevision(id: string, moderatorId: string, note?: string | null) {
-  const revision = await getRevision(id);
-  if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("This revision is no longer awaiting review.");
-  const article = await getArticleById(revision.articleId);
-  if (!article) throw new UserFacingError("Article not found.");
-  if (article.liveRevisionId !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Rebase and review it again before approval.");
-  if (revision.contentType !== article.contentType) throw new UserFacingError("An existing article cannot change content type through a revision.");
-  const parsedMarkdown = parseArticleMarkdown(revision.markdown);
-  if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
-  await validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
-  await sql.begin(async (transaction) => {
-    const [currentRevision] = await transaction`SELECT status FROM revisions WHERE id=${id} FOR UPDATE`;
-    const [currentArticle] = await transaction`SELECT slug,live_revision_id,archived_at FROM articles WHERE id=${revision.articleId} FOR UPDATE`;
-    if (!currentRevision || !["pending_review", "verifying"].includes(String(currentRevision.status))) throw new UserFacingError("This revision is no longer awaiting review.");
+export async function publishRevision(id: string, moderatorId: string, note?: string | null, audit?: AdminAuditInput) {
+  await ready();
+  const revision = await sql.begin(async (transaction) => {
+    // Lock the content itself before validation. A moderator edit must either
+    // finish first and be validated here, or wait until publication completes.
+    const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE OF r`, [id]) as unknown as RevisionRow[];
+    const revision = values[0] ? mapRevision(values[0]) : null;
+    if (!revision || !["pending_review", "verifying"].includes(revision.status)) throw new UserFacingError("This revision is no longer awaiting review.");
+    const [currentArticle] = await transaction`SELECT slug,content_type,live_revision_id,archived_at FROM articles WHERE id=${revision.articleId} FOR UPDATE`;
     if (!currentArticle || currentArticle.archived_at) throw new UserFacingError("Archived articles cannot be published.");
-    if (currentArticle.live_revision_id !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Rebase and review it again before approval.");
+    if (currentArticle.live_revision_id !== revision.parentRevisionId) throw new UserFacingError("The live article changed after this revision was created. Reconcile it in the editor and submit it for review again before approval.");
+    if (revision.contentType !== currentArticle.content_type) throw new UserFacingError("An existing article cannot change content type through a revision.");
+    const parsedMarkdown = parseArticleMarkdown(revision.markdown);
+    if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    const published = await transaction`SELECT a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL`;
+    const availablePaths = published.map((article) => articlePath(article.content_type as ContentType, String(article.slug)));
+    availablePaths.push(articlePath(revision.contentType, revision.proposedSlug));
+    const linkErrors = validateInternalArticleLinks(parsedMarkdown.root, availablePaths);
+    for (const field of revision.fields) {
+      const parsedField = parseStructuredFieldMarkdown(field.value);
+      if (parsedField.errors.length) throw new UserFacingError(`Structured field "${field.key}" contains invalid or unsafe Markdown.`);
+      linkErrors.push(...validateInternalArticleLinks(parsedField.root, availablePaths));
+    }
+    if (linkErrors.length) throw new UserFacingError(linkErrors[0].message);
+    await validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)), transaction);
     const [collision] = await transaction`SELECT id FROM articles WHERE content_type=${revision.contentType} AND slug=${revision.proposedSlug} AND id!=${revision.articleId}`;
     if (collision) throw new UserFacingError("That slug is already used by another article of this type.");
     const [aliasCollision] = await transaction`SELECT article_id FROM article_slug_redirects WHERE content_type=${revision.contentType} AND old_slug=${revision.proposedSlug} AND article_id!=${revision.articleId}`;
@@ -706,7 +760,7 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     const now = new Date();
     await transaction`UPDATE revisions SET status='approved',moderator_id=${moderatorId},moderator_note=COALESCE(${note ?? null},moderator_note),reviewed_at=${now},updated_at=${now} WHERE id=${id}`;
     await transaction`INSERT INTO revision_events (id,revision_id,actor_id,from_status,to_status,note,created_at)
-      VALUES (${randomUUID()},${id},${moderatorId},${String(currentRevision.status)},'approved',${note ?? null},${now})`;
+      VALUES (${randomUUID()},${id},${moderatorId},${revision.status},'approved',${note ?? null},${now})`;
     if (revision.proposedSlug !== currentArticle.slug)
       await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
         VALUES (${revision.contentType},${String(currentArticle.slug)},${revision.articleId},${now})
@@ -717,6 +771,8 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     for (const relationship of revision.relationships)
       await transaction`INSERT INTO article_relationships (source_article_id,target_article_id,relationship_type,approved_revision_id,created_at)
         VALUES (${revision.articleId},${relationship.targetArticleId},${relationship.type},${id},${now})`;
+    if (audit) await recordAdminAudit(audit, transaction);
+    return revision;
   });
   const publishedArticle = (await getArticleById(revision.articleId))!;
   await submitIndexNow([
@@ -928,7 +984,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   return documents.map((item) => {
     const fields = json<Array<{key?:string;value?:string}>>(item.fields_json,[]);
     const searchable = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
-    const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => part.trim()).filter(Boolean)))];
+    const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => canonicalCountry(part)).filter(Boolean)))];
     const terms: SearchDocument["terms"] = [{value:item.title,kind:"title"}];
     for (const value of titles.get(item.id) || []) if (value !== item.title) terms.push({value,kind:"alias",label:"Previous title"});
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
@@ -952,6 +1008,7 @@ export type PublicEventSourceArticle = {
   title: string;
   slug: string;
   fields: RevisionRecord["fields"];
+  sources: RevisionRecord["sources"];
   updatedAt: string;
 };
 
@@ -962,8 +1019,9 @@ async function loadPublicEventSourceData(): Promise<PublicEventSourceArticle[]> 
     title: string;
     slug: string;
     fields_json: unknown;
+    sources_json: unknown;
     updated_at: Date | string;
-  }>(`SELECT a.id,r.title,a.slug,r.fields_json,COALESCE(r.reviewed_at,r.updated_at) updated_at
+  }>(`SELECT a.id,r.title,a.slug,r.fields_json,r.sources_json,COALESCE(r.reviewed_at,r.updated_at) updated_at
       FROM articles a JOIN revisions r ON r.id=a.live_revision_id
       WHERE a.content_type='event' AND r.status='approved'
         AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
@@ -973,13 +1031,14 @@ async function loadPublicEventSourceData(): Promise<PublicEventSourceArticle[]> 
     title: value.title,
     slug: value.slug,
     fields: json(value.fields_json, []),
+    sources: json(value.sources_json, []),
     updatedAt: iso(value.updated_at),
   }));
 }
 
 export const listPublicEventSourceData = unstable_cache(
   loadPublicEventSourceData,
-  ["public-event-source-data"],
+  ["public-event-source-data-v2"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 

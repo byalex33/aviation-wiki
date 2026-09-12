@@ -5,7 +5,7 @@ import { BookOpen, KeyRound, ShieldCheck, Zap } from "lucide-react";
 export const metadata: Metadata = {
   title: "API Documentation",
   alternates: { canonical: "/api-docs" },
-  description: "aviation.wiki external API reference for creating article drafts programmatically.",
+  description: "aviation.wiki public aviation history API and authenticated article draft API reference.",
 };
 
 function CodeBlock({ children }: { children: string }) {
@@ -54,16 +54,31 @@ export default function ApiDocsPage() {
           API Documentation
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-          The aviation.wiki API lets authorised external tools create article drafts on your
-          behalf. All drafts go through the standard contributor review workflow.
+          Read aviation anniversaries without an API key, or create article drafts with an authenticated account. Drafts go through the contributor review workflow.
         </p>
       </header>
+
+      <section id="on-this-day" className="mt-12 scroll-mt-8">
+        <h2 className="text-2xl font-bold">On this day in aviation</h2>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">GET /api/v1/on-this-day is public and requires no account or API key. Browser requests from other websites are supported. It returns the same published events shown on <Link href="/on-this-day" className="article-link">On This Day</Link>, ordered by year.</p>
+        <div className="mt-4"><CodeBlock>{`curl "https://www.aviation.wiki/api/v1/on-this-day?date=12-17"`}</CodeBlock></div>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Omit date for today in UTC, or supply MM-DD. February 29 is valid in any year. Invalid dates and repeated date parameters return HTTP 400. Dates without published events return HTTP 200 with an empty events array. Temporary data failures return HTTP 503.</p>
+        <div className="mt-4"><CodeBlock>{`{
+  "date": "12-17",
+  "timezone": "UTC",
+  "count": 0,
+  "events": []
+}`}</CodeBlock></div>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Each event contains id, year, date in YYYY-MM-DD format, title, summary, an absolute article url, and sources. Each source includes a url and may include title, publisher, citation identifier and access date. Sources belong to the full article. The calendar is a growing collection, so some days have no entries. Please cache results in your app and link readers back to the article and its sources.</p>
+        <h3 className="mt-6 font-semibold">Adding history articles</h3>
+        <p className="mt-2 text-sm leading-7 text-muted-foreground">Create an event article with an exact Event date field, a short introduction and citations. After approval it joins the page and API automatically. Find candidate events in the <a href="https://en.wikipedia.org/wiki/Portal:Aviation/Anniversaries" className="article-link">Wikipedia aviation anniversary calendar</a>, check their dates and remove duplicates. Retain attribution and the applicable CC BY-SA license when adapting Wikipedia text. Write original summaries using primary sources such as <a href="https://www.nasa.gov/history/" className="article-link">NASA History</a>, the <a href="https://airandspace.si.edu/" className="article-link">Smithsonian National Air and Space Museum</a> and <a href="https://www.airbus.com/en/about-us/our-history" className="article-link">Airbus history</a>. Source links do not grant permission to republish third-party text or photographs.</p>
+      </section>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-3">
         {[
           { icon: ShieldCheck, label: "Authenticated", text: "Bearer token per user account" },
           { icon: BookOpen, label: "Draft-only", text: "Never bypasses editorial review" },
-          { icon: Zap, label: "Rate limited", text: "10 requests per minute per key" },
+          { icon: Zap, label: "Rate limited", text: "10 requests per minute per account, shared across keys" },
         ].map(({ icon: Icon, label, text }) => (
           <div key={label} className="rounded-xl border bg-card p-5">
             <Icon className="size-5 text-primary" />
@@ -76,7 +91,7 @@ export default function ApiDocsPage() {
       <section className="mt-12">
         <h2 className="text-2xl font-bold tracking-tight">Authentication</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          All API requests require an API key attached to your aviation.wiki account. Generate
+          Article draft requests require an API key attached to your aviation.wiki account. Generate
           one in{" "}
           <Link href="/settings/api-keys" className="text-primary underline underline-offset-4 hover:no-underline">
             Settings → API Keys
@@ -166,7 +181,7 @@ export default function ApiDocsPage() {
             ["400", "Validation error — see the error field for details"],
             ["409", "Slug conflict with a different content type"],
             ["422", "Business logic error (e.g. article is locked)"],
-            ["429", "Rate limit exceeded — up to 10 drafts per minute"],
+            ["429", "Rate limit exceeded — up to 10 drafts per minute per account"],
             ["500", "Unexpected server error"],
           ].map(([code, message]) => (
             <div key={code} className="flex items-start gap-4 px-4 py-3">

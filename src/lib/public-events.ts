@@ -38,6 +38,7 @@ export async function loadDatedAviationEvents() {
         ...parsed,
         location: fieldValue(source.fields, "Location", "Place"),
         eventType: fieldValue(source.fields, "Event type", "Type"),
+        sources: source.sources,
       }];
     }),
   );

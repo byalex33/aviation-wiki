@@ -3,7 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import {
-  MissingArticleState,
   PublicArticle,
 } from "@/components/public-article";
 import { getAircraftArticleTitles } from "@/lib/article-markdown";
@@ -53,7 +52,7 @@ export async function PublicArticleRoute({
     if (destination) permanentRedirect(articlePath(contentType, destination));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
-    return <MissingArticleState slug={slug} contentType={contentType} />;
+    notFound();
   const structuredData = !aviationDataEnabled
     ? undefined
     : contentType === "airline" && slug === "british-airways"
@@ -83,6 +82,7 @@ export async function PublicArticleRoute({
       watching={watching}
       signedIn={Boolean(session.userId)}
       articleLinks={articleLinks}
+      availableArticlePaths={entities.map((entity) => articlePath(entity.contentType, entity.slug))}
       structuredData={structuredData}
     />
   );

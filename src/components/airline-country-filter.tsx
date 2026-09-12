@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type AirlineCountryFilterProps = {
   countries: string[];
@@ -9,6 +9,7 @@ type AirlineCountryFilterProps = {
 
 export function AirlineCountryFilter({ countries, value }: AirlineCountryFilterProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   function updateCountry(country: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -19,7 +20,7 @@ export function AirlineCountryFilter({ countries, value }: AirlineCountryFilterP
       params.set("country", country);
     }
 
-    window.history.pushState(null, "", `?${params.toString()}`);
+    router.push(`/commercial?${params.toString()}`, { scroll: false });
   }
 
   return (
