@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 
 import { AccountMenu } from "@/components/account-menu";
 import { HeaderSearch } from "@/components/header-search";
+import { OpenSourceAlert } from "@/components/open-source-alert";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
@@ -303,6 +304,7 @@ export default async function RootLayout({
           <Analytics />
           <SpeedInsights />
           <Toaster position="bottom-right" richColors />
+          <OpenSourceAlert />
         </ClerkProvider>
       </body>
     </html>
