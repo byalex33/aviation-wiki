@@ -122,6 +122,7 @@ export default async function RootLayout({
         />
         <ClerkProvider
           appearance={{ theme: clerkShadcnAppearance }}
+          signUpForceRedirectUrl="/?welcome=signup"
         >
           <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-background focus:p-3">Skip to main content</a>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">

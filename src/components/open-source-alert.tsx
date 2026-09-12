@@ -1,35 +1,40 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { Star, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 // Adapted from OpenSourceUI SystemAlertBanner (MIT); see THIRD_PARTY_NOTICES.md.
 export function OpenSourceAlert() {
-  const { isLoaded, isSignedIn, sessionId } = useAuth();
-  const dismissedSession = useRef<string | null>(null);
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  const clerk = useClerk();
+  const claim = useRef<{ userId: string; result: Promise<boolean> } | null>(null);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !sessionId) return;
-    const storageKey = "aviation-open-source-alert-dismissed";
-    try {
-      dismissedSession.current = sessionStorage.getItem(storageKey);
-    } catch {
-      // Keep dismissal in memory when browser storage is unavailable.
+    if (!isLoaded || !isSignedIn || !userId || !clerk.user) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("welcome") !== "signup") return;
+    let active = true;
+
+    if (claim.current?.userId !== userId) {
+      const user = clerk.user;
+      claim.current = {
+        userId,
+        result: user.unsafeMetadata.openSourceWelcomeShown
+          ? Promise.resolve(false)
+          : user.updateMetadata({ unsafeMetadata: { openSourceWelcomeShown: true } }).then(() => true),
+      };
     }
-    if (dismissedSession.current === sessionId) return;
 
-    const dismiss = () => {
-      dismissedSession.current = sessionId;
-      try {
-        sessionStorage.setItem(storageKey, sessionId);
-      } catch {
-        // The in-memory dismissal still lasts until this page is reloaded.
-      }
-      toast.dismiss("open-source-welcome");
-    };
-
+    const dismiss = () => { toast.dismiss("open-source-welcome"); };
+    void claim.current.result.then((show) => {
+      if (!active) return;
+      // Consume the signup marker without changing the user's route or hash.
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete("welcome");
+      window.history.replaceState(window.history.state, "", currentUrl);
+      if (!show) return;
     toast.custom(() => (
       <div className="relative w-full overflow-hidden rounded-[1.25rem] border bg-card/95 text-card-foreground shadow-[0_8px_32px_-4px_rgba(0,0,0,0.10)] backdrop-blur-xl">
         <button type="button" onClick={dismiss} aria-label="Dismiss open-source welcome" className="absolute right-1 top-1 grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
@@ -50,8 +55,15 @@ export function OpenSourceAlert() {
       </div>
     ), { id: "open-source-welcome", duration: Infinity, className: "w-full", onDismiss: dismiss });
 
-    return () => { toast.dismiss("open-source-welcome"); };
-  }, [isLoaded, isSignedIn, sessionId]);
+    }).catch(() => {
+      if (active) {
+        claim.current = null;
+        console.warn("Could not save the signup welcome preference.");
+      }
+    });
+
+    return () => { active = false; dismiss(); };
+  }, [isLoaded, isSignedIn, userId, clerk]);
 
   return null;
 }

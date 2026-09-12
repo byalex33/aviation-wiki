@@ -7,7 +7,7 @@ placards adapt the following components from [OpenSourceUI](https://opensourceui
 - [DepthOutlineButton](https://github.com/bidyut10/opensourceui/blob/main/components/buttons/depth-outline-button.tsx)
 - [MuseumPlacardCard](https://github.com/bidyut10/opensourceui/blob/main/components/gallery/museum-placard-card.tsx)
 - [AnnotatedText](https://github.com/bidyut10/opensourceui/blob/main/components/underlines/annotated-text.tsx) — arrow underline on the homepage headline, with unique filter IDs and inherited typography.
-- [SystemAlertBanner](https://github.com/bidyut10/opensourceui/blob/main/components/notifications/system-alert-banner.tsx) — signed-in open-source welcome, displayed through Sonner with a GitHub link and per-session dismissal.
+- [SystemAlertBanner](https://github.com/bidyut10/opensourceui/blob/main/components/notifications/system-alert-banner.tsx) — signup-only open-source welcome, displayed through Sonner with a GitHub link and an account-level shown flag.
 
 The adaptations use aviation.wiki theme tokens, native search controls, and
 article navigation in place of the original card's flip interaction.
