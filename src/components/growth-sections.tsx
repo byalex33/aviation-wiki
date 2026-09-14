@@ -34,20 +34,9 @@ export function FeaturedArticles({
   return (
     <section
       className="render-deferred mb-14"
-      aria-labelledby="featured-articles-heading"
+      aria-label="Featured articles"
     >
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-            Popular starting points
-          </p>
-          <h2
-            id="featured-articles-heading"
-            className="mt-1 text-2xl font-bold tracking-tight"
-          >
-            Explore reader favourites
-          </h2>
-        </div>
+      <div className="mb-5 flex justify-end">
         <Link
           href="/search?q=*"
           className="article-link flex min-h-10 shrink-0 items-center gap-1 text-sm font-medium"
@@ -111,21 +100,11 @@ export function ContributionMissions({
   return (
     <section
       className={compact ? "render-deferred mb-4" : ""}
-      aria-labelledby={compact ? "home-missions-heading" : "missions-heading"}
+      aria-label={compact ? "Contribution missions" : undefined}
+      aria-labelledby={compact ? undefined : "missions-heading"}
     >
       {compact ? (
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-              Build with us
-            </p>
-            <h2
-              id="home-missions-heading"
-              className="mt-1 text-2xl font-bold tracking-tight"
-            >
-              Help build aviation.wiki
-            </h2>
-          </div>
+        <div className="mb-5 flex justify-end">
           <Link
             href="/contribute"
             className="article-link flex min-h-10 items-center gap-1 text-sm font-semibold"
