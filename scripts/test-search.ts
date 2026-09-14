@@ -27,3 +27,15 @@ assert.equal(aviationCategoryFor(documents[2]), "news");
 assert.equal(provider.search({ query: "Miracle on the Hudson" }).hits[0]?.id, "event");
 
 console.log("Search ranking tests passed");
+
+const flaggedProvider = new InMemorySearchProvider([
+  documents[0],
+  { ...documents[0], id: "flagged", countries: ["f![gb] United Kingdom"] },
+  { ...documents[0], id: "emoji", countries: ["🇬🇧 United Kingdom"] },
+]);
+for (const query of ["", "British"]) {
+  assert.deepEqual(flaggedProvider.search({ query }).countries, ["United Kingdom"]);
+}
+for (const country of ["United Kingdom", "f![gb] United Kingdom", "🇬🇧 United Kingdom"]) {
+  assert.equal(flaggedProvider.search({ query: "British", country }).total, 3);
+}

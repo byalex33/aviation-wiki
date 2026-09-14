@@ -13,6 +13,7 @@ export type SearchDocument = {
   imageUrl?: string;
   imageUrls?: string[];
   imageCredit?: string;
+  fields?: Array<{ key: string; value: string }>;
   countries: string[];
   terms: Array<{ value: string; kind: SearchTermKind; label?: string }>;
 };
