@@ -1,4 +1,4 @@
-import { airlineDirectoryGroups as groups, airlineDirectory as identities, directoryArticleName } from "@/lib/airline-directory";
+import { buildAirlineDirectory } from "@/lib/airline-directory";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { AirlineCountryFilter } from "@/components/airline-country-filter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOpenFlightsAirlines } from "@/lib/openflights";
-import { normalizeSlug } from "@/lib/wiki-public-db";
+import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
   title: "Commercial airlines",
@@ -26,20 +26,19 @@ type CommercialPageProps = {
 export default async function CommercialAirlinesPage({ searchParams }: CommercialPageProps) {
   const { userId } = await auth();
   const query = await searchParams;
-  const openFlightsAirlines = await getOpenFlightsAirlines(identities);
+  const groups = buildAirlineDirectory(await listPublicSearchDocuments());
+  const openFlightsAirlines = await getOpenFlightsAirlines(groups.flatMap((group) => group.airlines).filter((airline) => /^[A-Z0-9]{2}$/.test(airline.iata)));
   const statusFilter = query.status === "active" || query.status === "historic" ? query.status : "all";
   const sortOrder = query.sort === "desc" ? "desc" : "asc";
-  const countryOptions = [...new Set(groups.flatMap((group) => group.airlines.map((airline) => openFlightsAirlines.get(airline.iata)?.country || airline.country)))].toSorted((a, b) => a.localeCompare(b));
+  const countryOptions = [...new Set(groups.flatMap((group) => group.airlines.map((airline) => airline.country)))].toSorted((a, b) => a.localeCompare(b));
   const countryFilter = typeof query.country === "string" && countryOptions.includes(query.country) ? query.country : "all";
   const displayGroups = groups
     .map((group) => ({
       ...group,
       airlines: group.airlines
         .filter((airline) => {
-          const openFlights = openFlightsAirlines.get(airline.iata);
-          const isActive = airline.status === "Active";
-          const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);
-          const country = openFlights?.country || airline.country;
+          const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? airline.isActive : airline.isHistoric);
+          const country = airline.country;
           return matchesStatus && (countryFilter === "all" || country === countryFilter);
         })
         .toSorted((a, b) => {
@@ -111,31 +110,34 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
             <div className="mb-4 flex items-end gap-4 border-b pb-3"><h2 className="font-mono text-4xl font-semibold text-primary">{group.letter}</h2><span className="mb-1 text-sm text-muted-foreground">{group.airlines.length} {group.airlines.length === 1 ? "airline" : "airlines"}</span></div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.airlines.map((airline) => {
-                const openFlights = openFlightsAirlines.get(airline.iata);
+                const candidate = openFlightsAirlines.get(airline.iata);
+                const openFlights = candidate && (airline.icao
+                  ? candidate.icao === airline.icao
+                  : candidate.name.toLowerCase() === airline.name.toLowerCase()) ? candidate : undefined;
                 const name = airline.name;
                 const status = airline.status;
 
                 return (
                 <Link
-                  key={airline.name}
-                  href={`/commercial/${normalizeSlug(directoryArticleName(name))}?iata=${encodeURIComponent(airline.iata)}&icao=${encodeURIComponent(airline.icao)}`}
+                  key={airline.href}
+                  href={airline.href}
                   className="group block"
                   aria-label={`View ${name}`}
                 >
                   <Card className="h-full gap-0 overflow-hidden py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
                     <div className="flex h-28 items-center justify-center border-b bg-white p-5">
-                      <Image src={`https://images.kiwi.com/airlines/64/${airline.iata}.png`} alt={`${name} logo`} width={64} height={64} unoptimized className="max-h-16 w-auto object-contain transition-transform group-hover:scale-105" />
+                      {/^[A-Z0-9]{2}$/.test(airline.iata) ? <Image src={`https://images.kiwi.com/airlines/64/${airline.iata}.png`} alt={`${name} logo`} width={64} height={64} unoptimized className="max-h-16 w-auto object-contain transition-transform group-hover:scale-105" /> : <span className="text-sm text-muted-foreground">{name}</span>}
                     </div>
                     <CardContent className="p-5">
                       <h3 className="text-xl font-semibold tracking-tight transition-colors group-hover:text-primary">{name}</h3>
                       <Badge variant="secondary" className="mt-3 rounded-full font-normal">
-                        <Image src={`https://flagcdn.com/w40/${airline.countryCode}.png`} alt="" width={20} height={15} unoptimized className="h-3.5 w-5 rounded-[2px] object-cover shadow-[0_0_0_1px_rgb(0_0_0/0.08)]" />
-                        {openFlights?.country || airline.country}
+                        {airline.countryCode && <Image src={`https://flagcdn.com/w40/${airline.countryCode}.png`} alt="" width={20} height={15} unoptimized className="h-3.5 w-5 rounded-[2px] object-cover shadow-[0_0_0_1px_rgb(0_0_0/0.08)]" />}
+                        {airline.country}
                       </Badge>
                       <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4 text-sm">
-                        <div><dt className="field-label">IATA / ICAO</dt><dd className="mt-1 font-mono font-medium">{airline.iata} / {openFlights?.icao || airline.icao}</dd></div>
-                        <div><dt className="field-label">Status</dt><dd className="mt-1"><Badge variant="outline" className={status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}>{status}</Badge></dd></div>
-                        <div><dt className="field-label">Callsign</dt><dd className="mt-1 font-mono text-xs font-medium">{openFlights?.callsign || airline.callsign}</dd></div>
+                        <div><dt className="field-label">IATA / ICAO</dt><dd className="mt-1 font-mono font-medium">{airline.iata || "Unknown"} / {airline.icao || openFlights?.icao || "Unknown"}</dd></div>
+                        <div><dt className="field-label">Status</dt><dd className="mt-1"><Badge variant="outline" className={airline.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}>{status}</Badge></dd></div>
+                        <div><dt className="field-label">Callsign</dt><dd className="mt-1 font-mono text-xs font-medium">{airline.callsign !== "Unknown" ? airline.callsign : openFlights?.callsign || "Unknown"}</dd></div>
                         <div><dt className="field-label">{openFlights?.alias ? "Alias" : "Main hub"}</dt><dd className="mt-1 font-medium leading-5">{openFlights?.alias || airline.hub}</dd></div>
                       </dl>
                     </CardContent>

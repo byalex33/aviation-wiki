@@ -1,3 +1,6 @@
+import { canonicalCountry } from "./countries";
+import type { SearchDocument } from "./search-types";
+
 export const airlineDirectoryGroups = [
   { letter: "A", airlines: [
     { name: "Aegean Airlines", iata: "A3", icao: "AEE", callsign: "AEGEAN", status: "Active", hub: "Athens", countryCode: "gr", country: "Greece" },
@@ -81,4 +84,35 @@ export function directoryArticleName(name: string) {
     SWISS: "Swiss International Air Lines",
   };
   return names[name] || name;
+}
+
+
+/** The approved catalogue controls membership and URLs; curated data fills missing details. */
+export function buildAirlineDirectory(documents: SearchDocument[]) {
+  const airlines = documents.filter((document) => document.contentType === "airline").map((document) => {
+    const fallback = airlineDirectory.find((airline) =>
+      directoryArticleName(airline.name).toLowerCase() === document.title.toLowerCase() ||
+      directoryArticleName(airline.name).toLowerCase().replace(/[^a-z0-9]+/g, "-") === document.slug);
+    const field = (pattern: RegExp) => document.fields?.find((item) => pattern.test(item.key))?.value ||
+      document.terms.find((term) => term.label && pattern.test(term.label))?.value;
+    const rawCountry = field(/^country$/i) || document.countries[0] || fallback?.country || "";
+    const country = canonicalCountry(rawCountry);
+    const status = field(/^(operating )?status$/i) || fallback?.status || "Unknown";
+    return {
+      name: document.title,
+      href: document.href,
+      iata: field(/^iata( code)?$/i)?.trim() || fallback?.iata || "",
+      icao: field(/^icao( code)?$/i)?.trim() || fallback?.icao || "",
+      callsign: field(/^call ?sign$/i) || fallback?.callsign || "Unknown",
+      status,
+      isActive: /^(active|operating|in operation)$/i.test(status),
+      isHistoric: /^(ceased|defunct|inactive|historic|closed)(\b|$)/i.test(status),
+      hub: field(/^(main )?hubs?$/i) || fallback?.hub || "Unknown",
+      country: country || "Unknown",
+      countryCode: rawCountry.match(/f!\[([a-z]{2})\]/i)?.[1]?.toLowerCase() ||
+        (country === fallback?.country ? fallback.countryCode : ""),
+    };
+  });
+  const letters = [...new Set(airlines.map((airline) => airline.name[0].toUpperCase()))].sort();
+  return letters.map((letter) => ({ letter, airlines: airlines.filter((airline) => airline.name[0].toUpperCase() === letter) }));
 }

@@ -990,7 +990,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const value of aliases.get(item.id) || []) terms.push({value,kind:"alias",label:"Previous title or slug"});
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
     const images = sidebarImages(item.markdown);
-    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,countries,terms};
+    return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,fields:fields.filter((field): field is {key:string;value:string} => Boolean(field.key && field.value)),countries,terms};
   });
 }
 
@@ -999,7 +999,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
 // repeatedly transfer the entire published corpus from Postgres.
 export const listPublicSearchDocuments = unstable_cache(
   loadPublicSearchDocuments,
-  ["public-search-documents"],
+  ["public-search-documents-v2"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 
