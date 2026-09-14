@@ -38,7 +38,7 @@ DATABASE_POOL_SIZE=1
 
 The first database-backed request in development creates the schema and seeds the
 built-in article, so the database role needs schema-creation permission for
-initial setup. See [README.md](README.md#environment-variables) for the full list
+initial setup. See [development guide](documentation/development.md#environment-variables) for the full list
 of environment variables and [DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for
 production database procedures.
 
