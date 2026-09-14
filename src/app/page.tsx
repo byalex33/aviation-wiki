@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AnnotatedText } from "@/components/ui/annotated-text";
+import { MotionReveal, SpringSearchButton } from "@/components/ui/home-motion";
 import styles from "./home.module.css";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -123,7 +124,9 @@ export default async function Home() {
         <Badge variant="outline" className="mb-5 h-7 rounded-full bg-card px-3 font-medium text-muted-foreground">
           <span className="mr-1 size-1.5 rounded-full bg-primary" />{documents.length} approved {documents.length === 1 ? "article" : "articles"}
         </Badge>
-        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">The free encyclopedia of everything <AnnotatedText>that flies</AnnotatedText></h1>
+        <MotionReveal>
+          <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">The free encyclopedia of everything <AnnotatedText>that flies</AnnotatedText></h1>
+        </MotionReveal>
         {/* Adapted from OpenSourceUI SearchInput and DepthOutlineButton; see THIRD_PARTY_NOTICES.md. */}
         <form className="mx-auto mt-8 max-w-[600px]" action="/search" role="search">
           <div className="flex items-center gap-2 rounded-2xl border bg-card p-2 shadow-sm transition-colors focus-within:border-primary">
@@ -131,7 +134,7 @@ export default async function Home() {
               <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
               <Input type="search" name="q" className="h-12 rounded-lg border-0 bg-transparent pl-10 pr-2 text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent" placeholder="Search aviation…" aria-label="Search aviation.wiki" aria-describedby="home-search-hint" />
             </div>
-            <button type="submit" className={cn(buttonVariants({ variant: "outline", size: "lg" }), styles.depthButton, "h-12 rounded-xl px-5")}>Search</button>
+            <SpringSearchButton className={cn(buttonVariants({ variant: "outline", size: "lg" }), styles.depthButton, "h-12 rounded-xl px-5")} />
           </div>
           <p id="home-search-hint" className="mt-3 text-xs text-muted-foreground">Find aircraft, airports, airlines, codes, and registrations.</p>
         </form>
@@ -149,36 +152,38 @@ export default async function Home() {
           </Link>
       </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {categories.map((category) => {
+          {categories.map((category, index) => {
             const Icon = category.icon;
             const count = categoryCounts[category.id];
             return (
-              <Link key={category.name} href={category.href} className="group block rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                <Card className={`relative min-h-[240px] h-full gap-0 overflow-hidden border bg-gradient-to-br py-0 shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-xl ${category.cardClass}`}>
-                  <span className="pointer-events-none absolute -right-3 -top-7 font-mono text-[92px] font-black tracking-[-0.12em] text-foreground/[0.035]" aria-hidden="true">{category.glyph}</span>
-                  <CardContent className="relative flex h-full min-h-[240px] flex-col p-6 sm:p-7">
-                    <div className="flex items-start justify-between gap-4">
-                      <span className={`grid size-12 place-items-center rounded-2xl ring-1 ring-inset ring-current/10 ${category.iconClass}`}>
-                        <Icon className="size-5" strokeWidth={1.8} />
-                      </span>
-                      <span className="rounded-full border bg-background/70 px-3 py-1 font-mono text-[11px] text-muted-foreground backdrop-blur-sm">
-                        {count.toLocaleString()} {count === 1 ? "article" : "articles"}
-                      </span>
-                    </div>
-                    <div className="mt-7">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{category.label}</p>
-                      <h3 className="mt-1 text-2xl font-bold tracking-tight">{category.name}</h3>
-                      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{category.description}</p>
-                    </div>
-                    <div className="mt-auto flex items-center justify-between pt-6 text-sm font-semibold">
-                      <span>Browse collection</span>
-                      <span className="grid size-9 place-items-center rounded-full border bg-background/70 transition duration-300 group-hover:rotate-45 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
-                        <ArrowUpRight className="size-4" />
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <MotionReveal key={category.name} delay={index * 0.06} className="h-full">
+                <Link href={category.href} className="group block h-full rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                  <Card className={`relative min-h-[240px] h-full gap-0 overflow-hidden border bg-gradient-to-br py-0 shadow-sm transition duration-300 motion-safe:group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-xl motion-reduce:transition-none ${category.cardClass}`}>
+                    <span className="pointer-events-none absolute -right-3 -top-7 font-mono text-[92px] font-black tracking-[-0.12em] text-foreground/[0.035]" aria-hidden="true">{category.glyph}</span>
+                    <CardContent className="relative flex h-full min-h-[240px] flex-col p-6 sm:p-7">
+                      <div className="flex items-start justify-between gap-4">
+                        <span className={`grid size-12 place-items-center rounded-2xl ring-1 ring-inset ring-current/10 ${category.iconClass}`}>
+                          <Icon className="size-5" strokeWidth={1.8} />
+                        </span>
+                        <span className="rounded-full border bg-background/70 px-3 py-1 font-mono text-[11px] text-muted-foreground backdrop-blur-sm">
+                          {count.toLocaleString()} {count === 1 ? "article" : "articles"}
+                        </span>
+                      </div>
+                      <div className="mt-7">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{category.label}</p>
+                        <h3 className="mt-1 text-2xl font-bold tracking-tight">{category.name}</h3>
+                        <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{category.description}</p>
+                      </div>
+                      <div className="mt-auto flex items-center justify-between pt-6 text-sm font-semibold">
+                        <span>Browse collection</span>
+                        <span className="grid size-9 place-items-center rounded-full border bg-background/70 transition duration-300 motion-safe:group-hover:rotate-45 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground motion-reduce:transition-none">
+                          <ArrowUpRight className="size-4" />
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </MotionReveal>
             );
           })}
         </div>
