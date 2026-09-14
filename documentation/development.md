@@ -93,7 +93,7 @@ npm audit --omit=dev
 
 `npm test` runs the service-independent parser, rendering, import, notification, relationship, search, fleet, source-health, and seed-content checks. `npm run test:db` separately validates an existing local SQLite database.
 
-Pull requests run these checks and the PostgreSQL integration tests in GitHub Actions. A production build needs configured Clerk and PostgreSQL services, so run it in the deployment environment or locally with `.env.local`.
+Pull requests run `npm audit --omit=dev --audit-level=high`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run test:postgres` in GitHub Actions. A production build needs configured Clerk and PostgreSQL services, so run it in the deployment environment or locally with `.env.local`.
 
 ## Deployment
 
