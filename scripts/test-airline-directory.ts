@@ -35,4 +35,9 @@ assert.equal(unknown.countryCode, "");
 assert.equal(unknown.iata, "");
 assert.deepEqual(buildAirlineDirectory([]), []);
 assert.deepEqual(groups.map((group) => group.letter), ["A", "F", "K", "N"]);
+for (const status of ["Active", "Operating", "In operation"]) {
+  const [group] = buildAirlineDirectory([{ ...ana, fields: [{ key: "Status", value: status }] }]);
+  assert.equal(group.airlines[0].isActive, true, status);
+  assert.equal(group.airlines[0].isHistoric, false, status);
+}
 console.log("Approved airline directory regression tests passed");

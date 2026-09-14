@@ -136,7 +136,7 @@ export default async function CommercialAirlinesPage({ searchParams }: Commercia
                       </Badge>
                       <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4 text-sm">
                         <div><dt className="field-label">IATA / ICAO</dt><dd className="mt-1 font-mono font-medium">{airline.iata || "Unknown"} / {airline.icao || openFlights?.icao || "Unknown"}</dd></div>
-                        <div><dt className="field-label">Status</dt><dd className="mt-1"><Badge variant="outline" className={status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}>{status}</Badge></dd></div>
+                        <div><dt className="field-label">Status</dt><dd className="mt-1"><Badge variant="outline" className={airline.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}>{status}</Badge></dd></div>
                         <div><dt className="field-label">Callsign</dt><dd className="mt-1 font-mono text-xs font-medium">{airline.callsign !== "Unknown" ? airline.callsign : openFlights?.callsign || "Unknown"}</dd></div>
                         <div><dt className="field-label">{openFlights?.alias ? "Alias" : "Main hub"}</dt><dd className="mt-1 font-medium leading-5">{openFlights?.alias || airline.hub}</dd></div>
                       </dl>
