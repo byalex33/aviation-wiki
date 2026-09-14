@@ -31,7 +31,7 @@ export function AccountMenu() {
 
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[100] outline-none">
-          <Menu.Popup className="w-64 origin-[var(--transform-origin)] rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-xl outline-none transition-[transform,scale,opacity] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0">
+          <Menu.Popup className="beui-dropdown w-64 rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-xl outline-none">
             <div className="px-2.5 py-2">
               <p className="truncate text-sm">
                 <RoleUsername name={displayName} role={role} />

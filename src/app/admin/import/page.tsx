@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import Link from "next/link";
 import { DatabaseZap, History, Search } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -36,8 +37,8 @@ export default async function AdminImportPage({ searchParams }: { searchParams: 
     <h2 className="mt-1 text-3xl font-bold">Aviation data import</h2>
     <Card className="mt-7"><CardContent>
       <form className="grid gap-3 md:grid-cols-[180px_190px_1fr_auto]" action="/admin/import">
-        <select name="provider" defaultValue="wikidata" className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Import provider"><option value="wikidata">Wikidata + Commons</option></select>
-        <select name="type" defaultValue={contentType} className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Content type">{contentTypes.map((type) => <option key={type} value={type}>{formatDisplayLabel(type)}</option>)}</select>
+        <MotionSelect name="provider" defaultValue="wikidata" className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Import provider"><option value="wikidata">Wikidata + Commons</option></MotionSelect>
+        <MotionSelect name="type" defaultValue={contentType} className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Content type">{contentTypes.map((type) => <option key={type} value={type}>{formatDisplayLabel(type)}</option>)}</MotionSelect>
         <Input name="q" defaultValue={query} placeholder="Search an airline, aircraft, airport…" aria-label="External data search" minLength={2} required />
         <button className={buttonVariants()}><Search />Search</button>
       </form>

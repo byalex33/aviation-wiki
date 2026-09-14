@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -61,7 +62,7 @@ export default async function AdminArticlePage({
               </label>
               <label className="grid gap-2 text-sm font-medium">
                 Editing permission
-                <select
+                <MotionSelect
                   name="protectionLevel"
                   defaultValue={String(article.protection_level)}
                   className="h-9 rounded-lg border bg-background px-3"
@@ -70,7 +71,7 @@ export default async function AdminArticlePage({
                   <option value="trusted">Trusted contributors</option>
                   <option value="moderator">Moderators</option>
                   <option value="admin">Admins only</option>
-                </select>
+                </MotionSelect>
               </label>
               <label className="grid gap-2 text-sm font-medium">
                 Redirect target slug

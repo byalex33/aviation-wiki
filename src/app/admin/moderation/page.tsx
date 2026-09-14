@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import Link from "next/link";
 import { Filter, GitCompareArrows, Inbox } from "lucide-react";
 
@@ -41,7 +42,7 @@ export default async function AdminModerationPage({
       <Card className="mt-6">
         <CardContent>
           <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <select
+            <MotionSelect
               name="status"
               defaultValue={search.status || "pending_review"}
               className="h-9 rounded-lg border bg-background px-3 text-sm"
@@ -58,8 +59,8 @@ export default async function AdminModerationPage({
                   {formatDisplayLabel(value)}
                 </option>
               ))}
-            </select>
-            <select
+            </MotionSelect>
+            <MotionSelect
               name="contentType"
               defaultValue={search.contentType || "all"}
               className="h-9 rounded-lg border bg-background px-3 text-sm"
@@ -68,7 +69,7 @@ export default async function AdminModerationPage({
               {contentTypes.map((value) => (
                 <option key={value}>{formatDisplayLabel(value)}</option>
               ))}
-            </select>
+            </MotionSelect>
             <Input
               name="contributor"
               defaultValue={search.contributor}

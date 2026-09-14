@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { AnnotatedText } from "@/components/ui/annotated-text";
+import { TextReveal } from "@/components/ui/text-reveal";
 import { MotionReveal, SpringSearchButton } from "@/components/ui/home-motion";
 import styles from "./home.module.css";
 import { Badge } from "@/components/ui/badge";
@@ -124,9 +125,9 @@ export default async function Home() {
         <Badge variant="outline" className="mb-5 h-7 rounded-full bg-card px-3 font-medium text-muted-foreground">
           <span className="mr-1 size-1.5 rounded-full bg-primary" />{documents.length} approved {documents.length === 1 ? "article" : "articles"}
         </Badge>
-        <MotionReveal>
-          <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">The free encyclopedia of everything <AnnotatedText>that flies</AnnotatedText></h1>
-        </MotionReveal>
+        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-[1.05] tracking-[-0.04em] sm:text-[52px]">
+          <TextReveal text="The free encyclopedia of everything "><AnnotatedText>that flies</AnnotatedText></TextReveal>
+        </h1>
         {/* Adapted from OpenSourceUI SearchInput and DepthOutlineButton; see THIRD_PARTY_NOTICES.md. */}
         <form className="mx-auto mt-8 max-w-[600px]" action="/search" role="search">
           <div className="flex items-center gap-2 rounded-2xl border bg-card p-2 shadow-sm transition-colors focus-within:border-primary">

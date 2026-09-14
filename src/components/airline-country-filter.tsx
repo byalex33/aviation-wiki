@@ -1,5 +1,7 @@
 "use client";
 
+import { MotionSelect } from "@/components/ui/motion-select";
+
 import { useRouter, useSearchParams } from "next/navigation";
 
 type AirlineCountryFilterProps = {
@@ -24,14 +26,14 @@ export function AirlineCountryFilter({ countries, value }: AirlineCountryFilterP
   }
 
   return (
-    <select
+    <MotionSelect
       value={value}
-      onChange={(event) => updateCountry(event.target.value)}
+      onValueChange={(value) => updateCountry(value)}
       className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring"
       aria-label="Filter airlines by country"
     >
       <option value="all">All countries</option>
       {countries.map((country) => <option key={country} value={country}>{country}</option>)}
-    </select>
+    </MotionSelect>
   );
 }

@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SignInButton } from "@clerk/nextjs";
@@ -169,7 +170,7 @@ export default async function ContributePage({
                 </label>
                 <label className="grid gap-2 text-sm font-medium">
                   Content type
-                  <select
+                  <MotionSelect
                     name="contentType"
                     defaultValue={selectedType}
                     className="h-10 rounded-lg border bg-background px-3 text-sm"
@@ -179,7 +180,7 @@ export default async function ContributePage({
                         {formatDisplayLabel(type)}
                       </option>
                     ))}
-                  </select>
+                  </MotionSelect>
                 </label>
                 <Button type="submit" className="w-full" size="lg">
                   Create article

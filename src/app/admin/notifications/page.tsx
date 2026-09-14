@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import { AlertTriangle, MailCheck, Send } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -45,7 +46,7 @@ export default async function AdminNotificationDiagnosticsPage({
           <form action={sendCustomNotificationAction} className="mt-5 grid gap-4">
             <label className="grid gap-1.5 text-sm font-medium">
               Recipient
-              <select
+              <MotionSelect
                 name="recipientId"
                 required
                 className="h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs"
@@ -57,7 +58,7 @@ export default async function AdminNotificationDiagnosticsPage({
                     {user.name} ({user.email}) · {formatDisplayLabel(user.role)}
                   </option>
                 ))}
-              </select>
+              </MotionSelect>
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
               Title
