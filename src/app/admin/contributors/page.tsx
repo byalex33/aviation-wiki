@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import Image from "next/image";
 import { Users } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -66,7 +67,7 @@ export default async function AdminContributorsPage() {
                     className="mt-5 grid gap-3 border-t pt-5 lg:grid-cols-[180px_180px_1fr_auto_auto]"
                   >
                     <input type="hidden" name="userId" value={user.id} />
-                    <select
+                    <MotionSelect
                       name="role"
                       defaultValue={user.role}
                       className="h-9 rounded-lg border bg-background px-3 text-sm"
@@ -76,8 +77,8 @@ export default async function AdminContributorsPage() {
                           {formatDisplayLabel(role)}
                         </option>
                       ))}
-                    </select>
-                    <select
+                    </MotionSelect>
+                    <MotionSelect
                       name="restriction"
                       defaultValue={user.restriction}
                       className="h-9 rounded-lg border bg-background px-3 text-sm"
@@ -85,7 +86,7 @@ export default async function AdminContributorsPage() {
                       <option value="none">No restriction</option>
                       <option value="read_only">Read only</option>
                       <option value="suspended">Suspended</option>
-                    </select>
+                    </MotionSelect>
                     <Input
                       name="moderatorNotes"
                       defaultValue={user.moderatorNotes}

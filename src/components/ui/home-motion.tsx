@@ -1,25 +1,12 @@
 "use client";
 
 import { motion, useAnimate, useInView } from "motion/react";
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+
+import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 // Adapted from beUI TextReveal and Button (MIT); see THIRD_PARTY_NOTICES.md.
 const REVEAL_SPRING = { type: "spring", stiffness: 140, damping: 26, mass: 1.2 } as const;
-
-function subscribeToMotionPreference(onChange: () => void) {
-  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function useReducedMotion() {
-  // Subscribe explicitly: Motion's hook currently only reads the initial value.
-  return useSyncExternalStore(
-    subscribeToMotionPreference,
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    () => true,
-  );
-}
 
 /** Animate from visible server HTML, so content also works without JavaScript. */
 export function MotionReveal({

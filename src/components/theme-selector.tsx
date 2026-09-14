@@ -1,5 +1,7 @@
 "use client";
 
+import { MotionSelect } from "@/components/ui/motion-select";
+
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
@@ -49,13 +51,13 @@ export function ThemeSelector() {
       >
         Theme
       </label>
-      <select
+      <MotionSelect
         id="theme-selector"
         value={theme}
         disabled={!isLoaded || !canChooseTheme}
         suppressHydrationWarning
-        onChange={(event) => {
-          const nextTheme = event.target.value as Theme;
+        onValueChange={(value) => {
+          const nextTheme = value as Theme;
           setTheme(nextTheme);
           applyTheme(nextTheme);
         }}
@@ -66,7 +68,7 @@ export function ThemeSelector() {
         <option value="pastel-dark">Pastel Dreams (Dark)</option>
         <option value="twitter-light">Twitter (Light)</option>
         <option value="twitter-dark">Twitter (Dark)</option>
-      </select>
+      </MotionSelect>
       <p className="mt-2 text-xs text-background/40">
         {canChooseTheme ? "Saved on this device." : "Available to Pro and Staff."}
       </p>

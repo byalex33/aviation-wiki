@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import type { Metadata } from "next";
 import {
   ArrowUpRight,
@@ -235,7 +236,7 @@ export default async function FleetPage({
           </label>
           <label>
             <span className="sr-only">Manufacturer</span>
-            <select
+            <MotionSelect
               name="manufacturer"
               defaultValue={filters.manufacturer}
               className="h-11 w-full rounded-md border bg-background px-3 text-sm"
@@ -246,11 +247,11 @@ export default async function FleetPage({
                   {manufacturer}
                 </option>
               ))}
-            </select>
+            </MotionSelect>
           </label>
           <label>
             <span className="sr-only">Aircraft category</span>
-            <select
+            <MotionSelect
               name="category"
               defaultValue={filters.category}
               className="h-11 w-full rounded-md border bg-background px-3 text-sm"
@@ -259,11 +260,11 @@ export default async function FleetPage({
               <option value="commercial">Commercial</option>
               <option value="military">Military</option>
               <option value="general">General aviation</option>
-            </select>
+            </MotionSelect>
           </label>
           <label>
             <span className="sr-only">Service status</span>
-            <select
+            <MotionSelect
               name="status"
               defaultValue={filters.status}
               className="h-11 w-full rounded-md border bg-background px-3 text-sm"
@@ -273,7 +274,7 @@ export default async function FleetPage({
               <option value="service">In service</option>
               <option value="retired">Retired</option>
               <option value="other">Other / unknown</option>
-            </select>
+            </MotionSelect>
           </label>
           <button className={buttonVariants({ size: "lg" })}>
             <Filter />

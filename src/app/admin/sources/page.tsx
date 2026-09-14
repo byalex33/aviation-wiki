@@ -1,3 +1,4 @@
+import { MotionSelect } from "@/components/ui/motion-select";
 import { AlertTriangle, BookCheck, Copy, Link2Off } from "lucide-react";
 import Link from "next/link";
 
@@ -131,7 +132,7 @@ export default async function AdminSourcesPage() {
                       name="url"
                       value={String(source.url)}
                     />
-                    <select
+                    <MotionSelect
                       name="status"
                       defaultValue={String(source.status || "unchecked")}
                       className="h-8 rounded-md border bg-background px-2 text-xs"
@@ -139,8 +140,8 @@ export default async function AdminSourcesPage() {
                       <option value="unchecked">Unchecked</option>
                       <option value="ok">OK</option>
                       <option value="broken">Broken</option>
-                    </select>
-                    <select
+                    </MotionSelect>
+                    <MotionSelect
                       name="strength"
                       defaultValue={String(source.strength || "standard")}
                       className="h-8 rounded-md border bg-background px-2 text-xs"
@@ -148,7 +149,7 @@ export default async function AdminSourcesPage() {
                       <option value="strong">Strong</option>
                       <option value="standard">Standard</option>
                       <option value="weak">Weak</option>
-                    </select>
+                    </MotionSelect>
                     <Input
                       name="note"
                       defaultValue={String(source.note || "")}

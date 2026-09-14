@@ -1,5 +1,7 @@
 "use client";
 
+import { MotionSelect } from "@/components/ui/motion-select";
+
 import {
   Fragment,
   useActionState,
@@ -324,11 +326,11 @@ export function RevisionEditor({
         </label>
         <label className="grid gap-2 text-sm font-medium">
           Content type
-          <select
+          <MotionSelect
             name="contentType"
             value={contentType}
-            onChange={(event) =>
-              setContentType(event.target.value as typeof contentType)
+            onValueChange={(value) =>
+              setContentType(value as typeof contentType)
             }
             className="h-10 rounded-md border bg-background px-3 text-sm"
           >
@@ -337,7 +339,7 @@ export function RevisionEditor({
                 {formatDisplayLabel(type)}
               </option>
             ))}
-          </select>
+          </MotionSelect>
         </label>
       </section>
 
@@ -493,8 +495,8 @@ export function RevisionEditor({
             const targetType = relationshipTargetType(relationship.type);
             const targets = relationshipTargets.filter((target) => target.contentType === targetType && target.id !== articleId);
             return <div key={index} className="grid gap-2 rounded-lg border p-3 md:grid-cols-[1fr_1.4fr_1fr_auto]">
-              <select aria-label={`Relationship ${index + 1} type`} value={relationship.type} onChange={(event) => { const type = event.target.value as EntityRelationship["type"]; setRelationships(relationships.map((item, itemIndex) => itemIndex === index ? { ...item, type, targetArticleId: "" } : item)); }} className="h-10 rounded-md border bg-background px-3 text-sm">{allowedRelationshipTypes(contentType).map((type) => <option key={type} value={type}>{relationshipLabels[type]}</option>)}</select>
-              <select aria-label={`Relationship ${index + 1} target`} value={relationship.targetArticleId} onChange={(event) => setRelationships(relationships.map((item, itemIndex) => itemIndex === index ? { ...item, targetArticleId: event.target.value } : item))} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="">Select approved {formatDisplayLabel(targetType)}</option>{targets.map((target) => <option key={target.id} value={target.id}>{target.title}</option>)}</select>
+              <MotionSelect aria-label={`Relationship ${index + 1} type`} value={relationship.type} onValueChange={(value) => { const type = value as EntityRelationship["type"]; setRelationships(relationships.map((item, itemIndex) => itemIndex === index ? { ...item, type, targetArticleId: "" } : item)); }} className="h-10 rounded-md border bg-background px-3 text-sm">{allowedRelationshipTypes(contentType).map((type) => <option key={type} value={type}>{relationshipLabels[type]}</option>)}</MotionSelect>
+              <MotionSelect aria-label={`Relationship ${index + 1} target`} value={relationship.targetArticleId} onValueChange={(value) => setRelationships(relationships.map((item, itemIndex) => itemIndex === index ? { ...item, targetArticleId: value } : item))} className="h-10 rounded-md border bg-background px-3 text-sm"><option value="">Select approved {formatDisplayLabel(targetType)}</option>{targets.map((target) => <option key={target.id} value={target.id}>{target.title}</option>)}</MotionSelect>
               <Input aria-label={`Relationship ${index + 1} citations`} placeholder="Citation IDs: 1, 2" value={relationship.citationIdentifiers.join(", ")} onChange={(event) => setRelationships(relationships.map((item, itemIndex) => itemIndex === index ? { ...item, citationIdentifiers: event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean) } : item))} />
               <Button type="button" variant="ghost" size="icon" aria-label={`Remove relationship ${index + 1}`} onClick={() => setRelationships(relationships.filter((_, itemIndex) => itemIndex !== index))}><Trash2 /></Button>
             </div>;

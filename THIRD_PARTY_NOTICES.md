@@ -39,7 +39,11 @@ SOFTWARE.
 The homepage headline and category entrances adapt the spring reveal from
 [TextReveal](https://beui.dev/components/motion/text-animation). The search button
 adapts the press feedback from [Button](https://beui.dev/components/motion/button).
-Both are from [beUI](https://github.com/starc007/ui-components).
+Dropdowns adapt the unfolding panel and item reveals from
+[Select](https://beui.dev/components/motion/select), with Base UI handling select
+and menu interactions. The Markdown help dialog adapts the center unfolding
+surface from [Center Morph Modal](https://beui.dev/components/motion/center-morph-modal).
+These components are from [beUI](https://github.com/starc007/ui-components).
 
 The adaptations preserve visible server-rendered content, animate entrances once,
 and skip animation when reduced motion is requested.

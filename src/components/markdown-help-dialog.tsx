@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import { BookOpen, X } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { BookOpen } from "lucide-react";
 
 import { ArticleMarkdown } from "@/components/article-markdown";
+import { CenterMorphModal } from "@/components/ui/center-morph-modal";
 import { Button } from "@/components/ui/button";
 import { CHART_TEMPLATE } from "@/lib/article-chart";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
@@ -96,31 +97,29 @@ function MarkdownExample({ example }: { example: (typeof examples)[number] }) {
 }
 
 export function MarkdownHelpDialog() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const descriptionId = useId();
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => dialogRef.current?.showModal()}>
+      <Button type="button" variant="outline" size="sm" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <BookOpen />
         Markdown help
       </Button>
-      <dialog
-        ref={dialogRef}
-        aria-labelledby="markdown-help-title"
-        className="m-auto max-h-[88vh] w-[min(1100px,calc(100%-2rem))] max-w-none overflow-hidden rounded-2xl border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/45 backdrop:backdrop-blur-sm"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) event.currentTarget.close();
-        }}
+      <CenterMorphModal
+        open={open}
+        onOpenChange={setOpen}
+        ariaLabelledBy={titleId}
+        ariaDescribedBy={descriptionId}
+        closeButtonLabel="Close Markdown help"
       >
         <div className="flex max-h-[88vh] flex-col">
-          <header className="flex items-start justify-between gap-4 border-b bg-background px-5 py-4 sm:px-6">
+          <header className="flex items-start justify-between gap-4 border-b bg-background py-4 pl-5 pr-16 sm:pl-6">
             <div>
-              <h2 id="markdown-help-title" className="text-xl font-bold">How to write with Markdown</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Compare each example with the preview readers will see.</p>
+              <h2 id={titleId} className="text-xl font-bold">How to write with Markdown</h2>
+              <p id={descriptionId} className="mt-1 text-sm text-muted-foreground">Compare each example with the preview readers will see.</p>
             </div>
-            <Button type="button" variant="ghost" size="icon" aria-label="Close Markdown help" onClick={() => dialogRef.current?.close()}>
-              <X />
-            </Button>
           </header>
           <div className="overflow-y-auto p-5 sm:p-6">
             <div className="space-y-5">
@@ -131,7 +130,7 @@ export function MarkdownHelpDialog() {
             </div>
           </div>
         </div>
-      </dialog>
+      </CenterMorphModal>
     </>
   );
 }

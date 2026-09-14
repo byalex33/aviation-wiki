@@ -79,7 +79,7 @@ export function NotificationBell() {
           sideOffset={8}
           className="z-[100] outline-none"
         >
-          <Menu.Popup className="w-[min(92vw,390px)] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl outline-none">
+          <Menu.Popup className="beui-dropdown w-[min(92vw,390px)] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl outline-none">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <p className="font-semibold">Notifications</p>
               <Link
