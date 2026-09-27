@@ -17,10 +17,7 @@ import {
   listContributorRevisions,
   listPublicSearchDocuments,
 } from "@/lib/wiki-public-db";
-import {
-  contentTypes,
-  type ContentType,
-} from "@/lib/wiki-types";
+import { contentTypes } from "@/lib/wiki-types";
 
 export const metadata: Metadata = {
   title: "Contribute",
@@ -45,9 +42,7 @@ export default async function ContributePage({
   const title = valueOf(query.title).slice(0, 120);
   const slug = valueOf(query.slug).slice(0, 100);
   const requestedType = valueOf(query.contentType);
-  const selectedType = contentTypes.includes(requestedType as ContentType)
-    ? (requestedType as ContentType)
-    : "airline";
+  const selectedType = contentTypes.find((type) => type === requestedType) ?? "airline";
 
   if (!session.isAuthenticated || !session.userId) {
     return (

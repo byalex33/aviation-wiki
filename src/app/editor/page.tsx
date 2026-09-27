@@ -10,13 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requireContributor } from "@/lib/wiki-auth";
 import { assertArticleEditable, getArticleBySlug, getContributorRestriction, getEditableRevision, getRevision, listApprovedEntityOptions, normalizeSlug } from "@/lib/wiki-public-db";
-import { contentTypes, type ContentType, type RevisionContent } from "@/lib/wiki-types";
+import { contentTypes, type RevisionContent } from "@/lib/wiki-types";
 
 export const metadata: Metadata = { title: "Article editor", description: "Write and preview reviewed aviation.wiki revisions." };
 
 export default async function EditorPage({ searchParams }: { searchParams: Promise<{ type?: string; slug?: string; correction?: string; saved?: string; submitted?: string }> }) {
   const query = await searchParams;
-  const contentType = contentTypes.includes(query.type as ContentType) ? query.type as ContentType : null;
+  const contentType = contentTypes.find((type) => type === query.type);
   const slug = normalizeSlug(query.slug || "");
   if (!contentType || !slug) return <main className="mx-auto max-w-2xl px-5 py-20 text-center"><FilePenLine className="mx-auto size-9 text-primary" /><h1 className="mt-5 text-4xl font-bold">Choose an article to edit</h1><p className="mt-4 text-muted-foreground">Open an article’s Edit action, or start a new sourced article from the contribution page.</p><Link href="/contribute" className={`${buttonVariants()} mt-7`}>Contribution centre</Link></main>;
 
