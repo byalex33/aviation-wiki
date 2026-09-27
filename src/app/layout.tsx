@@ -68,7 +68,7 @@ export const metadata: Metadata = {
   },
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem("aviation-theme");if(t==="pastel-light"||t==="pastel-dark"||t==="twitter-light"||t==="twitter-dark"){document.documentElement.dataset.theme=t.indexOf("pastel")===0?"pastel-dreams":"twitter";document.documentElement.classList.toggle("dark",t.endsWith("-dark"))}}catch(e){}})()`;
+const themeScript = `(function(){var t="light";try{var saved=localStorage.getItem("aviation-theme");if(saved==="dark"||saved==="pastel-dark"||saved==="twitter-dark")t="dark"}catch(e){}document.documentElement.classList.toggle("dark",t==="dark");delete document.documentElement.dataset.theme;try{localStorage.setItem("aviation-theme",t)}catch(e){}})()`;
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
