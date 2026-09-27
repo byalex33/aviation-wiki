@@ -207,12 +207,6 @@ export default async function RootLayout({
                   </p>
                   <div className="mt-4 flex flex-col items-start gap-1 text-sm font-medium sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-1">
                     <Link
-                      href="/"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Home
-                    </Link>
-                    <Link
                       href="/categories"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
@@ -223,24 +217,6 @@ export default async function RootLayout({
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Fleet database
-                    </Link>
-                    <Link
-                      href="/fleet/compare"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Compare aircraft
-                    </Link>
-                    <Link
-                      href="/compare"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Comparison guides
-                    </Link>
-                    <Link
-                      href="/routes"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Route guides
                     </Link>
                     <Link
                       href="/aviation-news"
@@ -255,19 +231,6 @@ export default async function RootLayout({
                       Contribute
                     </Link>
                     <Link
-                      href="/pro"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Pro
-                    </Link>
-                    <Link href="/terms" className="flex min-h-10 items-center">Terms</Link>
-                    <Link
-                      href="/privacy"
-                      className="flex min-h-10 items-center transition-colors hover:text-primary"
-                    >
-                      Privacy
-                    </Link>
-                    <Link
                       href="/contact"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
@@ -280,7 +243,13 @@ export default async function RootLayout({
               </div>
 
               <div className="flex flex-col gap-3 border-t border-background/10 py-5 text-xs text-background/40 sm:flex-row sm:items-center sm:justify-between">
-                <p>© 2026 aviation.wiki</p>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                  <p>© 2026 aviation.wiki</p>
+                  <nav aria-label="Legal" className="flex items-center gap-5">
+                    <Link href="/terms" className="flex min-h-10 items-center">Terms</Link>
+                    <Link href="/privacy" className="flex min-h-10 items-center">Privacy</Link>
+                  </nav>
+                </div>
                 <div className="flex items-center gap-4">
                   <p>The free encyclopedia of everything that flies.</p>
                   <a
