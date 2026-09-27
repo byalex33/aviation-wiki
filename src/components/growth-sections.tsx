@@ -56,7 +56,7 @@ export function FeaturedArticles({
             }}
             className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
           >
-            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#482c29] text-[#f5f3ed] [font-family:var(--font-open-sans),sans-serif]">
+            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#f3f3f0] text-[#202326] dark:bg-[#151515] dark:text-[#f1f1ed] [font-family:var(--font-open-sans),sans-serif]">
               {article.imageUrl && (
                 <Image
                   src={article.imageUrl}
@@ -69,20 +69,20 @@ export function FeaturedArticles({
               )}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[#943e32]/45"
+                className="pointer-events-none absolute inset-0 bg-[#f3f3f0]/30 dark:bg-black/30"
               />
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(30,17,15,0.08)_0%,rgba(30,17,15,0.6)_40%,rgba(30,17,15,0.94)_100%)]"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(243,243,240,0.05)_0%,rgba(243,243,240,0.75)_40%,rgba(243,243,240,0.98)_100%)] dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.7)_40%,rgba(0,0,0,0.95)_100%)]"
               />
               <div className="relative px-6 pb-6 pt-28 sm:px-7 sm:pb-7">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#dfdfd9]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#42474b] dark:text-[#d6d6d2]">
                   {contentTypeLabel[article.contentType]}
                 </p>
                 <h3 className="mt-2 text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
                   {article.title}
                 </h3>
-                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#dfdfd9]">
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#42474b] dark:text-[#d6d6d2]">
                   {article.description}
                 </p>
                 <span className="mt-5 inline-block border-b border-current pb-1 text-xs font-semibold">
