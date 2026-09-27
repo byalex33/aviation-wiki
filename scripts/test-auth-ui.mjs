@@ -136,27 +136,53 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
 }
 console.log("Profile checks passed: username updates, password confirmation, session revocation, secret clearing, email verification before primary selection.");
 
-// Native password inputs stay usable by password managers while visibility changes.
+// Exercise the source-adapted reveal hook with a deterministic native input.
 {
-  let cursor = 0, tree;
-  const state = [];
-  const useState = (initial) => { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], (value) => { state[i] = value; }]; };
-  const { AuthField } = load("../src/components/auth/auth-field.tsx", { "react": { useState, useId: () => "field-id" }, "@/lib/auth-ui": helpers, "./auth.module.css": { default: {} } });
-  const render = () => { cursor = 0; tree = AuthField({ label: "Password", name: "password", value: "fixture-only", onChange() {}, type: "password", autoComplete: "current-password" }); };
+  let cursor = 0, tree, reduced = false;
+  const state = [], layoutEffects = [], timers = new Map();
+  let nextTimer = 0;
+  const useState = (initial) => { const i = cursor++; if (!(i in state)) state[i] = typeof initial === "function" ? initial() : initial; return [state[i], (value) => { state[i] = value; }]; };
+  const hooks = { useState, useId: () => "field-id", useRef: (value) => useState({ current: value })[0], useEffect() {}, useLayoutEffect: (fn) => layoutEffects.push(fn) };
+  const inputElement = { selectionStart: 2, selectionEnd: 5, scrollWidth: 200, clientWidth: 300, scrollLeft: 0, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; } };
+  const globals = {
+    document: { activeElement: inputElement, createElement: () => ({ getContext: () => ({ measureText: (text) => ({ width: text.length * 8 }) }) }) },
+    getComputedStyle: () => ({ fontWeight: "400", fontSize: "16px", fontFamily: "Arial", letterSpacing: "normal" }),
+    setTimeout: (fn) => { timers.set(++nextTimer, fn); return nextTimer; }, clearTimeout: (id) => timers.delete(id),
+  };
+  const reveal = load("../src/components/auth/password-reveal.tsx", { "react": hooks, "motion/react": { useReducedMotion: () => reduced }, "./auth.module.css": { default: {} } }, globals);
+  const { AuthField } = load("../src/components/auth/auth-field.tsx", { "react": hooks, "@/lib/auth-ui": helpers, "./password-reveal": reveal, "./password-advice": { PasswordAdvice: "advice" }, "./auth.module.css": { default: {} } });
+  let value = "fixture-only";
   const nodes = (node) => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)];
+  const render = () => {
+    cursor = 0; tree = AuthField({ label: "Password", name: "password", value, onChange(next) { value = next; }, type: "password", autoComplete: "current-password" });
+    nodes(tree).find((n) => n.type === "input").props.ref.current = inputElement;
+    layoutEffects.splice(0).forEach((fn) => fn());
+  };
+  const input = () => nodes(tree).find((n) => n.type === "input");
+  const overlay = () => nodes(tree).find((n) => n.type === reveal.PasswordReveal);
+  const toggle = () => { nodes(tree).find((n) => n.type === "button").props.onClick(); render(); };
   render();
-  let input = nodes(tree).find((n) => n.type === "input");
-  assert.equal(input.props.type, "password");
-  assert.equal(input.props.autoComplete, "current-password");
-  nodes(tree).find((n) => n.type === "button").props.onClick(); render();
-  input = nodes(tree).find((n) => n.type === "input");
-  assert.equal(input.props.type, "text"); assert.equal(input.props.value, "fixture-only");
-  input.props.onKeyDown({ getModifierState: (name) => name === "CapsLock" }); render();
+  assert.equal(input().props.type, "password"); assert.equal(input().props.autoComplete, "current-password");
+  toggle(); assert.equal(input().props.type, "text"); assert.equal(input().props.value, value);
+  assert.ok(overlay()?.props.morph.reveal); assert.equal(inputElement.selectionStart, 2); assert.equal(inputElement.selectionEnd, 5);
+  toggle(); assert.equal(input().props.type, "password"); assert.equal(overlay().props.morph.reveal, false); assert.equal(timers.size, 1, "Rapid toggles cancel the previous animation");
+  input().props.onChange({ target: { value: "edited" } }); render(); assert.equal(overlay(), undefined, "Typing cancels the overlay immediately");
+  toggle(); assert.ok(overlay()); value = ""; render(); assert.equal(overlay(), undefined, "Parent reset must not leave the previous password visible");
+  value = "fixture-only"; reduced = true; render(); toggle(); assert.equal(overlay(), undefined, "Reduced motion uses the native toggle");
+  reduced = false; inputElement.scrollWidth = 400; render(); toggle(); assert.equal(overlay(), undefined, "Overflow uses the native toggle");
+  input().props.onKeyDown({ getModifierState: (name) => name === "CapsLock" }); render();
   assert.ok(nodes(tree).some((n) => n.props?.role === "status" && n.props.children === "Caps Lock is on."));
-  nodes(tree).find((n) => n.type === "input").props.onBlur(); render();
-  assert.ok(!nodes(tree).some((n) => n.props?.role === "status"));
+  input().props.onBlur(); render(); assert.ok(!nodes(tree).some((n) => n.props?.role === "status"));
+  const letters = nodes(tree).filter((n) => n.props?.style?.["--rise-delay"]);
+  assert.equal(letters.length, "Password".length); assert.equal(letters[0].props.style["--rise-delay"], "0ms");
+  assert.equal(letters[1].props.style["--rise-delay"], "14ms"); assert.equal(letters.at(-1).props.style["--settle-delay"], "0ms");
 }
-console.log("Input checks passed: password visibility, autofill attributes and Caps Lock feedback.");
+assert.equal(helpers.passwordStrength(""), 0);
+assert.equal(helpers.passwordStrength("Ab1!"), 1);
+assert.equal(helpers.passwordStrength("abcdefgh"), 1);
+assert.equal(helpers.passwordStrength("Abcdefg1"), 3);
+assert.equal(helpers.passwordStrength("Abcdefghijk1!"), 4);
+console.log("Reference input checks passed: reveal/hide waves, caret preservation, rapid toggles, typing/reset cancellation, reduced motion, overflow, letter stagger and strength guidance.");
 
 h = harness("sign-up"); h.signUp.status = "missing_requirements"; h.render(); await h.resume();
 assert.ok(h.nodes().some((n) => n.type === "field" && n.props.label === "Email address"), "An empty Clerk signup resource must show the full form");

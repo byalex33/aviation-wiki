@@ -36,3 +36,11 @@ export async function checked<T extends { error: unknown }>(result: Promise<T>) 
   if (response.error) throw response.error;
   return response;
 }
+
+// From xevrion/ui-lab PasswordField (MIT). This is guidance, not Clerk policy.
+export function passwordStrength(password: string) {
+  if (password === "") return 0;
+  if (password.length < 8) return 1;
+  const variety = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((rule) => rule.test(password)).length;
+  return Math.min(1 + Number(password.length >= 12) + Number(variety >= 2) + Number(variety >= 3), 4);
+}
