@@ -56,7 +56,7 @@ export function FeaturedArticles({
             }}
             className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
           >
-            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#202a31] text-[#f5f3ed] [font-family:var(--font-open-sans),sans-serif]">
+            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#482c29] text-[#f5f3ed] [font-family:var(--font-open-sans),sans-serif]">
               {article.imageUrl && (
                 <Image
                   src={article.imageUrl}
@@ -69,7 +69,11 @@ export function FeaturedArticles({
               )}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(12,20,26,0.08)_0%,rgba(12,20,26,0.6)_40%,rgba(12,20,26,0.94)_100%)]"
+                className="pointer-events-none absolute inset-0 bg-[#943e32]/45"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(30,17,15,0.08)_0%,rgba(30,17,15,0.6)_40%,rgba(30,17,15,0.94)_100%)]"
               />
               <div className="relative px-6 pb-6 pt-28 sm:px-7 sm:pb-7">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#dfdfd9]">
