@@ -2,14 +2,12 @@ import {
   ArrowUpRight,
   ClipboardCheck,
   FilePlus2,
-  Sparkles,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
-import { ArticleCardBackdrop } from "@/components/article-card-backdrop";
 import { TrackedLink } from "@/components/tracked-actions";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import type { ContributionMission } from "@/lib/growth-content";
 import type { SearchDocument } from "@/lib/search-types";
 
@@ -42,44 +40,56 @@ export function FeaturedArticles({
           className="article-link flex min-h-10 shrink-0 items-center gap-1 text-sm font-medium"
         >
           Browse all
-          <ArrowUpRight className="size-3.5" />
         </Link>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {articles.map((article) => (
           <TrackedLink
             key={article.id}
             href={article.href}
+            aria-label={`Read ${article.title}`}
             eventName="article_discovery_click"
             eventProperties={{
               slug: article.slug,
               contentType: article.contentType,
               surface: "homepage_featured",
             }}
-            className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
           >
-            {/* MuseumPlacardCard layout adapted from OpenSourceUI (MIT); see THIRD_PARTY_NOTICES.md. */}
-            <Card className="h-full gap-0 overflow-hidden rounded-xl py-0 shadow-sm transition-[border-color,box-shadow] group-hover:border-primary/35 group-hover:shadow-md motion-reduce:transition-none">
-              <div className="relative isolate flex h-36 items-center justify-center overflow-hidden border-b bg-muted/40" aria-hidden="true">
-                <Sparkles className="size-10 text-primary/20" strokeWidth={1} />
-                <ArticleCardBackdrop imageUrl={article.imageUrl} />
-              </div>
-              <CardContent className="flex flex-1 flex-col p-5">
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#482c29] text-[#f5f3ed] [font-family:var(--font-open-sans),sans-serif]">
+              {article.imageUrl && (
+                <Image
+                  src={article.imageUrl}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1152px) 520px, (min-width: 640px) 50vw, 100vw"
+                  unoptimized
+                  className="pointer-events-none object-cover"
+                />
+              )}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[#943e32]/45"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(30,17,15,0.08)_0%,rgba(30,17,15,0.6)_40%,rgba(30,17,15,0.94)_100%)]"
+              />
+              <div className="relative px-6 pb-6 pt-28 sm:px-7 sm:pb-7">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#dfdfd9]">
                   {contentTypeLabel[article.contentType]}
                 </p>
-                <h3 className="mt-3 font-serif text-xl leading-snug italic group-hover:text-primary">
+                <h3 className="mt-2 text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
                   {article.title}
                 </h3>
-                <p className="mb-5 mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#dfdfd9]">
                   {article.description}
                 </p>
-                <span className="mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs font-medium">
+                <span className="mt-5 inline-block border-b border-current pb-1 text-xs font-semibold">
                   Read article
-                  <ArrowUpRight className="size-3.5" />
                 </span>
-              </CardContent>
-            </Card>
+              </div>
+            </article>
           </TrackedLink>
         ))}
       </div>
