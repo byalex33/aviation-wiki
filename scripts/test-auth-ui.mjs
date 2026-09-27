@@ -114,14 +114,22 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   const { ProfileForm } = load("../src/components/auth/profile-form.tsx", {
     "react": { useState, useRef: (initial) => useState({ current: initial })[0] },
     "@clerk/nextjs": { useUser: () => ({ user, isLoaded: true }), useClerk: () => ({ signOut() {} }), useReverification: (action) => action },
-    "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./auth.module.css": { default: {} },
+    "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton" }, "./profile.module.css": { default: {} }, "./auth.module.css": { default: {} },
   });
   const Editor = ProfileForm().type;
   const render = () => { cursor = 0; tree = Editor(); };
   const nodes = (node) => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)];
   const field = (label, value) => { nodes(tree).find((n) => n.type === "field" && n.props.label === label).props.onChange(value); render(); };
   const submit = async (index) => { nodes(tree).filter((n) => n.type === "form")[index].props.onSubmit({ preventDefault() {} }); await new Promise((resolve) => setImmediate(resolve)); render(); };
-  render(); field("Username", "newpilot"); await submit(0);
+  render();
+  assert.equal(tree.props.section, "profile");
+  field("Username", "draftpilot");
+  tree.props.onSectionChange("email"); render();
+  assert.equal(tree.props.section, "email");
+  assert.equal(nodes(tree).find((n) => n.type === "field" && n.props.label === "Username").props.value, "draftpilot", "Navigation preserves unsaved profile fields");
+  assert.equal(nodes(tree).filter((n) => n.type === "div" && n.props.hidden === false).length, 1, "Only the selected settings panel is visible");
+  tree.props.onSectionChange("profile"); render();
+  field("Username", "newpilot"); await submit(0);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify(["update", { username: "newpilot" }]));
   field("New password", "fixture-new-password"); field("Confirm new password", "different"); await submit(2);
   assert.ok(!calls.some(([name]) => name === "password"), "Mismatched passwords never reach the API");

@@ -1,4 +1,5 @@
-import { AuthShell, AuthSkeleton } from "@/components/auth/auth-shell";
+import { ProfileSkeleton } from "@/components/auth/profile-workspace";
+
 export default function Loading() {
-  return <AuthShell title="Your account." description="Choose how you appear to other contributors and manage your sign-in details."><AuthSkeleton/></AuthShell>;
+  return <ProfileSkeleton/>;
 }
