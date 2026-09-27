@@ -47,9 +47,12 @@ export function ThemeSelector() {
     <div className="max-w-64">
       <label
         htmlFor="theme-selector"
-        className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background/40"
+        className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background/40"
       >
         Theme
+        <span className="border border-background/20 px-1.5 py-0.5 text-[9px] tracking-[0.1em] text-background/60">
+          Pro
+        </span>
       </label>
       <MotionSelect
         id="theme-selector"
@@ -69,9 +72,9 @@ export function ThemeSelector() {
         <option value="twitter-light">Twitter (Light)</option>
         <option value="twitter-dark">Twitter (Dark)</option>
       </MotionSelect>
-      <p className="mt-2 text-xs text-background/40">
-        {canChooseTheme ? "Saved on this device." : "Available to Pro and Staff."}
-      </p>
+      {canChooseTheme && (
+        <p className="mt-2 text-xs text-background/40">Saved on this device.</p>
+      )}
     </div>
   );
 }
