@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
-import { ClerkProvider, Show, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { ClerkProvider, Show } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
@@ -122,7 +122,9 @@ export default async function RootLayout({
         />
         <ClerkProvider
           appearance={{ theme: clerkShadcnAppearance }}
-          signUpForceRedirectUrl="/?welcome=signup"
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          signUpFallbackRedirectUrl="/?welcome=signup"
         >
           <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-background focus:p-3">Skip to main content</a>
           <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-xl">
@@ -162,21 +164,12 @@ export default async function RootLayout({
                   <Search />
                 </Link>
                 <Show when="signed-out">
-                  <SignInButton>
-                    <button
-                      className={cn(
-                        buttonVariants({ variant: "ghost" }),
-                        "h-10 px-3",
-                      )}
-                    >
-                      Log in
-                    </button>
-                  </SignInButton>
-                  <SignUpButton>
-                    <button className={cn(buttonVariants(), "h-10 px-4")}>
-                      Sign up
-                    </button>
-                  </SignUpButton>
+                  <Link href="/sign-in" className={cn(buttonVariants({ variant: "ghost" }), "h-10 px-3")}>
+                    Log in
+                  </Link>
+                  <Link href="/sign-up" className={cn(buttonVariants(), "h-10 px-4")}>
+                    Sign up
+                  </Link>
                 </Show>
                 <Show when="signed-in">
                   <NotificationBell />
@@ -267,6 +260,7 @@ export default async function RootLayout({
                     >
                       Pro
                     </Link>
+                    <Link href="/terms" className="flex min-h-10 items-center">Terms</Link>
                     <Link
                       href="/privacy"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"

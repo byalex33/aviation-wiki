@@ -1,7 +1,6 @@
 import { MotionSelect } from "@/components/ui/motion-select";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SignInButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { FilePlus2, PencilLine } from "lucide-react";
 
@@ -62,11 +61,9 @@ export default async function ContributePage({
             Sign in to create articles, save drafts, and submit revisions for
             moderator review.
           </p>
-          <SignInButton>
-            <Button className="mt-7" size="lg">
-              Log in to contribute
-            </Button>
-          </SignInButton>
+          <Link href="/sign-in?redirect_url=%2Fcontribute" className="mt-7 inline-flex min-h-11 items-center border bg-foreground px-5 text-sm font-semibold text-background">
+            Log in to contribute
+          </Link>
         </div>
         <div className="mt-14 text-left">
           <ContributionMissions missions={missions} />
