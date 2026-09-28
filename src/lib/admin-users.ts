@@ -12,6 +12,7 @@ export type AdminUser = {
   role: WikiRole;
   lastActiveAt: number | null;
   createdAt: number;
+  submittedCount: number;
   approvedCount: number;
   rejectedCount: number;
   pendingCount: number;
@@ -69,6 +70,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
       role,
       lastActiveAt: user.lastActiveAt,
       createdAt: user.createdAt,
+      submittedCount: Number(stat?.submitted_count ?? 0),
       approvedCount: Number(stat?.approved_count ?? 0),
       rejectedCount: Number(stat?.rejected_count ?? 0),
       pendingCount: Number(stat?.pending_count ?? 0),

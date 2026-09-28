@@ -1,6 +1,6 @@
-import { MotionSelect } from "@/components/ui/motion-select";
 import Link from "next/link";
-import { Filter, GitCompareArrows, Inbox } from "lucide-react";
+import { notFound } from "next/navigation";
+import { getStaffUser } from "@/lib/wiki-auth";
 
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { contentTypes } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 
 type Search = {
+  view?: string;
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -21,67 +22,76 @@ export default async function AdminModerationPage({
 }: {
   searchParams: Promise<Search>;
 }) {
+  if (!(await getStaffUser())) notFound();
   const { listAdminQueue } = process.env.DATABASE_URL
     ? await import("@/lib/wiki-public-db")
     : await import("@/lib/admin-db");
   const search = await searchParams;
+  const history = search.view === "history";
+  const statuses = history ? ["approved", "rejected"] : ["verifying", "pending_review", "changes_requested"];
+  const status = statuses.includes(search.status || "") ? search.status : "all";
   const revisions = await listAdminQueue({
     ...search,
+    view: history ? "history" : "queue",
+    status,
     conflicting: search.conflicting === "1",
   });
   return (
     <main>
       <div>
         <p className="text-sm text-muted-foreground">
-          Filter, assign, and decide submitted revisions
+          {history ? "Completed moderation decisions. Open a revision to see its review details." : "Submitted revisions awaiting review or changes."}
         </p>
         <h2 className="mt-1 text-3xl font-bold tracking-tight">
-          Moderation queue
+          {history ? "Moderation history" : "Moderation queue"}
         </h2>
       </div>
-      <Card className="mt-6">
+      <nav aria-label="Moderation views" className="mt-6 flex gap-6 border-b pb-3 text-sm">
+        <Link href="/admin/moderation" aria-current={!history ? "page" : undefined} className={!history ? "font-semibold underline underline-offset-8" : "text-muted-foreground"}>Queue</Link>
+        <Link href="/admin/moderation?view=history" aria-current={history ? "page" : undefined} className={history ? "font-semibold underline underline-offset-8" : "text-muted-foreground"}>History</Link>
+      </nav>
+      <Card className="mt-6 rounded-none shadow-none">
         <CardContent>
           <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <MotionSelect
+            {history && <input type="hidden" name="view" value="history" />}
+            <select
+              aria-label="Revision status"
               name="status"
-              defaultValue={search.status || "pending_review"}
-              className="h-9 rounded-lg border bg-background px-3 text-sm"
+              defaultValue={status}
+              className="h-9 rounded-none border bg-background px-3 text-sm"
             >
               <option value="all">All statuses</option>
-              {[
-                "verifying",
-                "pending_review",
-                "changes_requested",
-                "approved",
-                "rejected",
-              ].map((value) => (
+              {statuses.map((value) => (
                 <option key={value} value={value}>
                   {formatDisplayLabel(value)}
                 </option>
               ))}
-            </MotionSelect>
-            <MotionSelect
+            </select>
+            <select
+              aria-label="Content type"
               name="contentType"
               defaultValue={search.contentType || "all"}
-              className="h-9 rounded-lg border bg-background px-3 text-sm"
+              className="h-9 rounded-none border bg-background px-3 text-sm"
             >
               <option value="all">All content types</option>
               {contentTypes.map((value) => (
-                <option key={value}>{formatDisplayLabel(value)}</option>
+                <option key={value} value={value}>{formatDisplayLabel(value)}</option>
               ))}
-            </MotionSelect>
+            </select>
             <Input
+              aria-label="Contributor"
               name="contributor"
               defaultValue={search.contributor}
               placeholder="Contributor"
             />
             <Input
+              aria-label="Submitted from"
               name="submittedFrom"
               type="date"
               defaultValue={search.submittedFrom}
             />
             <div className="flex gap-2">
-              <label className="flex items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-xs">
+              <label className="flex items-center gap-2 whitespace-nowrap rounded-none border px-3 text-xs">
                 <input
                   type="checkbox"
                   name="conflicting"
@@ -91,7 +101,7 @@ export default async function AdminModerationPage({
                 Conflicts
               </label>
               <Button type="submit" variant="outline">
-                <Filter />
+                Filter
               </Button>
             </div>
           </form>
@@ -103,7 +113,7 @@ export default async function AdminModerationPage({
             <Link
               key={String(revision.id)}
               href={`/admin/moderation/${revision.id}`}
-              className="grid gap-4 rounded-xl border bg-card p-5 shadow-xs transition-shadow hover:shadow-md md:grid-cols-[1fr_auto]"
+              className="grid gap-4 border bg-muted/20 p-5 md:grid-cols-[1fr_auto]"
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -111,7 +121,6 @@ export default async function AdminModerationPage({
                   <RevisionStatusBadge status={revision.status as never} />
                   {Number(revision.conflict_count) > 1 && (
                     <span className="flex items-center gap-1 text-xs font-medium text-amber-700">
-                      <GitCompareArrows className="size-3.5" />
                       {Number(revision.conflict_count)} conflicting revisions
                     </span>
                   )}
@@ -133,9 +142,8 @@ export default async function AdminModerationPage({
             </Link>
           ))
         ) : (
-          <Card>
+          <Card className="rounded-none shadow-none">
             <CardContent className="p-12 text-center">
-              <Inbox className="mx-auto size-8 text-muted-foreground" />
               <p className="mt-4 font-medium">
                 No revisions match these filters.
               </p>

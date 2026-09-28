@@ -62,6 +62,7 @@ export type AdminTotals = {
   auditEvents: number;
 };
 export type QueueFilters = {
+  view?: "queue" | "history";
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -85,7 +86,7 @@ export function getAdminTotals(): AdminTotals {
       "SELECT COUNT(*) count FROM revisions WHERE status IN ('verifying','pending_review')",
     ),
     contributors: scalar(
-      "SELECT COUNT(DISTINCT contributor_id) count FROM revisions WHERE contributor_id != 'system'",
+      "SELECT COUNT(DISTINCT contributor_id) count FROM revisions WHERE contributor_id != 'system' AND (submitted_at IS NOT NULL OR status IN ('verifying','pending_review','changes_requested','approved','rejected'))",
     ),
     sources: scalar(
       "SELECT COUNT(DISTINCT json_extract(value, '$.url')) count FROM revisions, json_each(revisions.sources_json) WHERE json_extract(value, '$.url') IS NOT NULL",
@@ -99,7 +100,9 @@ export function getAdminTotals(): AdminTotals {
 
 export function listAdminQueue(filters: QueueFilters = {}) {
   const conditions = [
-    "r.status IN ('verifying','pending_review','changes_requested','rejected','approved')",
+    filters.view === "history"
+      ? "r.status IN ('approved','rejected')"
+      : "r.status IN ('verifying','pending_review','changes_requested')",
   ];
   const values: unknown[] = [];
   if (filters.status && filters.status !== "all") {
@@ -165,6 +168,7 @@ export function getContributorStats() {
     .prepare(
       `SELECT contributor_id,
     MAX(contributor_name) contributor_name,
+    SUM(CASE WHEN (submitted_at IS NOT NULL OR status IN ('verifying','pending_review','changes_requested','approved','rejected')) THEN 1 ELSE 0 END) submitted_count,
     SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) approved_count,
     SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) rejected_count,
     SUM(CASE WHEN status IN ('verifying','pending_review') THEN 1 ELSE 0 END) pending_count

@@ -87,7 +87,7 @@ export async function getAdminDashboard() {
       (SELECT COUNT(*)::int FROM articles WHERE live_revision_id IS NOT NULL AND archived_at IS NULL) published,
       (SELECT COUNT(*)::int FROM articles WHERE archived_at IS NOT NULL) archived,
       (SELECT COUNT(*)::int FROM revisions WHERE status IN ('verifying','pending_review')) pending,
-      (SELECT COUNT(DISTINCT contributor_id)::int FROM revisions WHERE contributor_id != 'system') contributors,
+      (SELECT COUNT(DISTINCT contributor_id)::int FROM revisions WHERE contributor_id != 'system' AND (submitted_at IS NOT NULL OR status IN ('verifying','pending_review','changes_requested','approved','rejected'))) contributors,
       (SELECT COUNT(DISTINCT source->>'url')::int FROM revisions, jsonb_array_elements(sources_json) source WHERE source->>'url' IS NOT NULL) sources,
       (SELECT COUNT(*)::int FROM articles WHERE protection_level != 'open' OR is_locked) "protectedPages",
       (SELECT COUNT(*)::int FROM admin_audit_log) "auditEvents"`),
@@ -100,6 +100,7 @@ export async function getAdminDashboard() {
 }
 
 export type QueueFilters = {
+  view?: "queue" | "history";
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -120,7 +121,9 @@ const adminRevisionSelect = `SELECT
 
 export async function listAdminQueue(filters: QueueFilters = {}) {
   await ready();
-  const conditions = ["r.status IN ('verifying','pending_review','changes_requested','rejected','approved')"];
+  const conditions = [filters.view === "history"
+      ? "r.status IN ('approved','rejected')"
+      : "r.status IN ('verifying','pending_review','changes_requested')"];
   const values: unknown[] = [];
   const add = (condition: string, value: unknown) => {
     values.push(value);
@@ -160,6 +163,7 @@ export async function findDuplicateArticles() {
 export async function getContributorStats() {
   await ready();
   return rows<Record<string, unknown>>(`SELECT contributor_id,MAX(contributor_name) contributor_name,
+    COUNT(*) FILTER (WHERE (submitted_at IS NOT NULL OR status IN ('verifying','pending_review','changes_requested','approved','rejected')))::int submitted_count,
     COUNT(*) FILTER (WHERE status='approved')::int approved_count,
     COUNT(*) FILTER (WHERE status='rejected')::int rejected_count,
     COUNT(*) FILTER (WHERE status IN ('verifying','pending_review'))::int pending_count

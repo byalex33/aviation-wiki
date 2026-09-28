@@ -292,7 +292,7 @@ export async function restoreArticleRevisionFormAction(
   }
 }
 
-export async function updateContributorAction(formData: FormData) {
+export async function updateUserAction(formData: FormData) {
   const actor = await requireAdmin();
   await enforceAdminWriteLimit(actor.userId);
   const adminDb = await adminDatabase();
@@ -342,7 +342,8 @@ export async function updateContributorAction(formData: FormData) {
       moderatorNotes: profile.notes,
     },
   });
-  revalidatePath("/admin/contributors");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
 }
 
 export async function updateSourceCheckAction(formData: FormData) {
