@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { connection } from "next/server";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -120,6 +121,7 @@ const darkPanel = "bg-[hsl(210_12%_11%)] text-white dark:border dark:bg-card";
 const eyebrow = "font-mono text-[10px] font-semibold uppercase tracking-[0.18em]";
 
 export default async function Home() {
+  await connection();
   const [documents, datedEvents, activity] = await Promise.all([
     listPublicSearchDocuments(),
     loadDatedAviationEvents(),
@@ -128,7 +130,7 @@ export default async function Home() {
   const now = new Date();
   const todayEvents = eventsOnDate(datedEvents, now);
   const categoryCounts = getAviationCategoryCounts(documents);
-  const [lead, ...rest] = featuredArticles(documents);
+  const [lead, ...rest] = featuredArticles(documents, now);
   const groups = directory.map((group) => {
     const items = group.items.map(([id, icon]) => ({
       ...aviationCategories.find((category) => category.id === id)!,

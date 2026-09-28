@@ -13,15 +13,6 @@ export type ContributionMission = {
   href: string;
 };
 
-const featuredArticleSlugs = [
-  "star-alliance",
-  "mikoyan-mig-29",
-  "airbus-a320-family",
-  "sky-team",
-  "one-world",
-  "boeing-787-dreamliner",
-] as const;
-
 const missingCategoryMissions: Array<{
   category: AviationCategoryId;
   title: string;
@@ -101,11 +92,21 @@ const improvementMissions = [
   },
 ] as const;
 
-export function featuredArticles(documents: SearchDocument[]) {
-  const bySlug = new Map(documents.map((document) => [document.slug, document]));
-  return featuredArticleSlugs
-    .map((slug) => bySlug.get(slug))
-    .filter((document): document is SearchDocument => Boolean(document));
+export function featuredArticles(documents: SearchDocument[], date = new Date()) {
+  if (!documents.length) return [];
+
+  // A stable order keeps database ordering from changing the daily selection.
+  const candidates = [...documents].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+  const count = Math.min(6, candidates.length);
+  const day = Math.floor(date.getTime() / 86_400_000);
+  const offset = ((day * count) % candidates.length + candidates.length) % candidates.length;
+
+  return Array.from(
+    { length: count },
+    (_, index) => candidates[(offset + index) % candidates.length],
+  );
 }
 
 export function contributionMissions(documents: SearchDocument[]) {
