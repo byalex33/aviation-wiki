@@ -17,6 +17,7 @@ import {
   ShareProfileButton,
 } from "@/components/public-profile";
 import { roleStyles } from "@/components/role-username";
+import { StyledName } from "@/components/styled-name";
 import { formatDisplayLabel } from "@/lib/display";
 import { getPublicProfile } from "@/lib/public-profile";
 import { jsonLd, siteUrl } from "@/lib/seo";
@@ -165,7 +166,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                   </span>
                 </div>
                 <h1 className="mt-3 text-3xl font-bold leading-[1.05] tracking-[-0.045em] sm:text-[40px]">
-                  {profile.displayName}
+                  <StyledName name={profile.displayName} style={profile.nameStyle} />
                 </h1>
                 <p className="mt-2 font-mono text-[13px] text-muted-foreground">
                   @{profile.username}

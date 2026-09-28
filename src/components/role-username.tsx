@@ -1,5 +1,7 @@
 import { BadgeCheck, Shield, ShieldCheck } from "lucide-react";
 
+import { StyledName } from "@/components/styled-name";
+import type { NameStyle } from "@/lib/name-style";
 import { cn } from "@/lib/utils";
 
 type DisplayRole =
@@ -29,14 +31,16 @@ export const roleStyles = {
 export function RoleUsername({
   name,
   role,
+  nameStyle,
   className,
 }: {
   name: string;
+  nameStyle?: NameStyle | null;
   role: DisplayRole | string | null | undefined;
   className?: string;
 }) {
   const treatment = roleStyles[role as keyof typeof roleStyles];
-  if (!treatment) return <span className={cn("capitalize", className)}>{name}</span>;
+  if (!treatment) return <StyledName name={name} style={nameStyle} className={cn("capitalize", className)} />;
   const Icon = treatment.Icon;
   return (
     <span
@@ -47,7 +51,7 @@ export function RoleUsername({
       )}
     >
       <Icon className="size-[1em] shrink-0" aria-hidden="true" />
-      <span>{name}</span>
+      <StyledName name={name} style={nameStyle} />
       <span className="sr-only"> ({treatment.label})</span>
     </span>
   );

@@ -3,6 +3,7 @@ import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
 import { cache } from "react";
 
+import { nameStyleFromMetadata, type NameStyle } from "@/lib/name-style";
 import type { PublicContributorActivity } from "@/lib/public-profile-types";
 import { wikiRoles, type WikiRole } from "@/lib/wiki-roles";
 
@@ -13,6 +14,7 @@ export type PublicProfile = PublicContributorActivity & {
   imageUrl: string;
   role: WikiRole;
   bio: string | null;
+  nameStyle: NameStyle | null;
   createdAt: number;
 };
 
@@ -56,6 +58,7 @@ export const getPublicProfile = cache(
       imageUrl: user.imageUrl,
       role: normalizeRole(user.publicMetadata.role),
       bio: publicBio(user.publicMetadata.bio),
+      nameStyle: nameStyleFromMetadata(user.publicMetadata),
       createdAt: user.createdAt,
       ...activity,
     };

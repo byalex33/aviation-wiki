@@ -9,6 +9,10 @@ import { AuthField } from "./auth-field";
 import { ProfileWorkspace, ProfileSkeleton, RoleLabel, normalizeRole, type ProfileSection } from "./profile-workspace";
 import { Reverification, type ReverificationRequest } from "./reverification";
 import { SettingsInput, SettingsRow } from "./settings-field";
+import { NameStylePanel } from "./name-style-panel";
+import { StyledName } from "@/components/styled-name";
+import { nameStyleFromMetadata } from "@/lib/name-style";
+import { hasPro } from "@/lib/pro";
 import { authError } from "@/lib/auth-ui";
 import { cn } from "@/lib/utils";
 import styles from "./auth.module.css";
@@ -74,8 +78,9 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
   const dirty = nameChanged || usernameChanged;
   const role = normalizeRole(user.publicMetadata?.role);
   const previewName = collapseSpaces(name) || trimmedUsername || "Your name";
+  const nameStyle = nameStyleFromMetadata(user.publicMetadata);
 
-  return <ProfileWorkspace section={section} onSectionChange={changeSection} name={savedName} username={savedUsername} imageUrl={user.imageUrl} role={role} busy={busy} onSignOut={() => void run(async () => { await signOut({ redirectUrl: "/" }); }, "Signed out.")}>
+  return <ProfileWorkspace section={section} onSectionChange={changeSection} name={savedName} username={savedUsername} imageUrl={user.imageUrl} role={role} nameStyle={nameStyle} busy={busy} onSignOut={() => void run(async () => { await signOut({ redirectUrl: "/" }); }, "Signed out.")}>
     {error && <p className="mt-6 max-w-[720px] rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300" role="alert">{error}</p>}
     {reverification && <div className={cn(card, "mt-6 max-w-[520px] p-6")}><Reverification request={reverification} onClose={() => setReverification(null)}/></div>}
     <fieldset disabled={busy} className="m-0 min-w-0 border-0 p-0" aria-busy={busy}>
@@ -130,7 +135,7 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={user.imageUrl} alt="" width={56} height={56} className="size-14 rounded-full object-cover ring-1 ring-border"/>
                 <RoleLabel role={role} className="mt-3.5 rounded-full bg-muted px-2 py-0.5 text-[11px]"/>
-                <p className="mt-2 text-[22px] font-bold leading-[1.15] tracking-[-0.04em] [overflow-wrap:anywhere]">{previewName}</p>
+                <p className="mt-2 text-[22px] font-bold leading-[1.15] tracking-[-0.04em] [overflow-wrap:anywhere]"><StyledName name={previewName} style={nameStyle}/></p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">@{trimmedUsername || "username"}</p>
               </div>
               {stats && <dl className="grid grid-cols-2 border-t bg-muted/60">
@@ -237,6 +242,7 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
         <p className="text-[13px] text-muted-foreground">You can always sign in with your primary email address as well.</p>
       </div>
     </fieldset>
+    <div className="mt-7" hidden={section !== "customise"}><NameStylePanel user={user} name={savedName} username={savedUsername} role={role} pro={hasPro(user.publicMetadata)}/></div>
     <div className="mt-7" hidden={section !== "keys"}>{apiKeys}</div>
   </ProfileWorkspace>;
 }

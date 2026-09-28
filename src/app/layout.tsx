@@ -17,6 +17,7 @@ import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { clerkShadcnAppearance } from "@/lib/clerk-appearance";
+import { nameFontVariables } from "@/lib/name-style-fonts";
 import { cn } from "@/lib/utils";
 import { jsonLd } from "@/lib/seo";
 
@@ -109,7 +110,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${geist.variable} ${geistMono.variable} ${openSans.variable} antialiased`}
+      className={`${geist.variable} ${geistMono.variable} ${openSans.variable} ${nameFontVariables} antialiased`}
       suppressHydrationWarning
     >
       <head>

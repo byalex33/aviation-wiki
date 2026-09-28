@@ -1,0 +1,165 @@
+/* Pro name styles. Every animation has a still reduced-motion state that keeps the look. */
+
+.name {
+  --name-ease: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Fonts */
+.font-serif { font-family: var(--font-name-serif), Georgia, serif; letter-spacing: -0.01em; }
+.font-modern { font-family: var(--font-name-modern), var(--font-geist), sans-serif; }
+.font-rounded { font-family: var(--font-name-rounded), var(--font-geist), sans-serif; letter-spacing: -0.01em; }
+.font-cockpit { font-family: var(--font-name-cockpit), var(--font-geist), sans-serif; letter-spacing: 0.02em; }
+.font-runway { font-family: var(--font-name-runway), var(--font-geist), sans-serif; font-weight: 400; letter-spacing: 0.04em; font-synthesis: none; }
+.font-signature { font-family: var(--font-name-signature), cursive; font-size: 1.2em; letter-spacing: 0; }
+.font-mono { font-family: var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -0.03em; }
+.font-pixel { font-family: var(--font-name-pixel), ui-monospace, monospace; font-size: 0.88em; letter-spacing: 0; }
+
+/* Gradient text. The padding keeps italic and script overhangs inside the painted area. */
+.clip {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0.1em 0.08em;
+  margin-inline: -0.08em;
+}
+
+.effect-sunset { background-image: linear-gradient(100deg, #ea580c, #e11d48 55%, #9333ea); }
+.effect-ocean { background-image: linear-gradient(100deg, #0891b2, #2563eb 60%, #4f46e5); }
+.effect-aurora { background-image: linear-gradient(100deg, #059669, #0d9488 40%, #7c3aed); }
+.effect-gold { background-image: linear-gradient(180deg, #ca8a04 0%, #a16207 55%, #713f12 100%); }
+.effect-chrome { background-image: linear-gradient(180deg, #94a3b8 0%, #1e293b 55%, #64748b 100%); }
+.effect-neon { color: #c026d3; text-shadow: 0 0 0.35em rgb(192 38 211 / 0.4); }
+
+:global(.dark) .effect-sunset { background-image: linear-gradient(100deg, #fb923c, #fb7185 55%, #c084fc); }
+:global(.dark) .effect-ocean { background-image: linear-gradient(100deg, #22d3ee, #60a5fa 60%, #818cf8); }
+:global(.dark) .effect-aurora { background-image: linear-gradient(100deg, #34d399, #2dd4bf 40%, #a78bfa); }
+:global(.dark) .effect-gold { background-image: linear-gradient(180deg, #fef3c7 0%, #facc15 45%, #d97706 100%); }
+:global(.dark) .effect-chrome { background-image: linear-gradient(180deg, #ffffff 0%, #94a3b8 55%, #e2e8f0 100%); }
+:global(.dark) .effect-neon { color: #f5d0fe; text-shadow: 0 0 0.12em #e879f9, 0 0 0.5em rgb(217 70 239 / 0.75); }
+
+/* Animated effects */
+.effect-shimmer {
+  --shimmer-base: var(--foreground);
+  --shimmer-light: hsl(356 84% 52%);
+  background-image: linear-gradient(110deg, var(--shimmer-base) 42%, var(--shimmer-light) 50%, var(--shimmer-base) 58%);
+  background-size: 250% 100%;
+  background-position: 0% 0;
+  animation: shimmer 3.2s var(--name-ease) infinite;
+}
+:global(.dark) .effect-shimmer { --shimmer-light: #fca5a5; }
+
+.effect-rainbow {
+  background-image: linear-gradient(90deg, #dc2626, #d97706, #16a34a, #2563eb, #9333ea, #db2777, #dc2626);
+  background-size: 200% 100%;
+  animation: flow 6s linear infinite;
+}
+:global(.dark) .effect-rainbow { background-image: linear-gradient(90deg, #f87171, #fbbf24, #4ade80, #60a5fa, #c084fc, #f472b6, #f87171); }
+
+.effect-afterburner {
+  background-image: linear-gradient(90deg, #b91c1c, #ea580c, #d97706, #ea580c, #b91c1c);
+  background-size: 200% 100%;
+  animation: flow 2.4s linear infinite;
+}
+:global(.dark) .effect-afterburner {
+  background-image: linear-gradient(90deg, #f87171, #fb923c, #fde047, #fb923c, #f87171);
+  filter: drop-shadow(0 0 0.25em rgb(249 115 22 / 0.35));
+}
+
+.effect-pulse {
+  --pulse: #e11d48;
+  --pulse-peak: 40%;
+  color: var(--pulse);
+  animation: pulse 2.4s var(--name-ease) infinite;
+}
+:global(.dark) .effect-pulse { --pulse: #fb7185; --pulse-peak: 70%; }
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  65%, 100% { background-position: 0% 0; }
+}
+
+@keyframes flow {
+  to { background-position: 200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { text-shadow: 0 0 0.1em color-mix(in srgb, var(--pulse) 20%, transparent); }
+  50% { text-shadow: 0 0 0.1em color-mix(in srgb, var(--pulse) 45%, transparent), 0 0 0.5em color-mix(in srgb, var(--pulse) var(--pulse-peak), transparent); }
+}
+
+/* Icons */
+.icon {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-left: 0.3em;
+  vertical-align: -0.08em;
+  flex-shrink: 0;
+  transform-origin: center;
+}
+
+.icon-propeller { animation: spin 0.9s linear infinite; }
+.icon-cruising { animation: cruise 3s var(--name-ease) infinite; }
+.icon-twinkle { animation: twinkle 1.8s var(--name-ease) infinite; }
+.icon-heartbeat { animation: heartbeat 1.4s ease-out infinite; }
+.icon-compass { animation: wobble 2.8s var(--name-ease) infinite alternate; }
+
+.beacon {
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  margin-left: 0.4em;
+  margin-right: 0.1em;
+  vertical-align: 0.14em;
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 0.35em rgb(239 68 68 / 0.9);
+  animation: strobe 1.6s steps(1, end) infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes cruise {
+  0%, 100% { transform: translateY(0.06em) rotate(-4deg); }
+  50% { transform: translateY(-0.08em) rotate(3deg); }
+}
+
+@keyframes twinkle {
+  0%, 100% { transform: scale(0.85) rotate(0deg); opacity: 0.7; }
+  50% { transform: scale(1.1) rotate(12deg); opacity: 1; }
+}
+
+@keyframes heartbeat {
+  0%, 45%, 100% { transform: scale(1); }
+  12% { transform: scale(1.2); }
+  24% { transform: scale(1); }
+  34% { transform: scale(1.12); }
+}
+
+@keyframes wobble {
+  from { transform: rotate(-18deg); }
+  to { transform: rotate(18deg); }
+}
+
+/* A double flash, like an aircraft's anti-collision strobe. */
+@keyframes strobe {
+  0% { opacity: 1; }
+  6% { opacity: 0.2; box-shadow: none; }
+  12% { opacity: 1; box-shadow: 0 0 0.35em rgb(239 68 68 / 0.9); }
+  18%, 100% { opacity: 0.2; box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effect-shimmer, .effect-rainbow, .effect-afterburner, .effect-pulse,
+  .icon, .beacon {
+    animation: none;
+  }
+  .effect-pulse { text-shadow: 0 0 0.4em color-mix(in srgb, var(--pulse) 45%, transparent); }
+}
+
+@media (forced-colors: active) {
+  .clip { color: CanvasText; -webkit-text-fill-color: CanvasText; background-image: none; }
+}

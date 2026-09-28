@@ -5,6 +5,8 @@ import { MotionSelect } from "@/components/ui/motion-select";
 import { useSyncExternalStore } from "react";
 import { useUser } from "@clerk/nextjs";
 
+import { hasPro } from "@/lib/pro";
+
 const storageKey = "aviation-theme";
 type Theme = "light" | "dark";
 
@@ -35,11 +37,7 @@ function applyTheme(theme: Theme) {
 export function ThemeSelector() {
   const { isLoaded, user } = useUser();
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, serverTheme);
-  const role = String(user?.publicMetadata.role || "");
-  const canChooseTheme =
-    user?.publicMetadata.pro === true ||
-    role === "moderator" ||
-    role === "admin";
+  const canChooseTheme = hasPro(user?.publicMetadata);
 
   return (
     <div className="max-w-64">

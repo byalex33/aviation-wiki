@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowUpRight, KeyRound, Link2, LogOut, Mail, Shield, UserRound, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, KeyRound, Link2, LogOut, Mail, Palette, Shield, UserRound, type LucideIcon } from "lucide-react";
 
 import { roleStyles } from "@/components/role-username";
+import { StyledName } from "@/components/styled-name";
+import type { NameStyle } from "@/lib/name-style";
 import { cn } from "@/lib/utils";
 import { wikiRoleDetails, wikiRoles, type WikiRole } from "@/lib/wiki-roles";
 import { profileSections, type ProfileSection } from "./profile-sections";
@@ -15,6 +17,7 @@ const sectionIcons: Record<ProfileSection, LucideIcon> = {
   profile: UserRound,
   email: Mail,
   security: Shield,
+  customise: Palette,
   keys: KeyRound,
   connections: Link2,
 };
@@ -32,9 +35,9 @@ export function RoleLabel({ role, className }: { role: WikiRole; className?: str
   </span>;
 }
 
-export function ProfileWorkspace({ section, onSectionChange, name, username, imageUrl, role, busy, onSignOut, children }: {
+export function ProfileWorkspace({ section, onSectionChange, name, username, imageUrl, role, nameStyle, busy, onSignOut, children }: {
   section: ProfileSection; onSectionChange: (section: ProfileSection) => void;
-  name: string; username: string; imageUrl: string; role: WikiRole;
+  name: string; username: string; imageUrl: string; role: WikiRole; nameStyle?: NameStyle | null;
   busy: boolean; onSignOut: () => void; children: ReactNode;
 }) {
   const current = profileSections[section];
@@ -52,7 +55,7 @@ export function ProfileWorkspace({ section, onSectionChange, name, username, ima
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt="" width={44} height={44} className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border"/>
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold tracking-[-0.02em]">{name || username || "Your account"}</p>
+            <p className="truncate text-[15px] font-semibold tracking-[-0.02em]"><StyledName name={name || username || "Your account"} style={nameStyle}/></p>
             <RoleLabel role={role} className="mt-0.5 text-xs"/>
           </div>
         </div>
@@ -67,6 +70,7 @@ export function ProfileWorkspace({ section, onSectionChange, name, username, ima
               )}>
               <Icon className={cn("size-4 shrink-0", active && "text-primary")} aria-hidden="true"/>
               {profileSections[key].label}
+              {"pro" in profileSections[key] && <span className="ml-auto rounded-full border border-primary/30 px-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-primary">Pro</span>}
             </button>;
           })}
         </nav>
@@ -96,7 +100,7 @@ export function ProfileSkeleton() {
   return <main className="mx-auto w-full max-w-[1160px] px-5 pb-24 pt-7 sm:px-6" aria-busy="true" aria-label="Loading account settings" role="status">
     <div className="h-3 w-40 rounded bg-muted"/>
     <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:gap-10">
-      <div className="flex flex-col gap-3 lg:w-[240px]"><div className="h-11 rounded-full bg-muted lg:w-11"/>{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-10 rounded-lg bg-muted"/>)}</div>
+      <div className="flex flex-col gap-3 lg:w-[240px]"><div className="h-11 rounded-full bg-muted lg:w-11"/>{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-10 rounded-lg bg-muted"/>)}</div>
       <div className="flex-1"><div className="h-9 w-64 rounded bg-muted"/><div className="mt-3 h-4 w-96 max-w-full rounded bg-muted"/><div className="mt-7 h-80 rounded-2xl bg-muted"/></div>
     </div>
     <span className="sr-only">Loading account settings</span>

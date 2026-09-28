@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { Menu } from "@base-ui/react/menu";
 
 import { RoleUsername } from "@/components/role-username";
+import { nameStyleFromMetadata } from "@/lib/name-style";
 
 export function AccountMenu() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export function AccountMenu() {
           <Menu.Popup className="beui-dropdown w-64 border bg-background p-1.5 text-popover-foreground outline-none">
             <div className="px-2.5 py-2">
               <p className="truncate text-sm">
-                <RoleUsername name={displayName} role={role} />
+                <RoleUsername name={displayName} role={role} nameStyle={nameStyleFromMetadata(user?.publicMetadata)} />
               </p>
               {email && <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>}
             </div>

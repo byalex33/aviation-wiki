@@ -98,6 +98,20 @@ h = harness(); await h.click("Continue with Google"); assert.equal(h.calls[0][1]
 h = harness(); h.signIn.status = "needs_second_factor"; h.signIn.supportedSecondFactors = [{ strategy: "totp" }]; await h.resume(); assert.ok(h.nodes().some((n) => n.type === "field" && n.props.label === "Verification code"), "Resume MFA after OAuth");
 console.log("Custom auth checks passed: local redirects, email suggestions, password sign-in, API errors, MFA, email codes, password recovery, verified signup, OAuth completion and resume.");
 
+// Pro name styles: only catalogued values persist, and lapsed Pro accounts render plain names.
+const pro = load("../src/lib/pro.ts");
+const nameStyle = load("../src/lib/name-style.ts", { "@/lib/pro": pro });
+assert.equal(JSON.stringify(nameStyle.parseNameStyle({ icon: "propeller", font: "cockpit", effect: "rainbow" })), JSON.stringify({ icon: "propeller", font: "cockpit", effect: "rainbow" }));
+assert.equal(JSON.stringify(nameStyle.parseNameStyle({ icon: "crown" })), JSON.stringify({ icon: "crown", font: "default", effect: "none" }), "Missing fields fall back to defaults");
+for (const value of [null, "crown", [], { icon: "toString" }, { font: "url(evil)" }, { effect: "__proto__" }, { icon: 1 }]) assert.equal(nameStyle.parseNameStyle(value), null, JSON.stringify(value));
+const styled = { icon: "crown", font: "serif", effect: "gold" };
+assert.equal(nameStyle.nameStyleFromMetadata({ nameStyle: styled }), null, "Free accounts never display a saved style");
+assert.equal(JSON.stringify(nameStyle.nameStyleFromMetadata({ pro: true, nameStyle: styled })), JSON.stringify(styled));
+assert.equal(JSON.stringify(nameStyle.nameStyleFromMetadata({ role: "moderator", nameStyle: styled })), JSON.stringify(styled), "Staff get Pro perks");
+assert.equal(nameStyle.nameStyleFromMetadata({ pro: true, nameStyle: { icon: "none" } }), null, "A default style renders as a plain name");
+assert.equal(nameStyle.nameStyleFromMetadata({ pro: "true", nameStyle: styled }), null, "Only a boolean grants Pro");
+console.log("Name style checks passed: strict parsing, Pro gating, staff perks, default styles.");
+
 // Profile mutations stay on Clerk resources and never edit roles or metadata.
 {
   let cursor = 0, tree;
@@ -115,6 +129,7 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
     "react": { useState, useRef: (initial) => useState({ current: initial })[0] },
     "@clerk/nextjs": { useUser: () => ({ user, isLoaded: true }), useClerk: () => ({ signOut() {} }), useReverification: (action) => action },
     "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton", RoleLabel: "role", normalizeRole: () => "contributor" }, "./settings-field": { SettingsInput: "field", SettingsRow: "row" }, "./auth.module.css": { default: {} },
+    "./name-style-panel": { NameStylePanel: "name-style-panel" }, "@/components/styled-name": { StyledName: "styled-name" }, "@/lib/name-style": nameStyle, "@/lib/pro": pro,
     "sonner": { toast: { success() {}, error() {} } }, "@/lib/utils": { cn: (...classes) => classes.filter(Boolean).join(" ") },
   });
   const Editor = ProfileForm().type;
@@ -133,6 +148,9 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   assert.equal(tree.props.section, "keys");
   assert.equal(nodes(tree).find((n) => n.props.children === "api-key-panel").props.hidden, false);
   assert.equal(nodes(tree).filter((n) => n.type === "div" && n.props.hidden === false).length, 1, "API keys shares the account workspace");
+  tree.props.onSectionChange("customise"); render();
+  assert.equal(nodes(tree).find((n) => n.type === "name-style-panel").props.pro, false, "Free accounts see the Pro-only customisation state");
+  assert.equal(nodes(tree).filter((n) => n.type === "div" && n.props.hidden === false).length, 1, "Customisation shares the account workspace");
   tree.props.onSectionChange("profile"); render();
   field("Username", "newpilot"); await submit(0);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify(["update", { username: "newpilot" }]));
