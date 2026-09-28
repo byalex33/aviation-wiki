@@ -78,7 +78,7 @@ export default function ApiDocsPage() {
         {[
           { icon: ShieldCheck, label: "Authenticated", text: "Bearer token per user account" },
           { icon: BookOpen, label: "Draft-only", text: "Never bypasses editorial review" },
-          { icon: Zap, label: "Rate limited", text: "10 requests per minute per account, shared across keys" },
+          { icon: Zap, label: "Rate limited", text: "10 requests per minute, or 60 with Pro. Shared across all account keys." },
         ].map(({ icon: Icon, label, text }) => (
           <div key={label} className="rounded-xl border bg-card p-5">
             <Icon className="size-5 text-primary" />
@@ -181,7 +181,7 @@ export default function ApiDocsPage() {
             ["400", "Validation error — see the error field for details"],
             ["409", "Slug conflict with a different content type"],
             ["422", "Business logic error (e.g. article is locked)"],
-            ["429", "Rate limit exceeded — up to 10 drafts per minute per account"],
+            ["429", "Rate limit exceeded: 10 drafts per minute per account, or 60 with Pro"],
             ["500", "Unexpected server error"],
           ].map(([code, message]) => (
             <div key={code} className="flex items-start gap-4 px-4 py-3">

@@ -7,6 +7,7 @@ import {
   createNotification,
   getNotificationPreferences,
   listArticleWatcherIds,
+  listArticleWatchAlerts,
   listPendingDigestNotifications,
   updateEmailDelivery,
 } from "@/lib/notification-storage";
@@ -16,6 +17,7 @@ import type {
 } from "@/lib/notification-types";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import type { RevisionRecord } from "@/lib/wiki-types";
+import { getProUserIds } from "@/lib/pro-server";
 
 import { queueImmediateEmailDelivery, claimDigestBatch, createDigestBatch, finishDigestBatch, holdLegacyDigestDeliveries, listRecoverableDigestBatchIds } from "@/lib/notification-digest-storage";
 
@@ -211,8 +213,17 @@ export async function emitRevisionOutcome(input: {
     });
   }
 
-  for (const watcherId of await listArticleWatcherIds(revision.articleId)) {
+  const watchers = await listArticleWatcherIds(revision.articleId);
+  const alertSettings = await listArticleWatchAlerts(revision.articleId);
+  const proWatchers = await getProUserIds(alertSettings.map(setting => setting.user_id)).catch(error => {
+    // An identity outage must not unmute articles or interrupt an approved publication.
+    console.error("Could not refresh watch alert entitlements; keeping saved preferences", error);
+    return new Set(alertSettings.map(setting => setting.user_id));
+  });
+  const advancedAlerts = new Map(alertSettings.filter(setting => proWatchers.has(setting.user_id)).map(setting => [setting.user_id, setting]));
+  for (const watcherId of watchers) {
     if (watcherId === revision.contributorId) continue;
+    if (advancedAlerts.get(watcherId)?.edits === false) continue;
     await emitNotification({
       recipientId: watcherId,
       actorId,
@@ -276,6 +287,18 @@ export async function emitRevisionOutcome(input: {
       revisionId: revision.id,
       dedupeKey: `revision:${revision.id}:${kind}`,
     });
+    for (const watcherId of watchers) {
+      if (watcherId === revision.contributorId) continue;
+      const settings = advancedAlerts.get(watcherId);
+      if (!(isSource ? settings?.sources : settings?.relationships)) continue;
+      await emitNotification({
+        recipientId: watcherId, actorId, type: kind,
+        title: `Watched article: ${isSource ? "source" : "relationship"} ${accepted ? "added" : "removed"}`,
+        message: `${revision.title}: ${count} ${isSource ? "source" : "relationship"}${count === 1 ? "" : "s"} ${accepted ? "added" : "removed"}.`,
+        href: articlePath(revision.contentType, revision.proposedSlug), articleId: revision.articleId, revisionId: revision.id,
+        dedupeKey: `watch:${watcherId}:revision:${revision.id}:${kind}`,
+      });
+    }
   }
 }
 

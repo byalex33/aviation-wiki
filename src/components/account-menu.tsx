@@ -6,6 +6,8 @@ import { Menu } from "@base-ui/react/menu";
 
 import { RoleUsername } from "@/components/role-username";
 import { nameStyleFromMetadata } from "@/lib/name-style";
+import { hasPro } from "@/lib/pro";
+import { SupporterBadge } from "@/components/supporter-badge";
 
 export function AccountMenu() {
   const router = useRouter();
@@ -37,8 +39,10 @@ export function AccountMenu() {
                 <RoleUsername name={displayName} role={role} nameStyle={nameStyleFromMetadata(user?.publicMetadata)} />
               </p>
               {email && <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>}
+              {hasPro(user?.publicMetadata) && <div className="mt-2"><SupporterBadge /></div>}
             </div>
             <Menu.Separator className="my-1 h-px bg-border" />
+            <Menu.Item onClick={() => router.push("/saved")} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">Saved articles</Menu.Item>
             {user?.username && (
               <Menu.Item onClick={() => router.push(`/profile/${encodeURIComponent(user.username!)}`)} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
 

@@ -1,6 +1,8 @@
 import { reconcileCitationSources } from "@/lib/article-citations";
 import { isSafeCitationUrl, parseArticleMarkdown } from "@/lib/article-markdown";
 import { verifyApiKey } from "@/lib/api-keys";
+import { getProUserIds } from "@/lib/pro-server";
+import { FREE_DRAFTS_PER_MINUTE, PRO_DRAFTS_PER_MINUTE } from "@/lib/pro";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { absoluteUrl } from "@/lib/site";
 import { UserFacingError } from "@/lib/user-facing-error";
@@ -39,15 +41,21 @@ export async function POST(request: Request) {
     return errorResponse("This API key does not have the articles:draft scope.", 403);
 
   // 2. All keys for one account share the draft request allowance.
+  let limit: number;
+  try {
+    limit = (await getProUserIds([apiKey.userId])).has(apiKey.userId) ? PRO_DRAFTS_PER_MINUTE : FREE_DRAFTS_PER_MINUTE;
+  } catch {
+    return errorResponse("Account access could not be checked. Please retry shortly.", 503, { "Cache-Control": "private, no-store" });
+  }
   const rateLimit = await consumeRateLimit({
     scope: "api-v1-draft-create-account",
     subject: apiKey.userId,
-    limit: 10,
+    limit,
     windowMs: 60_000,
   });
   if (!rateLimit.allowed)
     return Response.json(
-      { error: "Rate limit exceeded. Each account may submit up to 10 drafts per minute across all its API keys." },
+      { error: `Rate limit exceeded. Your account may submit up to ${limit} drafts per minute across all its API keys.` },
       { status: 429, headers: { ...rateLimitHeaders(rateLimit), "Cache-Control": "private, no-store" } },
     );
 

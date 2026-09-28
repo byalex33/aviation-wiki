@@ -318,7 +318,7 @@ export async function updateUserAction(formData: FormData) {
   )
     throw new UserFacingError("The final admin cannot remove their own admin access.");
   const client = await clerkClient();
-  await client.users.updateUserMetadata(userId, { publicMetadata: { role } });
+  const pro = formData.get("pro") === "on";
   const profile = {
     userId,
     notes: text(formData, "moderatorNotes", 4_000),
@@ -327,6 +327,7 @@ export async function updateUserAction(formData: FormData) {
   };
   if (!["none", "read_only", "suspended"].includes(profile.restriction))
     throw new UserFacingError("Invalid account restriction.");
+  await client.users.updateUserMetadata(userId, { publicMetadata: { role, pro } });
   await adminDb.upsertContributorProfile(profile);
   await adminDb.recordAdminAudit({
     actorId: actor.userId,
@@ -334,9 +335,10 @@ export async function updateUserAction(formData: FormData) {
     action: "contributor.updated",
     entityType: "user",
     entityId: userId,
-    before: { role: previousRole },
+    before: { role: previousRole, pro: target.publicMetadata.pro === true },
     after: {
       role,
+      pro,
       restriction: profile.restriction,
       trusted: profile.trusted,
       moderatorNotes: profile.notes,
@@ -344,6 +346,9 @@ export async function updateUserAction(formData: FormData) {
   });
   revalidatePath("/admin/users");
   revalidatePath("/admin");
+  revalidatePath("/admin/moderation");
+  revalidatePath("/moderation");
+  if (target.username) revalidatePath(`/profile/${encodeURIComponent(target.username)}`);
 }
 
 export async function updateSourceCheckAction(formData: FormData) {

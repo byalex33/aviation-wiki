@@ -6,6 +6,10 @@
 
 ## Production
 
+Before deploying the Pro tools, run `npm run db:migrate:pro` to inspect the additive migration, then `npm run db:migrate:pro -- --apply` with the intended database environment. It creates private saved collections, their article memberships, and per-article watch preferences. Existing watches and notification preferences are preserved. Development schema initialization includes these tables; production requests do not create them.
+
+Pro entitlement comes from Clerk `publicMetadata.pro === true`; moderators and admins also receive the tools. Only trusted server/admin operations may set it. Checkout remains disabled. Email delivery requires `RESEND_API_KEY` and `NOTIFICATION_EMAIL_FROM`; daily digests also require the existing authenticated cron schedule.
+
 - Provider: Aiven for PostgreSQL (managed), Free tier — 20 connections.
 - Region: EU (DigitalOcean Amsterdam).
 - Application connection limit: `DATABASE_POOL_SIZE=1` per server instance.

@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createRequire, Module } from "node:module";
 
 async function main() {
+  const require = createRequire(path.join(process.cwd(), "package.json"));
+  const clerkPath = require.resolve("@clerk/nextjs/server");
+  const clerk = new Module(clerkPath);
+  clerk.exports = { clerkClient: async () => ({ users: { getUserList: async () => ({ data: [] }) } }) };
+  require.cache[clerkPath] = clerk;
   process.env.AVIATION_WIKI_DB_PATH = path.join(mkdtempSync(path.join(tmpdir(), "admin-queue-")), "test.db");
   const { db } = await import("../src/lib/sqlite");
   const { listAdminQueue, countAdminQueueByStatus, getContributorStats, getAdminTotals } = await import("../src/lib/admin-db");
@@ -15,19 +21,19 @@ async function main() {
   }
   insert.run("test-resumed", "draft", "user-resumed", now, now, now);
   const filter = { contributor: "user-" };
-  assert.deepEqual(listAdminQueue(filter).map((r) => r.status).sort(), ["changes_requested", "pending_review", "verifying"]);
-  assert.equal(listAdminQueue({ ...filter, status: "approved" }).length, 0);
-  assert.equal(listAdminQueue({ ...filter, status: "rejected" }).length, 0);
+  assert.deepEqual((await listAdminQueue(filter)).map((r) => r.status).sort(), ["changes_requested", "pending_review", "verifying"]);
+  assert.equal((await listAdminQueue({ ...filter, status: "approved" })).length, 0);
+  assert.equal((await listAdminQueue({ ...filter, status: "rejected" })).length, 0);
   assert.deepEqual(countAdminQueueByStatus(), { changes_requested: 1, pending_review: 1, verifying: 1 });
-  assert.equal(listAdminQueue({ query: "queue te" }).length, 3);
-  assert.equal(listAdminQueue({ query: "Queue tester" }).length, 3);
-  assert.equal(listAdminQueue({ query: "no such revision" }).length, 0);
+  assert.equal((await listAdminQueue({ query: "queue te" })).length, 3);
+  assert.equal((await listAdminQueue({ query: "Queue tester" })).length, 3);
+  assert.equal((await listAdminQueue({ query: "no such revision" })).length, 0);
   db.prepare("UPDATE revisions SET assigned_moderator_id='mod-1' WHERE id='test-verifying'").run();
   db.prepare("INSERT INTO admin_audit_log (id,actor_id,actor_name,action,entity_type,entity_id,revision_id,created_at) VALUES ('audit-assign','mod-1','R. Okafor','revision.assigned','revision','test-verifying','test-verifying',?)").run(now);
-  assert.deepEqual(listAdminQueue({ ...filter, unassigned: true }).map((r) => r.id).sort(), ["test-changes_requested", "test-pending_review"]);
-  assert.equal(listAdminQueue({ ...filter, status: "verifying" })[0].assigned_moderator_name, "R. Okafor");
+  assert.deepEqual((await listAdminQueue({ ...filter, unassigned: true })).map((r) => r.id).sort(), ["test-changes_requested", "test-pending_review"]);
+  assert.equal((await listAdminQueue({ ...filter, status: "verifying" }))[0].assigned_moderator_name, "R. Okafor");
   db.prepare("UPDATE revisions SET status='approved' WHERE id='test-pending_review'").run();
-  assert.equal(listAdminQueue(filter).some((r) => r.id === "test-pending_review"), false);
+  assert.equal((await listAdminQueue(filter)).some((r) => r.id === "test-pending_review"), false);
   assert.deepEqual(db.prepare("SELECT status FROM revisions WHERE id='test-pending_review'").get(), { status: "approved" });
   const stats = new Map(getContributorStats().map((row) => [row.contributor_id, row]));
   assert.equal(stats.get("user-draft")?.submitted_count, 0);

@@ -70,6 +70,10 @@ export async function isWatchingArticle(userId: string, articleId: string) {
 export async function listArticleWatcherIds(articleId: string) {
   return (await rows<{user_id: string}>("SELECT user_id FROM article_watches WHERE article_id=$1", [articleId])).map(value => value.user_id);
 }
+export async function listArticleWatchAlerts(articleId: string) {
+  return rows<{user_id: string; edits: boolean; sources: boolean; relationships: boolean}>(
+    "SELECT user_id,edits,sources,relationships FROM article_watch_alerts WHERE article_id=$1", [articleId]);
+}
 export async function queueEmailDelivery(notificationId: string, userId: string) {
   await rows(`INSERT INTO notification_email_deliveries (id,notification_id,user_id,status,created_at,updated_at)
     VALUES ($1,$2,$3,'pending',NOW(),NOW()) ON CONFLICT(notification_id) DO NOTHING`, [randomUUID(),notificationId,userId]);

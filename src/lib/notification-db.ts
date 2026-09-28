@@ -250,6 +250,11 @@ export function listArticleWatcherIds(articleId: string) {
   ).map((row) => row.user_id);
 }
 
+// Per-article preferences are managed by the PostgreSQL-backed saved-articles page.
+export function listArticleWatchAlerts(): Array<{user_id: string; edits: boolean; sources: boolean; relationships: boolean}> {
+  return [];
+}
+
 export function queueEmailDelivery(notificationId: string, userId: string) {
   const id = randomUUID();
   const now = new Date().toISOString();

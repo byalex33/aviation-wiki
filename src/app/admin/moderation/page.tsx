@@ -104,7 +104,7 @@ export default async function AdminModerationPage({
 
       <div className="mt-3.5 overflow-hidden rounded-2xl border bg-card">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b bg-muted px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          <span>Revision · oldest first</span>
+          <span>Revision · Pro priority, then oldest first</span>
           <span className="text-right">Assignee</span>
         </div>
         {revisions.length ? (

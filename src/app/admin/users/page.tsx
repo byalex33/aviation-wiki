@@ -112,6 +112,9 @@ export default async function AdminUsersPage({ searchParams }: {
                       />
                       Trusted
                     </label>
+                    <label className="flex items-center gap-2 whitespace-nowrap text-sm">
+                      <input type="checkbox" name="pro" defaultChecked={user.pro} />Pro supporter
+                    </label>
                     <ConfirmSubmitButton
                       className="rounded-none shadow-none"
                       size="sm"

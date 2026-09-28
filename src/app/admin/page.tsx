@@ -104,7 +104,7 @@ export default async function AdminDashboardPage() {
         <section className={`${panel} min-w-0 flex-[999_1_520px] overflow-hidden`}>
           <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
             <h2 className="text-[15px] font-semibold">
-              Awaiting review <span className="font-normal text-muted-foreground">· oldest first</span>
+              Awaiting review <span className="font-normal text-muted-foreground">· Pro priority, then oldest first</span>
             </h2>
             <Link href="/admin/moderation" className="text-[13px] font-medium text-primary">
               View queue

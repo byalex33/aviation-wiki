@@ -31,6 +31,7 @@ function Meta({ revision, role, overdue }: { revision: Revision; role?: WikiRole
         className={cn("font-semibold", !role || role === "contributor" ? "text-foreground" : undefined)}
       />
       <span>{formatDisplayLabel(String(revision.content_type))}</span>
+      {revision.pro === true && <span className="font-semibold text-primary">Pro priority</span>}
       <time
         dateTime={submitted ? new Date(String(submitted)).toISOString() : undefined}
         className={cn("font-mono", overdue && "text-primary")}

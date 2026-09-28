@@ -52,6 +52,10 @@ export async function listArticleWatcherIds(...args: Parameters<typeof Local.lis
   return (await storage()).listArticleWatcherIds(...args);
 }
 
+export async function listArticleWatchAlerts(articleId: string) {
+  return (await storage()).listArticleWatchAlerts(articleId);
+}
+
 export async function queueEmailDelivery(...args: Parameters<typeof Local.queueEmailDelivery>) {
   return (await storage()).queueEmailDelivery(...args);
 }

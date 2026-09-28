@@ -101,9 +101,7 @@ export async function getAdminDashboard({ includeActivity = false } = {}) {
       COUNT(*) FILTER (WHERE r.assigned_moderator_id IS NULL)::int unassigned,
       COUNT(*) FILTER (WHERE (SELECT COUNT(*) FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review'))>1)::int conflicting
       FROM revisions r WHERE r.status='pending_review'`),
-    rows<Record<string, unknown>>(`${adminRevisionSelect}
-      WHERE r.status='pending_review'
-      ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 5`),
+    listAdminQueue({ status: "pending_review" }).then(queue => queue.slice(0, 5)),
     includeActivity
       ? rows<Record<string, unknown>>(`SELECT l.id,l.actor_id,l.actor_name,l.action,l.entity_type,l.created_at,
           COALESCE(a.title,(SELECT title FROM revisions x WHERE x.id=l.revision_id)) article_title
@@ -143,6 +141,7 @@ const adminRevisionSelect = `SELECT
   FROM revisions r JOIN articles a ON a.id=r.article_id`;
 
 export async function listAdminQueue(filters: QueueFilters = {}) {
+  const { prioritizeReviewQueue } = await import("@/lib/pro-server");
   await ready();
   const conditions = ["r.status IN ('verifying','pending_review','changes_requested')"];
   const values: unknown[] = [];
@@ -167,8 +166,9 @@ export async function listAdminQueue(filters: QueueFilters = {}) {
     else add("r.verification_json->>'status'=?", filters.verification);
   }
   if (filters.conflicting) conditions.push("(SELECT COUNT(*) FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review'))>1");
-  return rows<Record<string, unknown>>(`${adminRevisionSelect} WHERE ${conditions.join(" AND ")}
-    ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 250`, values);
+  const candidates = await rows<Record<string, unknown>>(`${adminRevisionSelect} WHERE ${conditions.join(" AND ")}
+    ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC,r.id ASC`, values);
+  return (await prioritizeReviewQueue(candidates, item => String(item.contributor_id))).slice(0, 250);
 }
 
 export async function countAdminQueueByStatus() {
@@ -750,8 +750,10 @@ export async function transitionRevision(id: string, actorId: string, toStatus: 
 }
 
 export async function listReviewQueue() {
+  const { prioritizeReviewQueue } = await import("@/lib/pro-server");
   await ready();
-  return (await rows<RevisionRow>(`${revisionSelect} WHERE r.status IN ('verifying','pending_review') ORDER BY r.submitted_at ASC,r.updated_at ASC`)).map(mapRevision);
+  const revisions = (await rows<RevisionRow>(`${revisionSelect} WHERE r.status IN ('verifying','pending_review') ORDER BY r.submitted_at ASC,r.updated_at ASC,r.id ASC`)).map(mapRevision);
+  return prioritizeReviewQueue(revisions, item => item.contributorId);
 }
 
 export async function moderatorEditRevision(id: string, content: RevisionContent, proposedSlug: string, editSummary: string, moderatorId: string) {

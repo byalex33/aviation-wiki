@@ -6,3 +6,6 @@ export function hasPro(publicMetadata: Record<string, unknown> | null | undefine
   if (!publicMetadata) return false;
   return publicMetadata.pro === true || publicMetadata.role === "moderator" || publicMetadata.role === "admin";
 }
+
+export const FREE_DRAFTS_PER_MINUTE = 10;
+export const PRO_DRAFTS_PER_MINUTE = 60;

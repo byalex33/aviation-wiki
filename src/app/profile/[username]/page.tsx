@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { SupporterBadge } from "@/components/supporter-badge";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
@@ -164,6 +165,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                     {RoleIcon && <RoleIcon className="size-3.5" aria-hidden="true" />}
                     {role.label}
                   </span>
+                  {profile.pro && <SupporterBadge />}
                 </div>
                 <h1 className="mt-3 text-3xl font-bold leading-[1.05] tracking-[-0.045em] sm:text-[40px]">
                   <StyledName name={profile.displayName} style={profile.nameStyle} />

@@ -10,6 +10,7 @@ export type AdminUser = {
   email: string;
   imageUrl: string;
   role: WikiRole;
+  pro: boolean;
   lastActiveAt: number | null;
   createdAt: number;
   submittedCount: number;
@@ -95,6 +96,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
       email: user.primaryEmailAddress?.emailAddress || "No email",
       imageUrl: user.imageUrl,
       role,
+      pro: user.publicMetadata.pro === true,
       lastActiveAt: user.lastActiveAt,
       createdAt: user.createdAt,
       submittedCount: Number(stat?.submitted_count ?? 0),

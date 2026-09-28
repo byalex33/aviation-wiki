@@ -75,6 +75,7 @@ export function ProfileWorkspace({ section, onSectionChange, name, username, ima
           })}
         </nav>
         <div className="flex gap-1 border-t pt-4 lg:flex-col lg:gap-0.5">
+          <Link href="/saved" className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-foreground/70 hover:bg-muted hover:text-foreground">Saved articles</Link>
           {username && <Link href={`/profile/${encodeURIComponent(username)}`} className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
             <ArrowUpRight className="size-4" aria-hidden="true"/>View public profile
           </Link>}

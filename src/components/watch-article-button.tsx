@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useActionState, useEffect, useRef } from "react";
 import { Bell, BellOff, LoaderCircle } from "lucide-react";
@@ -41,7 +42,7 @@ export function WatchArticleButton({
   }, [state, articleId]);
 
   return (
-    <form
+    <div className="flex flex-wrap items-center gap-2"><form
       action={formAction}
       onSubmit={() => {
         submittedWatching.current = !watching;
@@ -68,6 +69,6 @@ export function WatchArticleButton({
         )}
         {pending ? "Saving…" : watching ? "Unwatch" : "Watch"}
       </button>
-    </form>
+    </form><Link href={`/saved?article=${encodeURIComponent(articleId)}`} className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}>Save</Link></div>
   );
 }

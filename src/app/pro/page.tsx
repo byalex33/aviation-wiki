@@ -22,8 +22,8 @@ const comparisonGroups = [
   {
     title: "Research tools",
     rows: [
-      { feature: "Article watchlists", free: "Basic", pro: "Unlimited" },
-      { feature: "Watch alerts", free: "Standard", pro: "Advanced" },
+      { feature: "Article watchlists", free: "Unlimited", pro: "Unlimited" },
+      { feature: "Watch alerts", free: "Approved edits", pro: "Per-article filters" },
       { feature: "Saved collections", free: null, pro: "Included" },
     ],
   },
@@ -33,12 +33,13 @@ const comparisonGroups = [
       { feature: "Moderation queue", free: "Standard", pro: "Priority placement" },
       { feature: "Account badge", free: null, pro: "Supporter badge" },
       { feature: "Profile", free: "Standard", pro: "Customisable" },
+      { feature: "Theme selection", free: "Default", pro: "Light or dark" },
     ],
   },
   {
     title: "Developer access",
     rows: [
-      { feature: "API limits", free: "Standard", pro: "Higher limits", later: true },
+      { feature: "Draft API limits", free: "10 per minute", pro: "60 per minute" },
     ],
   },
 ] as const;
@@ -133,9 +134,6 @@ export default function ProPage() {
                     <td className="bg-primary/5 px-3 py-3.5 font-semibold sm:px-5">
                       <span className="flex flex-wrap items-center gap-1.5">
                         <Check className="size-3.5 shrink-0 text-primary" aria-hidden="true" />{row.pro}
-                        {"later" in row && row.later && (
-                          <span className="rounded-full border px-[7px] text-[10px] font-semibold text-muted-foreground">Later</span>
-                        )}
                       </span>
                     </td>
                   </tr>
@@ -144,6 +142,7 @@ export default function ProPage() {
             ))}
           </table>
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">Already have Pro? Open <Link href="/saved" className="text-primary underline">saved articles and alerts</Link> or <Link href="/settings/profile?section=customise" className="text-primary underline">customise your profile</Link>. API allowances are shared across all your keys.</p>
       </section>
 
       <section aria-labelledby="faq-heading" className="mt-14 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">

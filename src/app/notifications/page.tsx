@@ -42,6 +42,7 @@ export default async function NotificationsPage({
           <h1 className="mt-2 text-4xl font-bold tracking-tight">
             Notifications
           </h1>
+          <Link href="/saved" className="mt-3 inline-block text-sm text-primary underline">Manage watched articles and collections</Link>
           <p className="mt-3 text-muted-foreground">
             {unreadCount
               ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`

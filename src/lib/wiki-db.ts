@@ -461,8 +461,10 @@ export function getPublicContributorActivity(
   };
 }
 
-export function listReviewQueue() {
-  return (db.prepare(`${revisionSelect} WHERE r.status IN ('verifying', 'pending_review') ORDER BY r.submitted_at ASC`).all() as RevisionRow[]).map(mapRevision);
+export async function listReviewQueue() {
+  const { prioritizeReviewQueue } = await import("@/lib/pro-server");
+  const revisions = (db.prepare(`${revisionSelect} WHERE r.status IN ('verifying', 'pending_review') ORDER BY r.submitted_at ASC,r.id ASC`).all() as RevisionRow[]).map(mapRevision);
+  return prioritizeReviewQueue(revisions, item => item.contributorId);
 }
 
 export function listArticleHistory(articleId: string) {

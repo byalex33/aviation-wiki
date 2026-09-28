@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createRequire, Module } from "node:module";
+
+const require = createRequire(import.meta.url);
+const clerkPath = require.resolve("@clerk/nextjs/server");
+const clerk = new Module(clerkPath);
+clerk.exports = { clerkClient: async () => ({ users: { getUserList: async () => ({ data: [] }) } }) };
+require.cache[clerkPath] = clerk;
 
 const database = new URL(process.env.DATABASE_URL || "postgresql://invalid");
 assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(database.hostname), "Use an isolated loopback PostgreSQL database");

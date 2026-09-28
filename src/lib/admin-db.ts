@@ -99,7 +99,8 @@ export function getAdminTotals(): AdminTotals {
   };
 }
 
-export function listAdminQueue(filters: QueueFilters = {}) {
+export async function listAdminQueue(filters: QueueFilters = {}) {
+  const { prioritizeReviewQueue } = await import("@/lib/pro-server");
   const conditions = [
     "r.status IN ('verifying','pending_review','changes_requested')",
   ];
@@ -137,15 +138,16 @@ export function listAdminQueue(filters: QueueFilters = {}) {
     conditions.push(
       "(SELECT COUNT(*) FROM revisions other WHERE other.article_id = r.article_id AND other.status IN ('verifying','pending_review')) > 1",
     );
-  return db
+  const candidates = db
     .prepare(
       `SELECT r.*, a.slug article_slug, a.live_revision_id,
     (SELECT COUNT(*) FROM revisions other WHERE other.article_id = r.article_id AND other.status IN ('verifying','pending_review')) conflict_count,
     (SELECT l.actor_name FROM admin_audit_log l WHERE l.revision_id = r.id AND l.action = 'revision.assigned' AND l.actor_id = r.assigned_moderator_id
       ORDER BY l.created_at DESC LIMIT 1) assigned_moderator_name
-    FROM revisions r JOIN articles a ON a.id = r.article_id WHERE ${conditions.join(" AND ")} ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 250`,
+    FROM revisions r JOIN articles a ON a.id = r.article_id WHERE ${conditions.join(" AND ")} ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC,r.id ASC`,
     )
     .all(...values) as Array<Record<string, unknown>>;
+  return (await prioritizeReviewQueue(candidates, item => String(item.contributor_id))).slice(0, 250);
 }
 
 export function countAdminQueueByStatus() {

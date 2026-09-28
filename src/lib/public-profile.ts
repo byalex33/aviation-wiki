@@ -6,6 +6,7 @@ import { cache } from "react";
 import { nameStyleFromMetadata, type NameStyle } from "@/lib/name-style";
 import type { PublicContributorActivity } from "@/lib/public-profile-types";
 import { wikiRoles, type WikiRole } from "@/lib/wiki-roles";
+import { hasPro } from "@/lib/pro";
 
 export type PublicProfile = PublicContributorActivity & {
   id: string;
@@ -13,6 +14,7 @@ export type PublicProfile = PublicContributorActivity & {
   displayName: string;
   imageUrl: string;
   role: WikiRole;
+  pro: boolean;
   bio: string | null;
   nameStyle: NameStyle | null;
   createdAt: number;
@@ -57,6 +59,7 @@ export const getPublicProfile = cache(
       displayName: user.fullName || user.username,
       imageUrl: user.imageUrl,
       role: normalizeRole(user.publicMetadata.role),
+      pro: hasPro(user.publicMetadata),
       bio: publicBio(user.publicMetadata.bio),
       nameStyle: nameStyleFromMetadata(user.publicMetadata),
       createdAt: user.createdAt,
