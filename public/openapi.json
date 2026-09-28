@@ -70,7 +70,7 @@
       "get": {
         "operationId": "getAviationAnniversaries",
         "summary": "Get aviation events for a calendar day",
-        "description": "Defaults to today in UTC. Returns approved event articles with exact dates, in year order. Coverage is incomplete. No API key required.",
+        "description": "Defaults to today in UTC. Returns approved event articles and attributed This Day in Aviation RSS entries with exact dates, in year order. RSS entries link to the publisher and refresh daily. Coverage is incomplete. No API key required.",
         "security": [],
         "parameters": [
           {

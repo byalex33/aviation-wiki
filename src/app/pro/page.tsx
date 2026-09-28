@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BadgeCheck, BellRing, Check, Crown, Minus, Plus, Users, Zap } from "lucide-react";
 
 import { DonationCard } from "./donation-card";
+import { donationMode, donationsEnabled } from "@/lib/donations";
 
 export const metadata: Metadata = {
   title: "Pro",
@@ -78,7 +79,7 @@ export default function ProPage() {
           </ul>
         </div>
 
-        <DonationCard />
+        <DonationCard enabled={donationsEnabled()} testMode={donationMode() === "test"} />
       </section>
 
       <section id="compare" aria-labelledby="compare-heading" className="mt-6 scroll-mt-20">

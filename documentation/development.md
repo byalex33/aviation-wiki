@@ -61,11 +61,23 @@ Supported roles are `contributor`, `trusted_contributor`, `moderator`, and `admi
 | `RESEND_API_KEY` | Optional notification email delivery |
 | `NOTIFICATION_EMAIL_FROM` | Verified sender used by Resend |
 | `CRON_SECRET` | Bearer token protecting scheduled endpoints |
+| `STRIPE_SECRET_KEY` | Account-scoped Stripe secret/restricted key for one-time Pro donations |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `/api/stripe/webhook` |
 | `GOOGLE_SITE_VERIFICATION` | Optional Google ownership token |
 | `BING_SITE_VERIFICATION` | Optional Bing ownership token |
 | `INDEXNOW_KEY` | Optional IndexNow submission key |
 
 Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser and fixed at build time. All other variables are server-only.
+
+## Stripe donations
+
+Checkout stays disabled until both Stripe secrets are configured. Use test keys locally and set `NEXT_PUBLIC_APP_URL=http://localhost:3000`. Run `stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded --forward-to localhost:3000/api/stripe/webhook` with the matching Stripe account, and save the listener's signing secret as `STRIPE_WEBHOOK_SECRET`.
+
+For production, configure live account credentials, set `NEXT_PUBLIC_APP_URL=https://www.aviation.wiki`, and register `https://www.aviation.wiki/api/stripe/webhook` in that account for the same two events. Use that endpoint's signing secret, not the local listener's. Keep keys in server-only deployment environment variables. Restricted credentials need Checkout Sessions read/write access for creation, verification and the fulfillment marker; inline product pricing must also be permitted.
+
+Donations use standard Stripe Checkout with Managed Payments disabled for each request. Amounts are whole pounds, from £3 to £99,999. The server attaches the signed-in Clerk user to the session; only verified paid sessions grant permanent Pro. Failed fulfillment returns a retryable webhook error. Stripe session metadata records fulfillment, and repeated Clerk updates are idempotent. Test payments can only enable Pro in a Clerk development instance.
+
+Run `npm run test:donations` for isolated validation, signature, ownership, retry and test/live checks. Before enabling live checkout, complete a Stripe sandbox payment and verify its webhook delivery and Pro entitlement. Refunds and disputes remain manual Stripe operations; they do not automatically revoke Pro.
 
 ## Architecture
 
@@ -132,11 +144,23 @@ The notification digest prepares new batches daily at 06:00 UTC via `/api/notifi
 `GET /api/v1/on-this-day` returns today's aviation anniversaries in UTC.
 Use `?date=12-17` for another calendar day. No key is required and browser
 requests from other origins are supported. The page at `/on-this-day` uses
-the same approved event articles. See `/api-docs#on-this-day` and
+the same approved event articles and attributed This Day in Aviation RSS entries. See `/api-docs#on-this-day` and
 `/openapi.json` for the response format. Dates without entries return an
 empty list; this is not a complete historical calendar.
 
 ### Get source material
+
+This Day in Aviation's [RSS feed](https://www.thisdayinaviation.com/category/aviation/feed/)
+is fetched every 24 hours at 14:00 UTC by `/api/cron/aviation-feed` in `vercel.json`.
+The route requires `Authorization: Bearer $CRON_SECRET`. Before deployment, run
+`npm run db:migrate:aviation-feed -- --apply` with the intended `DATABASE_URL`.
+After deployment, call the authenticated route once to populate the calendar immediately.
+Vercel runs the schedule on production deployments. Local development does not run cron.
+Entries use historical dates from RSS titles, never the repost publication date.
+Short excerpts link to the publisher and appear in the calendar, homepage count, and API.
+Entries are upserted by source URL and retained when they leave the feed; failed refreshes
+preserve saved entries. This imports external links, not approved local wiki articles.
+Run `npm run test:aviation-feed` to check parsing, persistence, and cron authentication.
 
 Wikipedia's [aviation anniversary calendar](https://en.wikipedia.org/wiki/Portal:Aviation/Anniversaries)
 provides date-specific event lists. Fetch a day through the MediaWiki API:

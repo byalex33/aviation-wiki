@@ -6,6 +6,7 @@ import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "@/lib/notification-digest-schema
 
 import { AVIATION_DATA_SCHEMA_SQL } from "@/lib/aviation-data-schema";
 import { PRO_SCHEMA_SQL } from "@/lib/pro-schema";
+import { AVIATION_FEED_SCHEMA_SQL } from "@/lib/aviation-feed-data";
 
 declare global {
   var aviationWikiSql: Sql | undefined;
@@ -188,6 +189,7 @@ async function createSchema() {
     await transaction.unsafe(AVIATION_DATA_SCHEMA_SQL);
     await transaction.unsafe(NOTIFICATION_DIGEST_SCHEMA_SQL);
     await transaction.unsafe(PRO_SCHEMA_SQL);
+    await transaction.unsafe(AVIATION_FEED_SCHEMA_SQL);
   });
 }
 

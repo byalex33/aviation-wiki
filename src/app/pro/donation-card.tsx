@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { initialFormActionState } from "@/lib/form-action-state";
+import { donateAction } from "./actions";
 
 import { cn } from "@/lib/utils";
 
 const PRESET_AMOUNTS = [5, 15, 30, 50] as const;
 const MINIMUM_DONATION = 3;
 
-export function DonationCard() {
+export function DonationCard({ enabled, testMode }: { enabled: boolean; testMode: boolean }) {
+  const [state, action, pending] = useActionState(donateAction, initialFormActionState);
   const [amount, setAmount] = useState<number>(15);
   const [custom, setCustom] = useState("");
   const [useCustom, setUseCustom] = useState(false);
@@ -90,14 +93,20 @@ export function DonationCard() {
           <p className="mt-1 text-xs text-muted-foreground">Charged once. Pro stays on your account permanently.</p>
         </div>
 
-        <button
-          type="button"
-          disabled
-          className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-secondary text-[15px] font-semibold text-muted-foreground"
-        >
-          Donations open soon
-        </button>
-        <p className="mt-2.5 text-xs leading-normal text-muted-foreground">Checkout isn&apos;t live yet. Nothing here collects money or turns on Pro.</p>
+        <form action={action}>
+          <input type="hidden" name="amount" value={total} />
+          <button
+            type="submit"
+            disabled={!enabled || pending || total < MINIMUM_DONATION}
+            className="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+          >
+            {!enabled ? "Donations open soon" : pending ? "Opening Stripe…" : testMode ? "Try test checkout" : `Donate ${totalLabel}`}
+          </button>
+          {state.error && <p role="alert" className="mt-2 text-sm text-destructive">{state.error}</p>}
+        </form>
+        <p className="mt-2.5 text-xs leading-normal text-muted-foreground">
+          {!enabled ? "Checkout isn't live yet. Nothing here collects money or turns on Pro." : testMode ? "Test mode: no real money is collected. Test donations do not grant live Pro access." : "Secure checkout with Stripe. Sign in to attach Pro to your account."}
+        </p>
       </div>
     </aside>
   );

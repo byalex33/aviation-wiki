@@ -271,8 +271,8 @@ export default async function Home() {
             <strong className="mt-1.5 block text-xl font-bold tracking-[-0.03em]">On this day in aviation</strong>
             <span className="mt-1.5 block text-sm leading-relaxed text-muted-foreground">
               {todayEvents.length
-                ? `${plural(todayEvents.length, "approved event")} happened on this date.`
-                : "Explore aviation anniversaries from approved event reports."}
+                ? `${plural(todayEvents.length, "event")} happened on this date.`
+                : "Explore aviation anniversaries from event articles and This Day in Aviation."}
             </span>
           </span>
         </Link>

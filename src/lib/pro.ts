@@ -1,5 +1,5 @@
 /**
- * Pro is granted by an admin (or, later, checkout) setting `publicMetadata.pro`.
+ * Pro is granted by an admin or verified Stripe donation setting `publicMetadata.pro`.
  * Moderators and administrators get the same perks so they can test and support them.
  */
 export function hasPro(publicMetadata: Record<string, unknown> | null | undefined) {

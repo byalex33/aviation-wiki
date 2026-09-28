@@ -61,6 +61,7 @@ export default function ApiDocsPage() {
       <section id="on-this-day" className="mt-12 scroll-mt-8">
         <h2 className="text-2xl font-bold">On this day in aviation</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">GET /api/v1/on-this-day is public and requires no account or API key. Browser requests from other websites are supported. It returns the same published events shown on <Link href="/on-this-day" className="article-link">On This Day</Link>, ordered by year.</p>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Includes approved wiki articles and attributed entries from <a href="https://www.thisdayinaviation.com/" className="article-link">This Day in Aviation</a>, refreshed daily. Feed entries link to the original publisher.</p>
         <div className="mt-4"><CodeBlock>{`curl "https://www.aviation.wiki/api/v1/on-this-day?date=12-17"`}</CodeBlock></div>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">Omit date for today in UTC, or supply MM-DD. February 29 is valid in any year. Invalid dates and repeated date parameters return HTTP 400. Dates without published events return HTTP 200 with an empty events array. Temporary data failures return HTTP 503.</p>
         <div className="mt-4"><CodeBlock>{`{

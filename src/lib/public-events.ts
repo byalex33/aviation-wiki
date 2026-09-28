@@ -1,4 +1,5 @@
 import "server-only";
+import { loadAviationFeedEvents } from "@/lib/aviation-feed";
 
 import {
   fieldValue,
@@ -12,9 +13,10 @@ import {
 } from "@/lib/wiki-public-db";
 
 export async function loadDatedAviationEvents() {
-  const [sources, documents] = await Promise.all([
+  const [sources, documents, feedEvents] = await Promise.all([
     listPublicEventSourceData(),
     listPublicSearchDocuments(),
+    loadAviationFeedEvents(),
   ]);
   const documentsById = new Map(documents.map((document) => [document.id, document]));
 
@@ -40,6 +42,6 @@ export async function loadDatedAviationEvents() {
         eventType: fieldValue(source.fields, "Event type", "Type"),
         sources: source.sources,
       }];
-    }),
+    }).concat(feedEvents),
   );
 }

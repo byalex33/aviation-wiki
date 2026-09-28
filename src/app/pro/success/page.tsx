@@ -2,17 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { ArrowRight, BadgeCheck, BellRing, Crown, FolderHeart, Loader2, Mail } from "lucide-react";
+import { ArrowRight, BadgeCheck, BellRing, Crown, FolderHeart, Loader2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { fulfillDonation } from "@/lib/donations";
 
 export const metadata: Metadata = {
   title: "Thank you",
   robots: { index: false, follow: false },
 };
-
-const MINIMUM_DONATION_GBP = 3;
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -28,20 +27,33 @@ const nextSteps = [
 ] as const;
 
 type ProSuccessPageProps = {
-  searchParams: Promise<{ status?: string; amount?: string; ref?: string }>;
+  searchParams: Promise<{ session_id?: string }>;
 };
 
 export default async function ProSuccessPage({ searchParams }: ProSuccessPageProps) {
   const params = await searchParams;
   const user = await currentUser();
-  if (!user) redirect("/sign-in?redirect_url=%2Fpro%2Fsuccess");
-
-  const processing = params.status === "processing";
-  const parsedAmount = Number.parseInt(params.amount ?? "", 10);
-  const amount = Number.isFinite(parsedAmount) && parsedAmount >= MINIMUM_DONATION_GBP ? parsedAmount : 15;
-  const amountLabel = `£${amount.toLocaleString("en-GB")}`;
-  const reference = params.ref?.trim();
-  const email = user.primaryEmailAddress?.emailAddress;
+  const sessionId = typeof params.session_id === "string" ? params.session_id : "";
+  const returnUrl = `/pro/success?session_id=${encodeURIComponent(sessionId)}`;
+  if (!user) redirect(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
+  let donation;
+  try {
+    donation = await fulfillDonation(sessionId, user.id);
+  } catch {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-20 text-center">
+        <h1 className="text-3xl font-bold">We couldn&apos;t verify your donation yet.</h1>
+        <p className="my-5 text-muted-foreground">If you paid, please don&apos;t pay again. Stripe will retry confirmation automatically.</p>
+        <Link href={returnUrl} className={buttonVariants()}>Check again</Link>
+      </main>
+    );
+  }
+  if (!donation || donation.session.status === "open" || donation.session.status === "expired") redirect("/pro");
+  const { session, paid } = donation;
+  const processing = !paid;
+  const testMode = !session.livemode;
+  const amountLabel = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(session.amount_total! / 100);
+  const reference = session.id;
   const displayName = user.username || user.fullName || "your account";
   const profileHref = user.username ? `/profile/${encodeURIComponent(user.username)}` : "/settings/profile";
 
@@ -60,7 +72,7 @@ export default async function ProSuccessPage({ searchParams }: ProSuccessPagePro
               Thank you. Almost there.
             </h1>
             <p className="mt-3.5 max-w-[440px] text-pretty text-base leading-[1.6] text-muted-foreground">
-              We&apos;re confirming your {amountLabel} donation with Stripe. Pro will switch on automatically, usually within a minute. You can leave this page.
+              We&apos;re waiting for Stripe to confirm your {amountLabel} {testMode ? "test payment" : "donation"}. {testMode ? "No real money is collected." : "Pro will switch on after payment succeeds. You can leave this page."}
             </p>
           </>
         ) : (
@@ -69,13 +81,13 @@ export default async function ProSuccessPage({ searchParams }: ProSuccessPagePro
               <Crown className="size-[30px] text-primary-foreground" aria-hidden="true" />
             </span>
             <p className="mt-6 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-              Donation received
+              {testMode ? "Test payment received" : "Donation received"}
             </p>
             <h1 className="mt-2.5 text-balance text-[38px] font-bold leading-[1.05] tracking-[-0.05em] sm:text-[44px]">
-              Thank you. Pro is on.
+              {testMode ? "Test checkout complete." : "Thank you. Pro is on."}
             </h1>
             <p className="mt-3.5 max-w-[440px] text-pretty text-base leading-[1.6] text-muted-foreground">
-              Your {amountLabel} helps keep aviation.wiki free for everyone. Pro is now permanently on your account.
+              {testMode ? `Your ${amountLabel} test payment succeeded. No real money was collected.${donation.canGrantPro ? " Pro is enabled in the test account." : " Live Pro access has not changed."}` : `Your ${amountLabel} helps keep aviation.wiki free for everyone. Pro is now permanently on your account.`}
             </p>
           </>
         )}
@@ -83,7 +95,7 @@ export default async function ProSuccessPage({ searchParams }: ProSuccessPagePro
 
       <div className="mt-9 overflow-hidden rounded-[18px] border bg-card">
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-          <p className="text-sm font-semibold">Receipt</p>
+          <p className="text-sm font-semibold">{testMode ? "Test payment" : "Donation details"}</p>
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
@@ -99,18 +111,16 @@ export default async function ProSuccessPage({ searchParams }: ProSuccessPagePro
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-3 px-5 py-[18px] text-sm">
           <dt className="text-muted-foreground">Amount</dt>
           <dd className="text-right font-semibold">{amountLabel} · one-time</dd>
-          <dt className="text-muted-foreground">Date</dt>
-          <dd className="text-right">{dateFormatter.format(new Date())}</dd>
+          <dt className="text-muted-foreground">Checkout date</dt>
+          <dd className="text-right">{dateFormatter.format(new Date(session.created * 1000))}</dd>
           <dt className="text-muted-foreground">Account</dt>
           <dd className="text-right">{displayName}</dd>
           <dt className="text-muted-foreground">Reference</dt>
-          <dd className="text-right font-mono text-[13px]">{reference || "Pending"}</dd>
+          <dd className="break-all text-right font-mono text-[13px]">{reference}</dd>
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted px-5 py-3.5 text-[13px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Mail className="size-3.5" aria-hidden="true" />
-            {email ? `Receipt sent to ${email}` : "A receipt will be emailed to you once confirmed"}
-          </span>
+          <span>Payment processed securely by Stripe.</span>
+          {processing && <Link href={returnUrl} className="underline">Check payment status</Link>}
         </div>
       </div>
 

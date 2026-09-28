@@ -1,5 +1,6 @@
 import { ARTICLE_IMAGE_HOSTS } from "@/lib/image-policy";
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 
 // Authorization stays in each protected page and Server Action. The proxy
 // attaches Clerk's request context and emits the Content-Security-Policy.
@@ -16,7 +17,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 // already fully dynamic, so this costs nothing today, but it is incompatible
 // with static / ISR article pages (issue #5) until the nonce is removed from
 // the shared layout.
-export default clerkMiddleware({
+const withClerk = clerkMiddleware({
   contentSecurityPolicy: {
     strict: true,
     directives: {
@@ -33,6 +34,12 @@ export default clerkMiddleware({
     },
   },
 });
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  // Stripe authenticates this public endpoint with its signed raw request body.
+  if (request.nextUrl.pathname === "/api/stripe/webhook") return NextResponse.next();
+  return withClerk(request, event);
+}
 
 export const config = {
   matcher: [
