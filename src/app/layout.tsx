@@ -230,6 +230,9 @@ export default async function RootLayout({
                     >
                       Contribute
                     </Link>
+                    <Link href="/pro" className="flex min-h-10 items-center">
+                      Pro
+                    </Link>
                     <Link
                       href="/contact"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
