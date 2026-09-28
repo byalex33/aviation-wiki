@@ -26,6 +26,7 @@ function adapter(database: Pick<PGlite, "query" | "transaction">) {
   const tag = async (parts: TemplateStringsArray, ...values: unknown[]) =>
     (await database.query(parts.reduce((query, part, index) => query + (index ? `$${index}` : "") + part, ""), values)).rows;
   return Object.assign(tag, {
+    json: (value: unknown) => JSON.stringify(value),
     begin: <T,>(run: (transaction: ReturnType<typeof adapter>) => Promise<T>): Promise<T> =>
       database.transaction(transaction => run(adapter(transaction as unknown as PGlite))),
   });
@@ -43,6 +44,9 @@ try {
   assert.equal(fetches, 0);
   assert.equal((await GET(request())).status, 200);
   assert.equal((await GET(request())).status, 200);
+  assert.deepEqual(await loadAviationFeedEvents(), parsed);
+  await db.query("UPDATE aviation_feed_events SET event_json = to_jsonb(event_json::text)");
+  assert.deepEqual(await loadAviationFeedEvents(), parsed, "Reads entries saved as JSON strings by the first importer");
   assert.equal((await loadAviationFeedEvents()).length, 1);
   body = feed(item("29 February 2000", "https://www.thisdayinaviation.com/29-february-2000/"));
   assert.equal((await GET(request())).status, 200);

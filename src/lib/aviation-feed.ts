@@ -13,7 +13,7 @@ export async function refreshAviationFeed() {
   await ensureSchema();
   await sql.begin(async transaction => {
     for (const event of events) {
-      await transaction`INSERT INTO aviation_feed_events (url, event_json) VALUES (${event.href}, ${JSON.stringify(event)}::jsonb)
+      await transaction`INSERT INTO aviation_feed_events (url, event_json) VALUES (${event.href}, ${transaction.json(event)})
         ON CONFLICT (url) DO UPDATE SET event_json = EXCLUDED.event_json, fetched_at = now()`;
     }
   });
@@ -24,7 +24,8 @@ export async function loadAviationFeedEvents(): Promise<DatedAviationEvent[]> {
   try {
     await ensureSchema();
     const records = await sql`SELECT event_json FROM aviation_feed_events`;
-    return records.map(record => record.event_json as DatedAviationEvent);
+    return records.map(record => (typeof record.event_json === "string"
+      ? JSON.parse(record.event_json) : record.event_json) as DatedAviationEvent);
   } catch (error) {
     console.error("Unable to load saved aviation feed", error);
     return [];
