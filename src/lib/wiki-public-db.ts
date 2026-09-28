@@ -999,7 +999,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
 // repeatedly transfer the entire published corpus from Postgres.
 export const listPublicSearchDocuments = unstable_cache(
   loadPublicSearchDocuments,
-  ["public-search-documents-v2"],
+  ["public-search-documents-v3"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 

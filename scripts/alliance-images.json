@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "star-alliance",
+    "fileName": "Lufthansa-Star Alliance 343 D-AIGC.JPG",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/be/Lufthansa-Star_Alliance_343_D-AIGC.JPG",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Lufthansa-Star_Alliance_343_D-AIGC.JPG/1280px-Lufthansa-Star_Alliance_343_D-AIGC.JPG",
+    "creator": "Milad A380",
+    "caption": "Lufthansa A340-300 in Star Alliance livery",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Lufthansa-Star_Alliance_343_D-AIGC.JPG",
+    "retrievedAt": "2026-09-28"
+  },
+  {
+    "slug": "sky-team",
+    "fileName": "SkyTeam-KLM.jpg",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4f/SkyTeam-KLM.jpg",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/SkyTeam-KLM.jpg/1280px-SkyTeam-KLM.jpg",
+    "creator": "Grossartig",
+    "caption": "KLM aircraft in SkyTeam livery",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:SkyTeam-KLM.jpg",
+    "retrievedAt": "2026-09-28"
+  },
+  {
+    "slug": "one-world",
+    "fileName": "Oneworld BA G-CIVP.jpg",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/77/Oneworld_BA_G-CIVP.jpg",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Oneworld_BA_G-CIVP.jpg/1280px-Oneworld_BA_G-CIVP.jpg",
+    "creator": "Aviator006",
+    "caption": "British Airways Boeing 747-400 in Oneworld livery",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Oneworld_BA_G-CIVP.jpg",
+    "retrievedAt": "2026-09-28"
+  },
+  {
+    "slug": "vanilla-alliance",
+    "fileName": "Air Austral, F-OLRE, Boeing 777-39M ER (35764983065).jpg",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Air_Austral%2C_F-OLRE%2C_Boeing_777-39M_ER_%2835764983065%29.jpg",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Air_Austral%2C_F-OLRE%2C_Boeing_777-39M_ER_%2835764983065%29.jpg",
+    "creator": "Anna Zvereva",
+    "caption": "Air Austral Boeing 777, a Vanilla Alliance member airline",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Air_Austral,_F-OLRE,_Boeing_777-39M_ER_(35764983065).jpg",
+    "retrievedAt": "2026-09-28"
+  },
+  {
+    "slug": "u-fly-alliance",
+    "fileName": "HK Express A320-200.jpg",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3a/HK_Express_A320-200.jpg",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/HK_Express_A320-200.jpg/1280px-HK_Express_A320-200.jpg",
+    "creator": "Minseong Kim",
+    "caption": "HK Express Airbus A320, a founding U-FLY Alliance carrier",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:HK_Express_A320-200.jpg",
+    "retrievedAt": "2026-09-28"
+  },
+  {
+    "slug": "value-alliance",
+    "fileName": "Scoot 9V-OJD Boeing 787-9 Dreamliner Melbourne International Airport (MEL YMML) (51831773761).jpg",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/22/Scoot_9V-OJD_Boeing_787-9_Dreamliner_Melbourne_International_Airport_%28MEL_YMML%29_%2851831773761%29.jpg",
+    "thumbnailUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Scoot_9V-OJD_Boeing_787-9_Dreamliner_Melbourne_International_Airport_%28MEL_YMML%29_%2851831773761%29.jpg/1280px-Scoot_9V-OJD_Boeing_787-9_Dreamliner_Melbourne_International_Airport_%28MEL_YMML%29_%2851831773761%29.jpg",
+    "creator": "Mitchul Hope",
+    "caption": "Scoot Boeing 787-9, a Value Alliance member airline",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Scoot_9V-OJD_Boeing_787-9_Dreamliner_Melbourne_International_Airport_(MEL_YMML)_(51831773761).jpg",
+    "retrievedAt": "2026-09-28"
+  }
+]
