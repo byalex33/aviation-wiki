@@ -3,88 +3,11 @@ import {
   ClipboardCheck,
   FilePlus2,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { TrackedLink } from "@/components/tracked-actions";
 import { Badge } from "@/components/ui/badge";
-import { formatDisplayLabel } from "@/lib/display";
 import type { ContributionMission } from "@/lib/growth-content";
-import type { SearchDocument } from "@/lib/search-types";
-
-export function FeaturedArticles({
-  articles,
-}: {
-  articles: SearchDocument[];
-}) {
-  if (!articles.length) return null;
-  return (
-    <section
-      className="render-deferred mb-14"
-      aria-label="Featured articles"
-    >
-      <div className="mb-5 flex justify-end">
-        <Link
-          href="/search?q=*"
-          className="article-link flex min-h-10 shrink-0 items-center gap-1 text-sm font-medium"
-        >
-          Browse all
-        </Link>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {articles.map((article) => (
-          <TrackedLink
-            key={article.id}
-            href={article.href}
-            aria-label={`Read ${article.title}`}
-            eventName="article_discovery_click"
-            eventProperties={{
-              slug: article.slug,
-              contentType: article.contentType,
-              surface: "homepage_featured",
-            }}
-            className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
-          >
-            <article className="relative isolate flex h-full min-h-[380px] flex-col justify-end overflow-hidden bg-[#f3f3f0] text-[#202326] dark:bg-[#151515] dark:text-[#f1f1ed] [font-family:var(--font-open-sans),sans-serif]">
-              {article.imageUrl && (
-                <Image
-                  src={article.imageUrl}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1152px) 520px, (min-width: 640px) 50vw, 100vw"
-                  unoptimized
-                  className="pointer-events-none object-cover"
-                />
-              )}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[#f3f3f0]/30 dark:bg-black/30"
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(243,243,240,0.05)_0%,rgba(243,243,240,0.75)_40%,rgba(243,243,240,0.98)_100%)] dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.7)_40%,rgba(0,0,0,0.95)_100%)]"
-              />
-              <div className="relative px-6 pb-6 pt-28 sm:px-7 sm:pb-7">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#42474b] dark:text-[#d6d6d2]">
-                  {formatDisplayLabel(article.contentType)}
-                </p>
-                <h3 className="mt-2 text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
-                  {article.title}
-                </h3>
-                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#42474b] dark:text-[#d6d6d2]">
-                  {article.description}
-                </p>
-                <span className="mt-5 inline-block border-b border-current pb-1 text-xs font-semibold">
-                  Read article
-                </span>
-              </div>
-            </article>
-          </TrackedLink>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export function ContributionMissions({
   missions,

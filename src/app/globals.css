@@ -141,27 +141,6 @@ html.dark .site-footer {
 }
 
 @layer components {
-  .home-background {
-    background-image: radial-gradient(circle, hsl(210 10% 70% / 0.22) 1px, transparent 1px);
-    background-size: 28px 28px;
-  }
-
-  .home-plane {
-    animation: home-plane-drift 14s ease-in-out infinite alternate;
-  }
-
-  .home-plane:nth-child(2) {
-    --drift-x: -14px;
-    --drift-y: 10px;
-    animation-duration: 18s;
-  }
-
-  .home-plane:nth-child(3) {
-    --drift-x: 9px;
-    --drift-y: 12px;
-    animation-duration: 16s;
-    animation-delay: -6s;
-  }
   .render-deferred {
     content-visibility: auto;
     contain-intrinsic-size: auto 720px;
@@ -203,12 +182,6 @@ html.dark .site-footer {
 
   .field-label {
     @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
-  }
-}
-
-@keyframes home-plane-drift {
-  to {
-    translate: var(--drift-x, 12px) var(--drift-y, -8px);
   }
 }
 
@@ -267,7 +240,6 @@ html.dark .site-footer {
   .beui-suggestions {
     animation: none;
   }
-  .home-plane,
   .pro-card::before {
     animation: none;
   }

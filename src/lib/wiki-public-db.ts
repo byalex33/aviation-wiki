@@ -1073,6 +1073,47 @@ async function loadPublicEventSourceData(): Promise<PublicEventSourceArticle[]> 
   }));
 }
 
+export type RecentlyPublishedArticle = {
+  title: string;
+  href: string;
+  contentType: ContentType;
+  publishedAt: string;
+  isNew: boolean;
+};
+
+async function loadHomepageActivity() {
+  await ready();
+  const [recent, sources] = await Promise.all([
+    rows<{ title: string; slug: string; content_type: ContentType; published_at: Date | string; is_new: boolean }>(`SELECT r.title,a.slug,a.content_type,
+      COALESCE(r.reviewed_at,r.updated_at) published_at,
+      NOT EXISTS (SELECT 1 FROM revisions earlier WHERE earlier.article_id=a.id AND earlier.status='approved' AND earlier.id<>r.id) is_new
+      FROM articles a JOIN revisions r ON r.id=a.live_revision_id
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL
+      ORDER BY COALESCE(r.reviewed_at,r.updated_at) DESC LIMIT 6`),
+    row<{ count: number }>(`SELECT COUNT(DISTINCT source->>'url')::int count
+      FROM articles a JOIN revisions r ON r.id=a.live_revision_id CROSS JOIN LATERAL jsonb_array_elements(r.sources_json) source
+      WHERE r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL AND source->>'url' IS NOT NULL`),
+  ]);
+  return {
+    recentlyPublished: recent.map<RecentlyPublishedArticle>((item) => ({
+      title: item.title,
+      href: articlePath(item.content_type, item.slug),
+      contentType: item.content_type,
+      publishedAt: iso(item.published_at),
+      isNew: Boolean(item.is_new),
+    })),
+    sourceCount: Number(sources?.count ?? 0),
+  };
+}
+
+// Homepage board and source total. Approvals revalidate the search-documents
+// tag, so the board refreshes as soon as something is published.
+export const getHomepageActivity = unstable_cache(
+  loadHomepageActivity,
+  ["homepage-activity-v1"],
+  { revalidate: 3_600, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
+);
+
 export const listPublicEventSourceData = unstable_cache(
   loadPublicEventSourceData,
   ["public-event-source-data-v2"],
