@@ -18,7 +18,7 @@ export async function ApiKeysPanel({ userId }: { userId: string }) {
 
   return (
     <div>
-      <section className="mt-10 border bg-card p-6 sm:p-8">
+      <section className="border bg-card p-6 sm:p-8">
         <div className="flex items-center gap-3">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Create a new key</h2>

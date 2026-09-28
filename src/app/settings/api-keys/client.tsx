@@ -72,8 +72,8 @@ export function CreateKeyForm() {
         </div>
       ) : null}
 
-      <form ref={formRef} action={action} className="flex items-end gap-3">
-        <div className="flex-1">
+      <form ref={formRef} action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
           <label htmlFor="new-key-name" className="mb-1.5 block text-sm font-medium">
             Key name
           </label>
