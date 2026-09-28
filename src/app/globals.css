@@ -146,19 +146,6 @@ html.dark .site-footer {
     contain-intrinsic-size: auto 720px;
   }
 
-  .pro-card::before {
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    inset: -2px;
-    border-radius: inherit;
-    padding: 2px;
-    background: conic-gradient(from var(--pro-shine-angle), transparent 72%, color-mix(in srgb, var(--primary), white 70%) 82%, var(--primary) 88%, transparent 96%);
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    animation: pro-card-shine 4s linear infinite;
-  }
-
   .aircraft-placeholder {
     background: repeating-linear-gradient(135deg, hsl(240 5% 96%), hsl(240 5% 96%) 11px, hsl(240 5% 93%) 11px, hsl(240 5% 93%) 22px);
   }
@@ -182,18 +169,6 @@ html.dark .site-footer {
 
   .field-label {
     @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
-  }
-}
-
-@property --pro-shine-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes pro-card-shine {
-  to {
-    --pro-shine-angle: 360deg;
   }
 }
 
@@ -238,9 +213,6 @@ html.dark .site-footer {
     transform: none;
   }
   .beui-suggestions {
-    animation: none;
-  }
-  .pro-card::before {
     animation: none;
   }
 }
