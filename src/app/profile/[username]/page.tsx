@@ -21,7 +21,7 @@ import { formatDisplayLabel } from "@/lib/display";
 import { getPublicProfile } from "@/lib/public-profile";
 import { jsonLd, siteUrl } from "@/lib/seo";
 import { cn } from "@/lib/utils";
-import { wikiRoleDetails, wikiRoles, type WikiRole } from "@/lib/wiki-roles";
+import { wikiRoleDetails, type WikiRole } from "@/lib/wiki-roles";
 
 type ProfilePageProps = {
   params: Promise<{ username: string }>;
@@ -358,51 +358,6 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                 </OwnProfileOnly>
               </div>
 
-              <div className="rounded-2xl border bg-card p-6">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  About this role
-                </p>
-                <h3 className="mt-2.5 text-[17px] font-semibold tracking-[-0.02em]">
-                  {role.label}
-                </h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/70 [text-wrap:pretty]">
-                  {role.description}
-                </p>
-                <ol className="mt-4 flex flex-col gap-0.5 border-t pt-3.5">
-                  {wikiRoles.map((item) => {
-                    const current = item === profile.role;
-                    return (
-                      <li
-                        key={item}
-                        className="flex items-center gap-2.5 py-1.5"
-                        aria-current={current ? "true" : undefined}
-                      >
-                        <span
-                          className={cn(
-                            "size-2 rounded-full",
-                            current
-                              ? "bg-primary shadow-[0_0_0_3px_hsl(356_84%_92%)] dark:shadow-none"
-                              : "border border-foreground/25",
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            "text-[13px]",
-                            current ? "font-semibold" : "text-muted-foreground",
-                          )}
-                        >
-                          {wikiRoleDetails[item].label}
-                        </span>
-                        {current && (
-                          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
-                            Current
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
             </aside>
           </div>
         </div>
