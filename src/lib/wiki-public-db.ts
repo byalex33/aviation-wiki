@@ -100,7 +100,6 @@ export async function getAdminDashboard() {
 }
 
 export type QueueFilters = {
-  view?: "queue" | "history";
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -121,9 +120,7 @@ const adminRevisionSelect = `SELECT
 
 export async function listAdminQueue(filters: QueueFilters = {}) {
   await ready();
-  const conditions = [filters.view === "history"
-      ? "r.status IN ('approved','rejected')"
-      : "r.status IN ('verifying','pending_review','changes_requested')"];
+  const conditions = ["r.status IN ('verifying','pending_review','changes_requested')"];
   const values: unknown[] = [];
   const add = (condition: string, value: unknown) => {
     values.push(value);

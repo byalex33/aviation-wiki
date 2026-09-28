@@ -62,7 +62,6 @@ export type AdminTotals = {
   auditEvents: number;
 };
 export type QueueFilters = {
-  view?: "queue" | "history";
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -100,9 +99,7 @@ export function getAdminTotals(): AdminTotals {
 
 export function listAdminQueue(filters: QueueFilters = {}) {
   const conditions = [
-    filters.view === "history"
-      ? "r.status IN ('approved','rejected')"
-      : "r.status IN ('verifying','pending_review','changes_requested')",
+    "r.status IN ('verifying','pending_review','changes_requested')",
   ];
   const values: unknown[] = [];
   if (filters.status && filters.status !== "all") {

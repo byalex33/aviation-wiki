@@ -10,7 +10,6 @@ import { contentTypes } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 
 type Search = {
-  view?: string;
   status?: string;
   contentType?: string;
   contributor?: string;
@@ -27,12 +26,10 @@ export default async function AdminModerationPage({
     ? await import("@/lib/wiki-public-db")
     : await import("@/lib/admin-db");
   const search = await searchParams;
-  const history = search.view === "history";
-  const statuses = history ? ["approved", "rejected"] : ["verifying", "pending_review", "changes_requested"];
+  const statuses = ["verifying", "pending_review", "changes_requested"];
   const status = statuses.includes(search.status || "") ? search.status : "all";
   const revisions = await listAdminQueue({
     ...search,
-    view: history ? "history" : "queue",
     status,
     conflicting: search.conflicting === "1",
   });
@@ -40,20 +37,15 @@ export default async function AdminModerationPage({
     <main>
       <div>
         <p className="text-sm text-muted-foreground">
-          {history ? "Completed moderation decisions. Open a revision to see its review details." : "Submitted revisions awaiting review or changes."}
+          Submitted revisions awaiting review or changes.
         </p>
         <h2 className="mt-1 text-3xl font-bold tracking-tight">
-          {history ? "Moderation history" : "Moderation queue"}
+          Moderation queue
         </h2>
       </div>
-      <nav aria-label="Moderation views" className="mt-6 flex gap-6 border-b pb-3 text-sm">
-        <Link href="/admin/moderation" aria-current={!history ? "page" : undefined} className={!history ? "font-semibold underline underline-offset-8" : "text-muted-foreground"}>Queue</Link>
-        <Link href="/admin/moderation?view=history" aria-current={history ? "page" : undefined} className={history ? "font-semibold underline underline-offset-8" : "text-muted-foreground"}>History</Link>
-      </nav>
       <Card className="mt-6 rounded-none shadow-none">
         <CardContent>
           <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            {history && <input type="hidden" name="view" value="history" />}
             <select
               aria-label="Revision status"
               name="status"

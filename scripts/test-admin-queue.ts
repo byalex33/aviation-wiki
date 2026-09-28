@@ -17,16 +17,16 @@ async function main() {
   const filter = { contributor: "user-" };
   assert.deepEqual(listAdminQueue(filter).map((r) => r.status).sort(), ["changes_requested", "pending_review", "verifying"]);
   assert.equal(listAdminQueue({ ...filter, status: "approved" }).length, 0);
-  assert.deepEqual(listAdminQueue({ ...filter, view: "history" }).map((r) => r.status).sort(), ["approved", "rejected"]);
+  assert.equal(listAdminQueue({ ...filter, status: "rejected" }).length, 0);
   db.prepare("UPDATE revisions SET status='approved' WHERE id='test-pending_review'").run();
   assert.equal(listAdminQueue(filter).some((r) => r.id === "test-pending_review"), false);
-  assert.equal(listAdminQueue({ ...filter, view: "history" }).some((r) => r.id === "test-pending_review"), true);
+  assert.deepEqual(db.prepare("SELECT status FROM revisions WHERE id='test-pending_review'").get(), { status: "approved" });
   const stats = new Map(getContributorStats().map((row) => [row.contributor_id, row]));
   assert.equal(stats.get("user-draft")?.submitted_count, 0);
   assert.equal(stats.get("user-resumed")?.submitted_count, 1);
   assert.equal(getAdminTotals().contributors, 6);
   db.close();
-  console.log("Admin queue, history, and contributor classification passed.");
+  console.log("Admin queue and contributor classification passed.");
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
