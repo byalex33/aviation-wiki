@@ -13,7 +13,7 @@ import { getImportProvider } from "@/lib/import-providers";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { searchPublicArticles } from "@/lib/wiki-search";
 import { getStaffUser } from "@/lib/wiki-auth";
-import { contentTypes, type ContentType } from "@/lib/wiki-types";
+import { contentTypes } from "@/lib/wiki-types";
 
 function one(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] || "" : value || ""; }
 
@@ -28,8 +28,8 @@ export default async function ImportPreviewPage({ params, searchParams }: { para
     : await import("@/lib/admin-db");
   const route = await params;
   const rawType = one((await searchParams).type);
-  if (!contentTypes.includes(rawType as ContentType)) notFound();
-  const contentType = rawType as ContentType;
+  const contentType = contentTypes.find((type) => type === rawType);
+  if (!contentType) notFound();
   let preview;
   try { preview = await getImportProvider(route.provider).preview(route.sourceId, contentType); } catch { notFound(); }
   const assessment = await assessImportPreview(preview);

@@ -1,4 +1,4 @@
-import { contentTypes, type ContentType } from "@/lib/wiki-types";
+import { contentTypes } from "@/lib/wiki-types";
 import {
   anonymousRateLimitSubject,
   consumeRateLimit,
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams;
   const rawType = params.get("type");
-  const contentType = rawType && contentTypes.includes(rawType as ContentType) ? rawType as ContentType : undefined;
+  const contentType = contentTypes.find((type) => type === rawType);
   const page = boundedInteger(params.get("page"), 1, 10_000);
   const pageSize = boundedInteger(params.get("pageSize"), 8, 50);
   return Response.json(

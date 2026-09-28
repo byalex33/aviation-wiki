@@ -8,20 +8,9 @@ import Link from "next/link";
 
 import { TrackedLink } from "@/components/tracked-actions";
 import { Badge } from "@/components/ui/badge";
+import { formatDisplayLabel } from "@/lib/display";
 import type { ContributionMission } from "@/lib/growth-content";
 import type { SearchDocument } from "@/lib/search-types";
-
-import type { ContentType } from "@/lib/wiki-types";
-
-const contentTypeLabel: Record<ContentType, string> = {
-  aircraft: "Aircraft",
-  airline: "Airline",
-  airport: "Airport",
-  manufacturer: "Manufacturer",
-  engine: "Engine",
-  alliance: "Alliance",
-  event: "Aviation news",
-};
 
 export function FeaturedArticles({
   articles,
@@ -77,7 +66,7 @@ export function FeaturedArticles({
               />
               <div className="relative px-6 pb-6 pt-28 sm:px-7 sm:pb-7">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#42474b] dark:text-[#d6d6d2]">
-                  {contentTypeLabel[article.contentType]}
+                  {formatDisplayLabel(article.contentType)}
                 </p>
                 <h3 className="mt-2 text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
                   {article.title}

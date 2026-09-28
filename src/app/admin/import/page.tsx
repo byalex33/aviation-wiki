@@ -11,7 +11,7 @@ import { formatDisplayLabel } from "@/lib/display";
 import { getImportProvider } from "@/lib/import-providers";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { getStaffUser } from "@/lib/wiki-auth";
-import { contentTypes, type ContentType } from "@/lib/wiki-types";
+import { contentTypes } from "@/lib/wiki-types";
 
 function one(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] || "" : value || ""; }
 
@@ -24,7 +24,7 @@ export default async function AdminImportPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const query = one(params.q).trim().slice(0, 120);
   const rawType = one(params.type);
-  const contentType = contentTypes.includes(rawType as ContentType) ? rawType as ContentType : "airline";
+  const contentType = contentTypes.find((type) => type === rawType) ?? "airline";
   const provider = getImportProvider("wikidata");
   const rateLimit = query.length >= 2
     ? await consumeRateLimit({ scope: "admin-import", subject: staff.userId, limit: 12, windowMs: 60_000 })

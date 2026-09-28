@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDisplayLabel } from "@/lib/display";
-import { contentTypes, type ContentType } from "@/lib/wiki-types";
+import { contentTypes } from "@/lib/wiki-types";
 import { searchPublicArticles } from "@/lib/wiki-search";
 
 export const metadata: Metadata = { title: "Search", description: "Search approved public aviation.wiki articles.", robots: { index: false, follow: true } };
@@ -27,7 +27,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const raw = await searchParams;
   const query = valueOf(raw.q).slice(0, 120);
   const typeValue = valueOf(raw.type);
-  const type = contentTypes.includes(typeValue as ContentType) ? typeValue as ContentType : undefined;
+  const type = contentTypes.find((type) => type === typeValue);
   const country = valueOf(raw.country).slice(0, 100);
   const requestedPage = Math.max(1, Number.parseInt(valueOf(raw.page) || "1", 10) || 1);
   const results = await searchPublicArticles({ query, contentType: type, country: country || undefined, page: requestedPage, pageSize: 12 });
