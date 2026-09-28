@@ -19,10 +19,7 @@ import styles from "./home.module.css";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  ContributionMissions,
-  FeaturedArticles,
-} from "@/components/growth-sections";
+import { FeaturedArticles } from "@/components/growth-sections";
 import { Input } from "@/components/ui/input";
 import {
   aviationCategories,
@@ -31,10 +28,7 @@ import {
   type FeaturedAviationCategoryId,
 } from "@/lib/article-categories";
 import { cn } from "@/lib/utils";
-import {
-  contributionMissions,
-  featuredArticles,
-} from "@/lib/growth-content";
+import { featuredArticles } from "@/lib/growth-content";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 import { eventsOnDate } from "@/lib/on-this-day-data";
 import { loadDatedAviationEvents } from "@/lib/public-events";
@@ -108,7 +102,6 @@ export default async function Home() {
   const todayEvents = eventsOnDate(datedEvents, new Date());
   const categoryCounts = getAviationCategoryCounts(documents);
   const featured = featuredArticles(documents);
-  const missions = contributionMissions(documents);
   return (
     <main className="home-background relative overflow-hidden pb-20">
       <div className="pointer-events-none absolute inset-0 text-muted-foreground" aria-hidden="true">
@@ -235,7 +228,6 @@ export default async function Home() {
         </Link>
         </section>
         <FeaturedArticles articles={featured} />
-        <ContributionMissions missions={missions} compact />
       </div>
     </main>
   );
