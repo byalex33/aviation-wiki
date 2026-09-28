@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
 import { Toaster } from "sonner";
 
+import { TracwellAnalytics } from "@/components/tracwell-analytics";
 import { AccountMenu } from "@/components/account-menu";
 import { HeaderSearch } from "@/components/header-search";
 import { OpenSourceAlert } from "@/components/open-source-alert";
@@ -268,6 +269,7 @@ export default async function RootLayout({
               </div>
             </div>
           </footer>
+          <TracwellAnalytics />
           <Analytics />
           <SpeedInsights />
           <Toaster position="bottom-right" richColors />

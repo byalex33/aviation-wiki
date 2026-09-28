@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { togglePublicArticleWatchAction } from "@/app/public-actions";
 import { buttonVariants } from "@/components/ui/button";
+import { trackArticleWatch } from "@/lib/tracwell";
 import { initialFormActionState } from "@/lib/form-action-state";
 
 export function WatchArticleButton({
@@ -26,13 +27,18 @@ export function WatchArticleButton({
   useEffect(() => {
     if (state === initialFormActionState) return;
     if (state.error) toast.error(state.error);
-    else
+    else {
+      if (submittedWatching.current !== null) {
+        trackArticleWatch(submittedWatching.current, articleId);
+      }
       toast.success(
         submittedWatching.current
           ? "Article added to your watchlist."
           : "Article removed from your watchlist.",
       );
-  }, [state]);
+    }
+    submittedWatching.current = null;
+  }, [state, articleId]);
 
   return (
     <form
