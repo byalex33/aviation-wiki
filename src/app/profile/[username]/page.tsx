@@ -119,9 +119,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               "@type": "Person",
               name: profile.displayName,
               image: profile.imageUrl,
-              description:
-                profile.bio ||
-                `${profile.displayName} is an aviation.wiki ${roleLabel.toLowerCase()}.`,
+              description: `${profile.displayName} is an aviation.wiki ${roleLabel.toLowerCase()}.`,
             },
           }),
         }}
@@ -165,16 +163,12 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                     {RoleIcon && <RoleIcon className="size-3.5" aria-hidden="true" />}
                     {role.label}
                   </span>
-                  <span className="font-mono text-[13px] text-muted-foreground">
-                    @{profile.username}
-                  </span>
                 </div>
                 <h1 className="mt-3 text-3xl font-bold leading-[1.05] tracking-[-0.045em] sm:text-[40px]">
                   {profile.displayName}
                 </h1>
-                <p className="mt-3 max-w-[600px] text-[15px] leading-[1.65] text-foreground/75 [text-wrap:pretty]">
-                  {profile.bio ||
-                    `${profile.displayName} is part of the aviation.wiki community, helping build a more useful and reliable aviation reference.`}
+                <p className="mt-2 font-mono text-[13px] text-muted-foreground">
+                  @{profile.username}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
