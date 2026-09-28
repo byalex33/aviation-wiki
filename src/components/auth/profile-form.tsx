@@ -1,7 +1,7 @@
 "use client";
 import { useClerk, useReverification, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { EmailAddressResource } from "@clerk/shared/types";
 import { AuthField } from "./auth-field";
 import { ProfileWorkspace, ProfileSkeleton, type ProfileSection } from "./profile-workspace";
@@ -10,16 +10,18 @@ import { Reverification, type ReverificationRequest } from "./reverification";
 import { authError } from "@/lib/auth-ui";
 import styles from "./auth.module.css";
 
-export function ProfileForm() {
+type ProfileFormProps = { initialSection?: ProfileSection; apiKeys?: ReactNode };
+
+export function ProfileForm({ initialSection = "profile", apiKeys }: ProfileFormProps = {}) {
   const { user, isLoaded } = useUser();
   if (!isLoaded) return <ProfileSkeleton/>;
   if (!user) return <Link href="/sign-in?redirect_url=%2Fsettings%2Fprofile" className={styles.link}>Sign in to manage your account</Link>;
-  return <ProfileEditor key={user.id}/>;
+  return <ProfileEditor key={`${user.id}:${initialSection}`} initialSection={initialSection} apiKeys={apiKeys}/>;
 }
-function ProfileEditor() {
+function ProfileEditor({ initialSection = "profile", apiKeys }: ProfileFormProps = {}) {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const [section, setSection] = useState<ProfileSection>("profile");
+  const [section, setSection] = useState<ProfileSection>(initialSection);
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState("");
   const [pendingEmail, setPendingEmail] = useState<EmailAddressResource | null>(null);
@@ -124,5 +126,6 @@ function ProfileEditor() {
       </section>
       </div>
     </fieldset>
+    <div className={profile.panel} hidden={section !== "keys"}>{apiKeys}</div>
   </ProfileWorkspace>;
 }

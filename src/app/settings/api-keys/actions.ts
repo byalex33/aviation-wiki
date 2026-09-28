@@ -33,7 +33,7 @@ export async function createApiKeyAction(
       userName: contributor.name,
       scopes: ["articles:draft"],
     });
-    revalidatePath("/settings/api-keys");
+    revalidatePath("/settings/profile");
     return { error: null, rawToken, keyName: key.name };
   } catch (error) {
     if (error instanceof UserFacingError) return { error: error.message };
@@ -52,7 +52,7 @@ export async function revokeApiKeyAction(
     if (!keyId) return { error: "Key ID is required." };
     const revoked = await revokeApiKey(keyId, contributor.userId);
     if (!revoked) return { error: "Key not found or already revoked." };
-    revalidatePath("/settings/api-keys");
+    revalidatePath("/settings/profile");
     return { error: null };
   } catch (error) {
     if (error instanceof UserFacingError) return { error: error.message };
@@ -71,7 +71,7 @@ export async function regenerateApiKeyAction(
     if (!keyId) return { error: "Key ID is required." };
     const result = await regenerateApiKey(keyId, contributor.userId);
     if (!result) return { error: "Key not found or already revoked." };
-    revalidatePath("/settings/api-keys");
+    revalidatePath("/settings/profile");
     return { error: null, rawToken: result.rawToken };
   } catch (error) {
     if (error instanceof UserFacingError) return { error: error.message };

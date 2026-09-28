@@ -93,8 +93,8 @@ export default function ApiDocsPage() {
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
           Article draft requests require an API key attached to your aviation.wiki account. Generate
           one in{" "}
-          <Link href="/settings/api-keys" className="text-primary underline underline-offset-4 hover:no-underline">
-            Settings → API Keys
+          <Link href="/settings/profile?section=keys" className="text-primary underline underline-offset-4 hover:no-underline">
+            Manage account → API keys
           </Link>
           . Include the key as a Bearer token in every request:
         </p>
@@ -226,10 +226,10 @@ X-RateLimit-Reset: 1724437260`}</CodeBlock>
         <p className="mt-2 text-sm leading-7 text-muted-foreground">
           Create your first API key in{" "}
           <Link
-            href="/settings/api-keys"
+            href="/settings/profile?section=keys"
             className="text-primary underline underline-offset-4 hover:no-underline"
           >
-            Settings → API Keys
+            Manage account → API keys
           </Link>
           . Keys are shown only once on creation.
         </p>

@@ -44,15 +44,7 @@ export function AccountMenu() {
                 Public profile
               </Menu.Item>
             )}
-            <Menu.Item onClick={() => router.push("/contribute")} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
-
-              Your contributions
-            </Menu.Item>
             {(user?.publicMetadata.role === "moderator" || user?.publicMetadata.role === "admin") && <Menu.Item onClick={() => router.push("/admin")} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">Administration</Menu.Item>}
-            <Menu.Item onClick={() => router.push("/settings/api-keys")} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
-
-              API Keys
-            </Menu.Item>
             <Menu.Item onClick={() => router.push("/settings/profile")} className="flex cursor-default items-center gap-2.5 px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground">
 
               Manage account
