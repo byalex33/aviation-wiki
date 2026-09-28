@@ -1,6 +1,7 @@
 "use client";
 
 import { TaskChooseOrganization, TaskResetPassword, TaskSetupMFA, useClerk, useSignIn, useSignUp, useUser } from "@clerk/nextjs";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -9,7 +10,7 @@ import { AuthField } from "./auth-field";
 import { AuthSkeleton } from "./auth-shell";
 import styles from "./auth.module.css";
 
-type Step = "credentials" | "email" | "signup-email" | "recovery" | "reset-code" | "new-password" | "mfa";
+type Step = "credentials" | "email" | "signup-email" | "recovery" | "reset-code" | "new-password" | "mfa" | "welcome";
 type Factor = "totp" | "backup_code" | "email_code" | "phone_code";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
@@ -38,8 +39,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   useEffect(() => { heading.current?.focus(); }, [step]);
   useEffect(() => {
-    if (isLoaded && isSignedIn && !clerk.session?.currentTask) router.replace(destination);
-  }, [isLoaded, isSignedIn, clerk.session, router, destination]);
+    if (isLoaded && isSignedIn && !clerk.session?.currentTask && step !== "welcome") router.replace(destination);
+  }, [isLoaded, isSignedIn, clerk.session, router, destination, step]);
 
   useEffect(() => {
     if (!isLoaded || resumed.current || isSignedIn) return;
@@ -53,7 +54,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     } else if (!signup && signIn.firstFactorVerification.strategy === "reset_password_email_code") {
       setStep("reset-code");
     } else if (signup && signUp.status === "complete") {
-      void run(() => finalize(signUp));
+      void run(() => finalize(signUp, { celebrate: true }));
     } else if (signup && !!signUp.id && signUp.status === "missing_requirements" && signUp.missingFields.length === 0) {
       void run(advanceSignUp);
     }
@@ -68,12 +69,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     finally { lock.current = false; setBusy(false); }
   }
 
-  async function finalize(resource: typeof signIn | typeof signUp) {
+  async function finalize(resource: typeof signIn | typeof signUp, options: { celebrate?: boolean } = {}) {
     await checked(resource.finalize({ navigate: ({ session, decorateUrl }) => {
       if (session.currentTask) {
         setError("Your account needs an additional security step. Continue to finish setting up your account.");
         return;
       }
+      if (options.celebrate) { setStep("welcome"); return; }
       window.location.assign(decorateUrl(destination));
     }}));
   }
@@ -101,7 +103,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   async function advanceSignUp() {
     setPassword(""); setCode("");
-    if (signUp.status === "complete") return finalize(signUp);
+    if (signUp.status === "complete") return finalize(signUp, { celebrate: true });
     if (signUp.unverifiedFields.includes("email_address")) {
       setStep("signup-email");
       await checked(signUp.verifications.sendEmailCode()); setResendAt(Date.now() + 30000); return;
@@ -152,19 +154,46 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     if (task === "setup-mfa") return <TaskSetupMFA redirectUrlComplete={destination}/>;
     if (task === "choose-organization") return <TaskChooseOrganization redirectUrlComplete={destination}/>;
   }
-  if (isSignedIn) return <AuthSkeleton/>;
+  if (isSignedIn && step !== "welcome") return <AuthSkeleton/>;
+  const otherUrl = `${signup ? "/sign-in" : "/sign-up"}${requestedDestination ? `?redirect_url=${encodeURIComponent(destination)}` : ""}`;
+
+  if (step === "welcome") {
+    return <>
+      <h2 ref={heading} tabIndex={-1} className={styles.heading}>You&apos;re in. Welcome aboard.</h2>
+      <p className={`${styles.hint} mb-6`}>Every contributor starts at zero — here&apos;s your first milestone.</p>
+      <div className={styles.milestone}>
+        <div className={styles.milestoneRow}><span>Next milestone: first edit</span><span className={styles.milestoneCount}>0 / 1</span></div>
+        <div className={styles.milestoneTrack}><div className={styles.milestoneFill} style={{ width: "4%" }}/></div>
+      </div>
+      <div className={`${styles.form} mt-5`}>
+        <Link href="/contribute" className={styles.button}>Make your first edit</Link>
+        <Link href="/" className={`${styles.button} ${styles.secondary}`}>Go to the homepage</Link>
+      </div>
+    </>;
+  }
+
   const verifying = ["email", "signup-email", "reset-code", "mfa"].includes(step);
   const title = verifying ? "Verify your identity" : step === "recovery" ? "Reset your password" : step === "new-password" ? "Choose a new password" : signup ? "Create your account" : "Sign in";
   const continuingSignup = signup && !!signUp.id && signUp.status === "missing_requirements";
   const needsPassword = !continuingSignup || signUp.missingFields.includes("password");
-  const otherUrl = `${signup ? "/sign-in" : "/sign-up"}${requestedDestination ? `?redirect_url=${encodeURIComponent(destination)}` : ""}`;
 
   return <>
+    {step === "credentials" && !continuingSignup && (
+      <div role="tablist" className={styles.tabs}>
+        {signup
+          ? <Link href={otherUrl} role="tab" aria-selected="false" className={styles.tab}>Sign in</Link>
+          : <span role="tab" aria-selected="true" className={`${styles.tab} ${styles.tabActive}`}>Sign in</span>}
+        {signup
+          ? <span role="tab" aria-selected="true" className={`${styles.tab} ${styles.tabActive}`}>Create account</span>
+          : <Link href={otherUrl} role="tab" aria-selected="false" className={styles.tab}>Create account</Link>}
+      </div>
+    )}
+    {step !== "credentials" && !continuingSignup && <button disabled={busy} className={styles.back} onClick={() => void run(async () => { await checked((signup ? signUp : signIn).reset()); setPassword(""); setCode(""); setStep("credentials"); })}><ArrowLeft className="size-3.5" aria-hidden="true"/>Start again</button>}
     <h2 ref={heading} tabIndex={-1} className={styles.heading}>{title}</h2>
     <p className={`${styles.hint} mb-6`}>{verifying ? step === "mfa" && factor === "totp" ? "Enter the code from your authenticator app." : step === "mfa" && factor === "backup_code" ? "Enter one of your unused backup codes." : "Enter the verification code sent to you." : signup ? "Save your research and contribute to the encyclopedia." : "Welcome back to aviation.wiki."}</p>
     {step === "credentials" && !continuingSignup && <><button disabled={busy} className={`${styles.button} ${styles.secondary}`} onClick={() => void run(async () => {
       await checked((signup ? signUp : signIn).sso({ strategy: "oauth_google", redirectCallbackUrl: `/sso-callback?redirect_url=${encodeURIComponent(destination)}`, redirectUrl: destination }));
-    })}>Continue with Google</button><div className={styles.divider}>or use your email</div></>}
+    })}><span className={styles.googleBadge} aria-hidden="true">G</span>Continue with Google</button><div className={styles.divider}>or use your email</div></>}
     <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void run(submit); }}>
       <fieldset disabled={busy} className={styles.form}>
         {(step === "credentials" || step === "recovery") && !continuingSignup && <AuthField label={signup || step === "recovery" ? "Email address" : "Email address or username"} name="email" type={signup || step === "recovery" ? "email" : "text"} autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={setEmail} required/>}
@@ -183,9 +212,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       })}>Email me a sign-in code</button></>}
       {verifying && (step !== "mfa" || ["email_code", "phone_code"].includes(factor)) && <button disabled={busy} className={styles.link} onClick={() => void run(resend)}>Send a new code</button>}
       {step === "mfa" && signIn.supportedSecondFactors.map((item) => item.strategy !== factor && <button key={item.strategy} disabled={busy} className={styles.link} onClick={() => void run(() => selectFactor(item.strategy as Factor))}>Use {item.strategy.replaceAll("_", " ")}</button>)}
-      {step !== "credentials" && <button disabled={busy} className={styles.link} onClick={() => void run(async () => { await checked((signup ? signUp : signIn).reset()); setPassword(""); setCode(""); setStep("credentials"); })}>Start again</button>}
     </div>
     <div id="clerk-captcha"/>
-    <p className={styles.footer}>{signup ? "Already have an account?" : "New to aviation.wiki?"} <Link href={otherUrl} className={styles.link}>{signup ? "Sign in" : "Create an account"}</Link></p>
   </>;
 }
