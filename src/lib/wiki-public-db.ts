@@ -79,24 +79,39 @@ export function normalizeSlug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
 }
 
-export async function getAdminDashboard() {
+export async function getAdminDashboard({ includeActivity = false } = {}) {
   await ready();
-  const [totals, queue] = await Promise.all([
+  const [totals, review, queue, activity] = await Promise.all([
     row<Record<string, number>>(`SELECT
       (SELECT COUNT(*)::int FROM articles) articles,
+      (SELECT COUNT(*)::int FROM articles WHERE created_at>=NOW()-INTERVAL '7 days') "articlesThisWeek",
       (SELECT COUNT(*)::int FROM articles WHERE live_revision_id IS NOT NULL AND archived_at IS NULL) published,
       (SELECT COUNT(*)::int FROM articles WHERE archived_at IS NOT NULL) archived,
       (SELECT COUNT(*)::int FROM revisions WHERE status IN ('verifying','pending_review')) pending,
       (SELECT COUNT(DISTINCT contributor_id)::int FROM revisions WHERE contributor_id != 'system' AND (submitted_at IS NOT NULL OR status IN ('verifying','pending_review','changes_requested','approved','rejected'))) contributors,
+      (SELECT COUNT(*)::int FROM (SELECT contributor_id FROM revisions WHERE contributor_id != 'system' AND submitted_at IS NOT NULL
+        GROUP BY contributor_id HAVING MIN(submitted_at)>=NOW()-INTERVAL '7 days') first_submissions) "contributorsThisWeek",
       (SELECT COUNT(DISTINCT source->>'url')::int FROM revisions, jsonb_array_elements(sources_json) source WHERE source->>'url' IS NOT NULL) sources,
       (SELECT COUNT(*)::int FROM articles WHERE protection_level != 'open' OR is_locked) "protectedPages",
-      (SELECT COUNT(*)::int FROM admin_audit_log) "auditEvents"`),
-    rows<Record<string, unknown>>(`SELECT r.*,a.slug article_slug,a.live_revision_id
-      FROM revisions r JOIN articles a ON a.id=r.article_id
+      (SELECT COUNT(*)::int FROM admin_audit_log) "auditEvents",
+      (SELECT COUNT(*)::int FROM admin_audit_log WHERE created_at>=NOW()-INTERVAL '7 days') "auditEventsThisWeek"`),
+    row<{ pending: number; oldest: Date | null; unassigned: number; conflicting: number }>(`SELECT
+      COUNT(*)::int pending,
+      MIN(COALESCE(r.submitted_at,r.updated_at)) oldest,
+      COUNT(*) FILTER (WHERE r.assigned_moderator_id IS NULL)::int unassigned,
+      COUNT(*) FILTER (WHERE (SELECT COUNT(*) FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review'))>1)::int conflicting
+      FROM revisions r WHERE r.status='pending_review'`),
+    rows<Record<string, unknown>>(`${adminRevisionSelect}
       WHERE r.status='pending_review'
       ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 5`),
+    includeActivity
+      ? rows<Record<string, unknown>>(`SELECT l.id,l.actor_id,l.actor_name,l.action,l.entity_type,l.created_at,
+          COALESCE(a.title,(SELECT title FROM revisions x WHERE x.id=l.revision_id)) article_title
+          FROM admin_audit_log l LEFT JOIN articles a ON a.id=l.article_id
+          ORDER BY l.created_at DESC LIMIT 5`)
+      : Promise.resolve([]),
   ]);
-  return { totals, queue };
+  return { totals, review, queue, activity };
 }
 
 export type QueueFilters = {
@@ -106,8 +121,14 @@ export type QueueFilters = {
   submittedFrom?: string;
   verification?: string;
   conflicting?: boolean;
+  query?: string;
+  unassigned?: boolean;
 };
 
+export const openQueueStatuses = ["pending_review", "verifying", "changes_requested"] as const;
+
+// Assignment is always self-assignment, so the latest assignment event's actor
+// is the assigned moderator's display name.
 const adminRevisionSelect = `SELECT
   r.id,r.article_id,r.status,r.contributor_id,r.contributor_name,r.edit_summary,r.title,r.content_type,r.markdown,
   r.fields_json::text fields_json,r.sections_json::text sections_json,r.sources_json::text sources_json,
@@ -115,7 +136,10 @@ const adminRevisionSelect = `SELECT
   r.moderator_id,r.moderator_note,r.assigned_moderator_id,r.proposed_slug,r.parent_revision_id,
   r.created_at,r.updated_at,r.submitted_at,r.reviewed_at,
   a.slug article_slug,a.live_revision_id,a.title article_title,
-  (SELECT COUNT(*)::int FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review')) conflict_count
+  (SELECT COUNT(*)::int FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review')) conflict_count,
+  CASE WHEN r.assigned_moderator_id IS NOT NULL THEN (SELECT l.actor_name FROM admin_audit_log l
+    WHERE l.revision_id=r.id AND l.action='revision.assigned' AND l.actor_id=r.assigned_moderator_id
+    ORDER BY l.created_at DESC LIMIT 1) END assigned_moderator_name
   FROM revisions r JOIN articles a ON a.id=r.article_id`;
 
 export async function listAdminQueue(filters: QueueFilters = {}) {
@@ -132,6 +156,11 @@ export async function listAdminQueue(filters: QueueFilters = {}) {
     values.push(`%${filters.contributor}%`);
     conditions.push(`(r.contributor_name ILIKE $${values.length} OR r.contributor_id ILIKE $${values.length})`);
   }
+  if (filters.query) {
+    values.push(`%${filters.query}%`);
+    conditions.push(`(r.title ILIKE $${values.length} OR r.contributor_name ILIKE $${values.length})`);
+  }
+  if (filters.unassigned) conditions.push("r.assigned_moderator_id IS NULL");
   if (filters.submittedFrom) add("r.submitted_at>=?", `${filters.submittedFrom}T00:00:00.000Z`);
   if (filters.verification && filters.verification !== "all") {
     if (filters.verification === "missing") conditions.push("r.verification_json IS NULL");
@@ -140,6 +169,13 @@ export async function listAdminQueue(filters: QueueFilters = {}) {
   if (filters.conflicting) conditions.push("(SELECT COUNT(*) FROM revisions other WHERE other.article_id=r.article_id AND other.status IN ('verifying','pending_review'))>1");
   return rows<Record<string, unknown>>(`${adminRevisionSelect} WHERE ${conditions.join(" AND ")}
     ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 250`, values);
+}
+
+export async function countAdminQueueByStatus() {
+  await ready();
+  const counts = await rows<{ status: string; count: number }>(`SELECT status,COUNT(*)::int count FROM revisions
+    WHERE status IN ('verifying','pending_review','changes_requested') GROUP BY status`);
+  return Object.fromEntries(counts.map((item) => [item.status, Number(item.count)])) as Record<string, number>;
 }
 
 export async function listAdminArticles(search = "") {

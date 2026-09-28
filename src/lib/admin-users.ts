@@ -2,7 +2,7 @@ import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
 
-import type { WikiRole } from "@/lib/wiki-auth";
+import { wikiRoles, type WikiRole } from "@/lib/wiki-roles";
 
 export type AdminUser = {
   id: string;
@@ -32,6 +32,33 @@ export async function listAllClerkUsers() {
     if (!page.data.length || offset >= page.totalCount) break;
   }
   return users;
+}
+
+/**
+ * Looks up roles for a small set of users (e.g. the revisions on screen) so
+ * names can carry their role treatment. Unknown or failed lookups fall back to
+ * the plain contributor treatment rather than breaking the admin page.
+ */
+export async function getUserRoles(userIds: string[]) {
+  const ids = [...new Set(userIds.filter((id) => id && id !== "system"))];
+  const roles = new Map<string, WikiRole>();
+  if (!ids.length) return roles;
+  try {
+    const client = await clerkClient();
+    for (let start = 0; start < ids.length; start += 100) {
+      const page = await client.users.getUserList({
+        userId: ids.slice(start, start + 100),
+        limit: 100,
+      });
+      for (const user of page.data) {
+        const role = user.publicMetadata.role as WikiRole;
+        if (wikiRoles.includes(role)) roles.set(user.id, role);
+      }
+    }
+  } catch (error) {
+    console.error("Could not load contributor roles", error);
+  }
+  return roles;
 }
 
 export async function listAdminUsers(): Promise<AdminUser[]> {

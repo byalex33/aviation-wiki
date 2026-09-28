@@ -68,6 +68,8 @@ export type QueueFilters = {
   submittedFrom?: string;
   verification?: string;
   conflicting?: boolean;
+  query?: string;
+  unassigned?: boolean;
 };
 
 export function getAdminTotals(): AdminTotals {
@@ -114,6 +116,11 @@ export function listAdminQueue(filters: QueueFilters = {}) {
     conditions.push("(r.contributor_name LIKE ? OR r.contributor_id LIKE ?)");
     values.push(`%${filters.contributor}%`, `%${filters.contributor}%`);
   }
+  if (filters.query) {
+    conditions.push("(r.title LIKE ? OR r.contributor_name LIKE ?)");
+    values.push(`%${filters.query}%`, `%${filters.query}%`);
+  }
+  if (filters.unassigned) conditions.push("r.assigned_moderator_id IS NULL");
   if (filters.submittedFrom) {
     conditions.push("r.submitted_at >= ?");
     values.push(`${filters.submittedFrom}T00:00:00.000Z`);
@@ -133,10 +140,23 @@ export function listAdminQueue(filters: QueueFilters = {}) {
   return db
     .prepare(
       `SELECT r.*, a.slug article_slug, a.live_revision_id,
-    (SELECT COUNT(*) FROM revisions other WHERE other.article_id = r.article_id AND other.status IN ('verifying','pending_review')) conflict_count
+    (SELECT COUNT(*) FROM revisions other WHERE other.article_id = r.article_id AND other.status IN ('verifying','pending_review')) conflict_count,
+    (SELECT l.actor_name FROM admin_audit_log l WHERE l.revision_id = r.id AND l.action = 'revision.assigned' AND l.actor_id = r.assigned_moderator_id
+      ORDER BY l.created_at DESC LIMIT 1) assigned_moderator_name
     FROM revisions r JOIN articles a ON a.id = r.article_id WHERE ${conditions.join(" AND ")} ORDER BY COALESCE(r.submitted_at,r.updated_at) ASC LIMIT 250`,
     )
     .all(...values) as Array<Record<string, unknown>>;
+}
+
+export function countAdminQueueByStatus() {
+  const counts = db
+    .prepare(
+      "SELECT status, COUNT(*) count FROM revisions WHERE status IN ('verifying','pending_review','changes_requested') GROUP BY status",
+    )
+    .all() as Array<{ status: string; count: number }>;
+  return Object.fromEntries(
+    counts.map((item) => [item.status, Number(item.count)]),
+  ) as Record<string, number>;
 }
 
 export function listAdminArticles(search = "") {

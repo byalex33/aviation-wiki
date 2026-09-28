@@ -1,149 +1,127 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStaffUser } from "@/lib/wiki-auth";
+import { Inbox } from "lucide-react";
 
-import { RevisionStatusBadge } from "@/components/revision-status-badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { contentTypes } from "@/lib/wiki-types";
+import { ModerationFilters } from "@/components/admin/moderation-filters";
+import { QueueRevisionRow } from "@/components/admin/revision-row";
+import { moderationHref, type ModerationFilterValues } from "@/lib/admin-display";
+import { getUserRoles } from "@/lib/admin-users";
 import { formatDisplayLabel } from "@/lib/display";
+import { getStaffUser } from "@/lib/wiki-auth";
+import { contentTypes } from "@/lib/wiki-types";
+import { cn } from "@/lib/utils";
 
 type Search = {
   status?: string;
+  q?: string;
   contentType?: string;
-  contributor?: string;
-  submittedFrom?: string;
   conflicting?: string;
+  unassigned?: string;
 };
+
+// Completed decisions (approved/rejected) live in the audit log, so the queue
+// only offers the open statuses.
+const tabs = [
+  ["pending_review", "Pending review"],
+  ["verifying", "Verifying"],
+  ["changes_requested", "Changes requested"],
+  ["all", "All open"],
+] as const;
+
 export default async function AdminModerationPage({
   searchParams,
 }: {
   searchParams: Promise<Search>;
 }) {
-  if (!(await getStaffUser())) notFound();
-  const { listAdminQueue } = process.env.DATABASE_URL
+  const staff = await getStaffUser();
+  if (!staff) notFound();
+  const { listAdminQueue, countAdminQueueByStatus } = process.env.DATABASE_URL
     ? await import("@/lib/wiki-public-db")
     : await import("@/lib/admin-db");
   const search = await searchParams;
-  const statuses = ["verifying", "pending_review", "changes_requested"];
-  const status = statuses.includes(search.status || "") ? search.status : "all";
-  const revisions = await listAdminQueue({
-    ...search,
-    status,
+  const values: ModerationFilterValues = {
+    status: tabs.some(([key]) => key === search.status) ? search.status! : "pending_review",
+    q: (search.q || "").trim().slice(0, 100),
+    contentType: contentTypes.includes(search.contentType as never) ? search.contentType! : "all",
     conflicting: search.conflicting === "1",
-  });
+    unassigned: search.unassigned === "1",
+  };
+  const [revisions, counts] = await Promise.all([
+    listAdminQueue({
+      status: values.status,
+      query: values.q,
+      contentType: values.contentType,
+      conflicting: values.conflicting,
+      unassigned: values.unassigned,
+    }),
+    countAdminQueueByStatus(),
+  ]);
+  const roles = await getUserRoles(revisions.map((revision) => String(revision.contributor_id)));
+  const countFor = (key: string) =>
+    key === "all" ? Object.values(counts).reduce((sum, count) => sum + count, 0) : (counts[key] ?? 0);
+
   return (
     <main>
-      <div>
-        <p className="text-sm text-muted-foreground">
-          Submitted revisions awaiting review or changes.
-        </p>
-        <h2 className="mt-1 text-3xl font-bold tracking-tight">
-          Moderation queue
-        </h2>
-      </div>
-      <Card className="mt-6 rounded-none shadow-none">
-        <CardContent>
-          <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <select
-              aria-label="Revision status"
-              name="status"
-              defaultValue={status}
-              className="h-9 rounded-none border bg-background px-3 text-sm"
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">Review</p>
+      <h1 className="mt-2 text-3xl font-bold leading-tight tracking-[-0.04em]">Moderation queue</h1>
+      <p className="mt-1.5 text-[13px] text-muted-foreground">Filter, assign, and decide submitted revisions.</p>
+
+      <nav aria-label="Revision status" className="mt-[22px] flex gap-1 overflow-x-auto border-b">
+        {tabs.map(([key, label]) => {
+          const active = values.status === key;
+          return (
+            <Link
+              key={key}
+              href={moderationHref({ ...values, status: key })}
+              aria-current={active ? "page" : undefined}
+              scroll={false}
+              className={cn(
+                "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm",
+                active
+                  ? "border-primary font-semibold hover:text-foreground"
+                  : "border-transparent font-medium text-muted-foreground hover:text-foreground",
+              )}
             >
-              <option value="all">All statuses</option>
-              {statuses.map((value) => (
-                <option key={value} value={value}>
-                  {formatDisplayLabel(value)}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Content type"
-              name="contentType"
-              defaultValue={search.contentType || "all"}
-              className="h-9 rounded-none border bg-background px-3 text-sm"
-            >
-              <option value="all">All content types</option>
-              {contentTypes.map((value) => (
-                <option key={value} value={value}>{formatDisplayLabel(value)}</option>
-              ))}
-            </select>
-            <Input
-              aria-label="Contributor"
-              name="contributor"
-              defaultValue={search.contributor}
-              placeholder="Contributor"
-            />
-            <Input
-              aria-label="Submitted from"
-              name="submittedFrom"
-              type="date"
-              defaultValue={search.submittedFrom}
-            />
-            <div className="flex gap-2">
-              <label className="flex items-center gap-2 whitespace-nowrap rounded-none border px-3 text-xs">
-                <input
-                  type="checkbox"
-                  name="conflicting"
-                  value="1"
-                  defaultChecked={search.conflicting === "1"}
-                />
-                Conflicts
-              </label>
-              <Button type="submit" variant="outline">
-                Filter
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      <div className="mt-6 space-y-3">
+              {label}
+              <span
+                className={cn(
+                  "rounded-full px-[7px] py-px font-mono text-[11px] tabular-nums",
+                  active ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground",
+                )}
+              >
+                {countFor(key)}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <ModerationFilters
+        values={values}
+        contentTypes={contentTypes.map((value) => ({ value, label: formatDisplayLabel(value) }))}
+        resultLabel={`${revisions.length} ${revisions.length === 1 ? "revision" : "revisions"}`}
+      />
+
+      <div className="mt-3.5 overflow-hidden rounded-2xl border bg-card">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b bg-muted px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <span>Revision · oldest first</span>
+          <span className="text-right">Assignee</span>
+        </div>
         {revisions.length ? (
           revisions.map((revision) => (
-            <Link
+            <QueueRevisionRow
               key={String(revision.id)}
-              href={`/admin/moderation/${revision.id}`}
-              className="grid gap-4 border bg-muted/20 p-5 md:grid-cols-[1fr_auto]"
-            >
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold">{String(revision.title)}</h3>
-                  <RevisionStatusBadge status={revision.status as never} />
-                  {Number(revision.conflict_count) > 1 && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-amber-700">
-                      {Number(revision.conflict_count)} conflicting revisions
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {String(revision.edit_summary || "No summary")}
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {String(revision.contributor_name)} ·{" "}
-                  {String(revision.content_type)} ·{" "}
-                  {revision.submitted_at
-                    ? new Date(String(revision.submitted_at)).toLocaleString()
-                    : "Not submitted"}
-                </p>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {revision.assigned_moderator_id ? "Assigned" : "Unassigned"}
-              </div>
-            </Link>
+              revision={revision}
+              role={roles.get(String(revision.contributor_id))}
+              viewerId={staff.userId}
+            />
           ))
         ) : (
-          <Card className="rounded-none shadow-none">
-            <CardContent className="p-12 text-center">
-              <p className="mt-4 font-medium">
-                No revisions match these filters.
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Adjust the filters or return later.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="px-6 py-14 text-center">
+            <Inbox className="mx-auto size-7 text-muted-foreground" aria-hidden="true" />
+            <p className="mt-2.5 text-[15px] font-semibold">No revisions match these filters</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">Adjust the filters or come back later.</p>
+          </div>
         )}
       </div>
     </main>
