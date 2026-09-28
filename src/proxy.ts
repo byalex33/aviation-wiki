@@ -20,6 +20,7 @@ export default clerkMiddleware({
   contentSecurityPolicy: {
     strict: true,
     directives: {
+      "connect-src": ["https://collect.tracwell.app"],
       "base-uri": ["'self'"],
       "object-src": ["'none'"],
       "frame-ancestors": ["'none'"],

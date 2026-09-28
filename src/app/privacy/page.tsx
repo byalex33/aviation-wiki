@@ -20,6 +20,10 @@ const sections = [
     body: "aviation.wiki and its service providers may use cookies or similar technologies that are necessary for authentication, security, preferences, and site analytics. Providers process information on our behalf to deliver these services.",
   },
   {
+    title: "Product analytics",
+    body: "We use Tracwell in Product mode to measure page visits and completed watchlist additions and removals. Tracwell stores anonymous and session identifiers in local storage and associates signed-in activity with an internal account ID, never an email address. We reset that identity when you sign out. Watchlist events include only the article ID. Tracwell collection starts with consent configured as granted and respects your browser’s Do Not Track setting. We also use Vercel Analytics and Speed Insights.",
+  },
+  {
     title: "Sharing and disclosure",
     body: "We do not sell your personal information. We may share information with service providers that help us run the site, when required by law, or when reasonably necessary to protect aviation.wiki, its users, or the public.",
   },
@@ -42,7 +46,7 @@ export default function PrivacyPage() {
         <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
           This page explains what information aviation.wiki may collect and how it is used.
         </p>
-        <p className="mt-3 text-sm text-muted-foreground">Last updated: 22 July 2026</p>
+        <p className="mt-3 text-sm text-muted-foreground">Last updated: 28 September 2026</p>
       </header>
 
       <div className="space-y-8 py-8">
