@@ -8,7 +8,7 @@ type DisplayRole =
   | "moderator"
   | "admin";
 
-const roleStyles = {
+export const roleStyles = {
   trusted_contributor: {
     Icon: BadgeCheck,
     label: "Trusted contributor",

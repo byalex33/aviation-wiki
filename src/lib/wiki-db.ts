@@ -434,7 +434,7 @@ export function getPublicContributorActivity(
     JOIN articles a ON a.id=r.article_id
     WHERE r.contributor_id=? AND r.status='approved' AND a.archived_at IS NULL
     ORDER BY COALESCE(r.reviewed_at,r.created_at) DESC
-    LIMIT 12`,
+    LIMIT 50`,
   ).all(contributorId) as Array<{
     id: string;
     article_slug: string;
