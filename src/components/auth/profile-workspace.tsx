@@ -9,10 +9,11 @@ export const profileSections = {
   profile: { label: "Public profile", description: "Choose how you appear across aviation.wiki." },
   email: { label: "Email addresses", description: "Manage where you receive account messages and verification codes." },
   security: { label: "Password & security", description: "Keep your account secure and control access on other devices." },
+  keys: { label: "API keys", description: "Let external tools create article drafts on your behalf. Drafts follow the standard review workflow." },
   connections: { label: "Connected accounts", description: "Review the accounts linked to your aviation.wiki sign-in." },
 };
 export type ProfileSection = keyof typeof profileSections;
-type IconName = ProfileSection | "collapse" | "keys" | "exit";
+type IconName = ProfileSection | "collapse" | "exit";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
@@ -40,8 +41,6 @@ export function ProfileWorkspace({ section, onSectionChange, username, imageUrl,
         <div className={styles.sidebarTop}><span className={styles.sidebarLabel}>Your account</span><button type="button" className={styles.collapse} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="profile-navigation" onClick={() => setCollapsed(!collapsed)}><Icon name="collapse"/></button></div>
         <nav id="profile-navigation" aria-label="Profile settings" className={styles.navigation}>
           {Object.entries(profileSections).map(([key, item]) => <button key={key} type="button" aria-current={section === key ? "page" : undefined} aria-label={item.label} title={item.label} onClick={() => onSectionChange(key as ProfileSection)}><Icon name={key as ProfileSection}/><span className={styles.sidebarLabel}>{item.label}</span></button>)}
-          <div className={styles.navDivider}/>
-          <Link href="/settings/api-keys" aria-label="API keys" title="API keys"><Icon name="keys"/><span className={styles.sidebarLabel}>API keys</span></Link>
         </nav>
         <div className={styles.sidebarBottom}>
           <div className={styles.identity}>

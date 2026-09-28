@@ -117,7 +117,7 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
     "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton" }, "./profile.module.css": { default: {} }, "./auth.module.css": { default: {} },
   });
   const Editor = ProfileForm().type;
-  const render = () => { cursor = 0; tree = Editor(); };
+  const render = () => { cursor = 0; tree = Editor({ apiKeys: "api-key-panel" }); };
   const nodes = (node) => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)];
   const field = (label, value) => { nodes(tree).find((n) => n.type === "field" && n.props.label === label).props.onChange(value); render(); };
   const submit = async (index) => { nodes(tree).filter((n) => n.type === "form")[index].props.onSubmit({ preventDefault() {} }); await new Promise((resolve) => setImmediate(resolve)); render(); };
@@ -128,6 +128,10 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   assert.equal(tree.props.section, "email");
   assert.equal(nodes(tree).find((n) => n.type === "field" && n.props.label === "Username").props.value, "draftpilot", "Navigation preserves unsaved profile fields");
   assert.equal(nodes(tree).filter((n) => n.type === "div" && n.props.hidden === false).length, 1, "Only the selected settings panel is visible");
+  tree.props.onSectionChange("keys"); render();
+  assert.equal(tree.props.section, "keys");
+  assert.equal(nodes(tree).find((n) => n.props.children === "api-key-panel").props.hidden, false);
+  assert.equal(nodes(tree).filter((n) => n.type === "div" && n.props.hidden === false).length, 1, "API keys shares the account workspace");
   tree.props.onSectionChange("profile"); render();
   field("Username", "newpilot"); await submit(0);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify(["update", { username: "newpilot" }]));
