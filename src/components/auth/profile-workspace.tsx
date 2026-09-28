@@ -1,65 +1,104 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
-import styles from "./profile.module.css";
+import type { ReactNode } from "react";
+import { ArrowUpRight, KeyRound, Link2, LogOut, Mail, Shield, UserRound, type LucideIcon } from "lucide-react";
 
-export const profileSections = {
-  profile: { label: "Public profile", description: "Choose how you appear across aviation.wiki." },
-  email: { label: "Email addresses", description: "Manage where you receive account messages and verification codes." },
-  security: { label: "Password & security", description: "Keep your account secure and control access on other devices." },
-  keys: { label: "API keys", description: "Let external tools create article drafts on your behalf. Drafts follow the standard review workflow." },
-  connections: { label: "Connected accounts", description: "Review the accounts linked to your aviation.wiki sign-in." },
+import { roleStyles } from "@/components/role-username";
+import { cn } from "@/lib/utils";
+import { wikiRoleDetails, wikiRoles, type WikiRole } from "@/lib/wiki-roles";
+import { profileSections, type ProfileSection } from "./profile-sections";
+
+export { profileSections, type ProfileSection } from "./profile-sections";
+
+const sectionIcons: Record<ProfileSection, LucideIcon> = {
+  profile: UserRound,
+  email: Mail,
+  security: Shield,
+  keys: KeyRound,
+  connections: Link2,
 };
-export type ProfileSection = keyof typeof profileSections;
-type IconName = ProfileSection | "collapse" | "exit";
 
-function Icon({ name }: { name: IconName }) {
-  const paths: Record<IconName, ReactNode> = {
-    profile: <><circle cx="12" cy="8" r="3"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></>,
-    email: <><rect x="3" y="5" width="18" height="14"/><path d="m3 6 9 7 9-7"/></>,
-    security: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="M12 9v5m0 2v1"/></>,
-    connections: <><path d="m9 15 6-6m-5-3 2-2a5 5 0 0 1 7 7l-2 2M7 11l-2 2a5 5 0 0 0 7 7l2-2"/></>,
-    collapse: <><rect x="3" y="4" width="18" height="16"/><path d="M9 4v16"/></>,
-    keys: <><circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-5-5 3-3m-1 5 3-3"/></>,
-    exit: <><path d="M9 3H3v18h6m5-14 5 5-5 5m-7-5h12"/></>,
-  };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">{paths[name]}</svg>;
+export function normalizeRole(value: unknown): WikiRole {
+  return wikiRoles.includes(value as WikiRole) ? (value as WikiRole) : "contributor";
 }
 
-export function ProfileWorkspace({ section, onSectionChange, username, imageUrl, busy, onSignOut, children }: {
+export function RoleLabel({ role, className }: { role: WikiRole; className?: string }) {
+  const treatment = role === "contributor" ? null : roleStyles[role];
+  const Icon = treatment?.Icon;
+  return <span className={cn("inline-flex items-center gap-1 font-semibold", treatment?.className ?? "text-muted-foreground", className)}>
+    {Icon && <Icon className="size-[1.1em] shrink-0" aria-hidden="true"/>}
+    {wikiRoleDetails[role].label}
+  </span>;
+}
+
+export function ProfileWorkspace({ section, onSectionChange, name, username, imageUrl, role, busy, onSignOut, children }: {
   section: ProfileSection; onSectionChange: (section: ProfileSection) => void;
-  username: string; imageUrl: string; busy: boolean; onSignOut: () => void; children: ReactNode;
+  name: string; username: string; imageUrl: string; role: WikiRole;
+  busy: boolean; onSignOut: () => void; children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const reducedMotion = useReducedMotion();
-  return <main className={styles.page}>
-    <div className={styles.breadcrumb}><Link href="/">Aviation.wiki</Link><span>/</span><span>Account settings</span></div>
-    <div className={styles.workspace} data-collapsed={collapsed}>
-      <motion.aside layout className={styles.sidebar} transition={{ duration: reducedMotion ? 0 : .22, ease: [.77, 0, .175, 1] }}>
-        <div className={styles.sidebarTop}><span className={styles.sidebarLabel}>Your account</span><button type="button" className={styles.collapse} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="profile-navigation" onClick={() => setCollapsed(!collapsed)}><Icon name="collapse"/></button></div>
-        <nav id="profile-navigation" aria-label="Profile settings" className={styles.navigation}>
-          {Object.entries(profileSections).map(([key, item]) => <button key={key} type="button" aria-current={section === key ? "page" : undefined} aria-label={item.label} title={item.label} onClick={() => onSectionChange(key as ProfileSection)}><Icon name={key as ProfileSection}/><span className={styles.sidebarLabel}>{item.label}</span></button>)}
-        </nav>
-        <div className={styles.sidebarBottom}>
-          <div className={styles.identity}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageUrl} width={32} height={32} alt=""/>
-            <div className={styles.sidebarLabel}><strong>{username || "Your account"}</strong><span>Aviation.wiki member</span></div>
+  const current = profileSections[section];
+  return <main className="mx-auto w-full max-w-[1160px] px-5 pb-24 pt-7 sm:px-6">
+    <nav aria-label="Breadcrumb" className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+      <Link href="/" className="transition-colors hover:text-primary">aviation.wiki</Link>
+      <span className="text-foreground/20" aria-hidden="true">/</span>
+      <span className="text-foreground" aria-current="page">Account settings</span>
+    </nav>
+
+    <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+      <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-[84px] lg:w-[240px] lg:shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Clerk serves the user's uploaded image; a native image supports its signed URL. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="" width={44} height={44} className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border"/>
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold tracking-[-0.02em]">{name || username || "Your account"}</p>
+            <RoleLabel role={role} className="mt-0.5 text-xs"/>
           </div>
-          <button className={styles.signOut} type="button" disabled={busy} onClick={onSignOut} aria-label="Sign out" title="Sign out"><Icon name="exit"/><span className={styles.sidebarLabel}>Sign out</span></button>
         </div>
-      </motion.aside>
-      <div className={styles.content}>
-        <header className={styles.heading}><p>Account settings</p><h1>{profileSections[section].label}</h1><div>{profileSections[section].description}</div></header>
+        <nav aria-label="Account settings" className="-mx-5 flex gap-1 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:p-0">
+          {(Object.keys(profileSections) as ProfileSection[]).map((key) => {
+            const Icon = sectionIcons[key];
+            const active = key === section;
+            return <button key={key} type="button" aria-current={active ? "page" : undefined} onClick={() => onSectionChange(key)}
+              className={cn(
+                "flex min-h-10 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg border px-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active ? "border-border bg-card font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)]" : "border-transparent font-medium text-foreground/70 hover:bg-muted hover:text-foreground",
+              )}>
+              <Icon className={cn("size-4 shrink-0", active && "text-primary")} aria-hidden="true"/>
+              {profileSections[key].label}
+            </button>;
+          })}
+        </nav>
+        <div className="flex gap-1 border-t pt-4 lg:flex-col lg:gap-0.5">
+          {username && <Link href={`/profile/${encodeURIComponent(username)}`} className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
+            <ArrowUpRight className="size-4" aria-hidden="true"/>View public profile
+          </Link>}
+          <button type="button" disabled={busy} onClick={onSignOut} className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-wait disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-400/10">
+            <LogOut className="size-4" aria-hidden="true"/>Sign out
+          </button>
+        </div>
+      </aside>
+
+      <div className="min-w-0 flex-1">
+        <header>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">Account settings</p>
+          <h1 className="mt-2 text-3xl font-bold leading-[1.1] tracking-[-0.045em] sm:text-[34px]">{current.label}</h1>
+          <p className="mt-2 max-w-[620px] text-sm leading-relaxed text-muted-foreground [text-wrap:pretty]">{current.description}</p>
+        </header>
         {children}
-        <footer className={styles.footer}><span>Your account, your contribution.</span><div><Link href="/terms">Terms of service</Link><Link href="/privacy">Privacy policy</Link></div></footer>
       </div>
     </div>
   </main>;
 }
 
 export function ProfileSkeleton() {
-  return <main className={styles.page} aria-busy="true" aria-label="Loading account settings" role="status"><div className={styles.loading}><div/><div><div/><div/><div/></div></div><span className="sr-only">Loading account settings</span></main>;
+  return <main className="mx-auto w-full max-w-[1160px] px-5 pb-24 pt-7 sm:px-6" aria-busy="true" aria-label="Loading account settings" role="status">
+    <div className="h-3 w-40 rounded bg-muted"/>
+    <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:gap-10">
+      <div className="flex flex-col gap-3 lg:w-[240px]"><div className="h-11 rounded-full bg-muted lg:w-11"/>{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-10 rounded-lg bg-muted"/>)}</div>
+      <div className="flex-1"><div className="h-9 w-64 rounded bg-muted"/><div className="mt-3 h-4 w-96 max-w-full rounded bg-muted"/><div className="mt-7 h-80 rounded-2xl bg-muted"/></div>
+    </div>
+    <span className="sr-only">Loading account settings</span>
+  </main>;
 }

@@ -98,7 +98,7 @@ h = harness(); await h.click("Continue with Google"); assert.equal(h.calls[0][1]
 h = harness(); h.signIn.status = "needs_second_factor"; h.signIn.supportedSecondFactors = [{ strategy: "totp" }]; await h.resume(); assert.ok(h.nodes().some((n) => n.type === "field" && n.props.label === "Verification code"), "Resume MFA after OAuth");
 console.log("Custom auth checks passed: local redirects, email suggestions, password sign-in, API errors, MFA, email codes, password recovery, verified signup, OAuth completion and resume.");
 
-// Profile mutations stay on Clerk resources and never edit roles or public metadata.
+// Profile mutations stay on Clerk resources and never edit roles or metadata.
 {
   let cursor = 0, tree;
   const state = [], calls = [];
@@ -114,7 +114,8 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   const { ProfileForm } = load("../src/components/auth/profile-form.tsx", {
     "react": { useState, useRef: (initial) => useState({ current: initial })[0] },
     "@clerk/nextjs": { useUser: () => ({ user, isLoaded: true }), useClerk: () => ({ signOut() {} }), useReverification: (action) => action },
-    "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton" }, "./profile.module.css": { default: {} }, "./auth.module.css": { default: {} },
+    "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton", RoleLabel: "role", normalizeRole: () => "contributor" }, "./settings-field": { SettingsInput: "field", SettingsRow: "row" }, "./auth.module.css": { default: {} },
+    "sonner": { toast: { success() {}, error() {} } }, "@/lib/utils": { cn: (...classes) => classes.filter(Boolean).join(" ") },
   });
   const Editor = ProfileForm().type;
   const render = () => { cursor = 0; tree = Editor({ apiKeys: "api-key-panel" }); };
@@ -135,6 +136,11 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   tree.props.onSectionChange("profile"); render();
   field("Username", "newpilot"); await submit(0);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify(["update", { username: "newpilot" }]));
+  field("Display name", "  Draft   Pilot Jr "); await submit(0);
+  const nameUpdate = calls.filter(([name]) => name === "update").at(-1)[1];
+  assert.equal(nameUpdate.firstName, "Draft"); assert.equal(nameUpdate.lastName, "Pilot Jr");
+  assert.ok(!calls.some(([name, args]) => name === "update" && ("publicMetadata" in args || "unsafeMetadata" in args || "bio" in args)), "The browser never writes profile metadata");
+  calls.length = 0;
   field("New password", "fixture-new-password"); field("Confirm new password", "different"); await submit(2);
   assert.ok(!calls.some(([name]) => name === "password"), "Mismatched passwords never reach the API");
   field("Current password", "fixture-current-password"); field("Confirm new password", "fixture-new-password"); await submit(2);
@@ -146,7 +152,7 @@ console.log("Custom auth checks passed: local redirects, email suggestions, pass
   field("Verification code", "123456"); await submit(1);
   assert.ok(calls.some(([name]) => name === "reload"));
 }
-console.log("Profile checks passed: username updates, password confirmation, session revocation, secret clearing, email verification before primary selection.");
+console.log("Profile checks passed: username updates, display names, password confirmation, session revocation, secret clearing, email verification before primary selection.");
 
 // Exercise the source-adapted reveal hook with a deterministic native input.
 {
