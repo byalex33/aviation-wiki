@@ -15,12 +15,9 @@ export async function refreshAviationFeed() {
 
 export async function saveAviationFeedEvents(events: DatedAviationEvent[]) {
   await ensureSchema();
-  await sql.begin(async transaction => {
-    for (const event of events) {
-      await transaction`INSERT INTO aviation_feed_events (url, event_json) VALUES (${event.href}, ${transaction.json(event)})
-        ON CONFLICT (url) DO UPDATE SET event_json = EXCLUDED.event_json, fetched_at = now()`;
-    }
-  });
+  await sql`INSERT INTO aviation_feed_events (url, event_json)
+    SELECT event->>'href', event FROM jsonb_array_elements(${sql.json(events)}::jsonb) AS event
+    ON CONFLICT (url) DO UPDATE SET event_json = EXCLUDED.event_json, fetched_at = now()`;
   return { count: events.length };
 }
 
