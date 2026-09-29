@@ -39,7 +39,7 @@ DATABASE_POOL_SIZE=1
 The first database-backed request in development creates the schema and seeds the
 built-in article, so the database role needs schema-creation permission for
 initial setup. See [development guide](documentation/development.md#environment-variables) for the full list
-of environment variables and [DATABASE-OPERATIONS.md](DATABASE-OPERATIONS.md) for
+of environment variables and [database operations](documentation/database-operations.md) for
 production database procedures.
 
 If `next dev` rejects requests from another device on your network, add that
@@ -81,6 +81,9 @@ notifications all have dedicated suites under `scripts/`. Route handlers, React
 components, and Server Actions are currently covered only indirectly through the
 production build and type checking. New behavior in those areas is easier to
 review with a focused test alongside it, even a small one.
+
+The [script guide](scripts/README.md) lists the test groups and distinguishes
+offline checks from database migrations and publishing commands.
 
 ## Commit and PR conventions
 

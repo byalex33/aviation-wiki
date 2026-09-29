@@ -20,7 +20,7 @@ Individual test scripts live in `scripts/` and are invoked via the aliases in `p
 
 ## Architecture
 
-**Runtime stack:** Next.js App Router · Clerk authentication · PostgreSQL (Neon in production) · Vercel deployment.
+**Runtime stack:** Next.js App Router · Clerk authentication · PostgreSQL (Aiven in production) · Vercel deployment.
 
 ### Data layer
 
@@ -65,6 +65,6 @@ Slug pages (`src/app/aircraft/[slug]/page.tsx` etc.) use `publicArticleMetadata`
 Required: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `DATABASE_URL`.
 Optional: `NEXT_PUBLIC_APP_URL` (defaults to `http://localhost:3000`), `RESEND_API_KEY`, `NOTIFICATION_EMAIL_FROM`, `CRON_SECRET`, `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION`, `INDEXNOW_KEY`, `AVIATION_WIKI_DB_PATH`, `AVIATION_DATA_ENABLED`.
 
-`AVIATION_DATA_ENABLED` gates the aviation data graph pages (`/airframes`, `/registrations`, `/production-lists/a350-1000`, `/fleet/british-airways`) and their nav/sitemap entries. Defaults on outside production; set to `"true"` in production only after running `npm run db:migrate:aviation-data -- --apply` and `npm run data:import:ba-a350 -- --apply`. See `AVIATION-DATA-MODEL.md`.
+`AVIATION_DATA_ENABLED` gates the aviation data graph pages (`/airframes`, `/registrations`, `/production-lists/a350-1000`, `/fleet/british-airways`) and their nav/sitemap entries. Defaults on outside production; set to `"true"` in production only after running `npm run db:migrate:aviation-data -- --apply` and `npm run data:import:ba-a350 -- --apply`. See `documentation/aviation-data-model.md`.
 
 The `CRON_SECRET` bearer token protects `/api/cron/*` endpoints. `vercel.json` schedules the daily source-health cron.

@@ -49,8 +49,9 @@ See the [development guide](documentation/development.md) for environment variab
 | --- | --- |
 | [Contributing](CONTRIBUTING.md) | Code changes, editorial contributions, and pull requests |
 | [Development and operations](documentation/development.md) | Local setup, tests, deployment, and aviation history publishing |
-| [Database operations](DATABASE-OPERATIONS.md) | Production configuration, backups, migrations, and recovery |
-| [Aviation data model](AVIATION-DATA-MODEL.md) | Airframes, registrations, fleet projections, and imports |
+| [Script guide](scripts/README.md) | Test groups, migrations, imports, and publishing commands |
+| [Database operations](documentation/database-operations.md) | Production configuration, backups, migrations, and recovery |
+| [Aviation data model](documentation/aviation-data-model.md) | Airframes, registrations, fleet projections, and imports |
 | [Security](SECURITY.md) | Private vulnerability reporting |
 
 Found a bug or have an idea? [Open an issue](https://github.com/byalex33/aviation-wiki/issues/new/choose). Submit articles through the [encyclopedia](https://aviation.wiki/contribute). Participation follows our [Code of Conduct](CODE_OF_CONDUCT.md).

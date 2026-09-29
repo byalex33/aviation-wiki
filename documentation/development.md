@@ -118,7 +118,7 @@ The application is configured for Vercel. Before the first production deployment
 
 Production mode intentionally does not run schema DDL during requests.
 
-See [DATABASE-OPERATIONS.md](../DATABASE-OPERATIONS.md) for the production database configuration, backup, migration, and rollback procedure.
+See [database operations](database-operations.md) for the production database configuration, backup, migration, and rollback procedure.
 
 ## Contributing
 
@@ -137,7 +137,7 @@ By contributing code, you agree to license it under AGPL-3.0-only. By contributi
 
 `npm test` includes fleet date/status, CSV, article link, image policy, search, and source URL regressions. `npm run test:postgres` exercises editorial races, notification storage/delivery, and account API limits against a disposable local PostgreSQL database. Set `NODE_ENV=development` and `DATABASE_URL` to a loopback database named `audit_*` or `test_*`. These tests create their own fixtures. CI provisions PostgreSQL for them.
 
-The notification digest prepares new batches daily at 06:00 UTC via `/api/notifications/digest`. The authenticated `/api/notifications/digest/recover` route retries saved batches hourly at minute 15. Both require `CRON_SECRET`. Hourly Vercel cron requires Pro or Enterprise. Configure the email delivery settings and apply the additive digest schema before deploying, as described in [DATABASE-OPERATIONS.md](../DATABASE-OPERATIONS.md#notification-digest-recovery).
+The notification digest prepares new batches daily at 06:00 UTC via `/api/notifications/digest`. The authenticated `/api/notifications/digest/recover` route retries saved batches hourly at minute 15. Both require `CRON_SECRET`. Hourly Vercel cron requires Pro or Enterprise. Configure the email delivery settings and apply the additive digest schema before deploying, as described in [database operations](database-operations.md#notification-digest-recovery).
 
 ## On this day in aviation
 

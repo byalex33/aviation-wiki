@@ -15,7 +15,7 @@
     "db:migrate:pro": "node --conditions=react-server --import tsx scripts/migrate-pro.ts",
     "test:pro": "node --conditions=react-server --import tsx scripts/test-pro.mts",
     "test:donations": "node --conditions=react-server --import tsx scripts/test-donations.mts",
-    "test": "npm run test:featured-articles && npm run test:airline-directory && npm run test:charts && npm run test:chart-roundtrip && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:aviation-data && npm run test:aviation-data-flags && npm run test:ba-a350-import && npm run test:airframe-projections && npm run test:aviation-data-reconciliation && npm run test:importer && npm run test:import-collisions && npm run test:notifications && npm run test:fleet && npm run test:on-this-day && npm run test:aviation-feed && npm run test:random-aircraft && npm run test:routes && npm run test:source-health && npm run test:sitemap && npm run test:commercial-aircraft && npm run test:frontend-audit && npm run test:csv && npm run test:editorial-ui && npm run test:aviation-history && npm run test:sqlite-digest && npm run test:open-source-alert && npm run test:auth-ui && npm run test:alliance-images && npm run test:tracwell && npm run test:pro && npm run test:donations",
+    "test": "npm run test:content && npm run test:data && npm run test:ui && npm run test:services",
     "db:migrate:aviation-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/migrate-aviation-data.ts",
     "data:import:ba-a350": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/import-ba-a350-1000.ts",
     "data:reconcile": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/reconcile-aviation-data.ts",
@@ -61,7 +61,11 @@
     "test:open-source-alert": "node scripts/test-open-source-alert.mjs",
     "test:tracwell": "node --import tsx scripts/test-tracwell.mts",
     "test:auth-ui": "node scripts/test-auth-ui.mjs",
-    "test:alliance-images": "node --conditions=react-server --import tsx scripts/add-alliance-images.ts"
+    "test:alliance-images": "node --conditions=react-server --import tsx scripts/add-alliance-images.ts",
+    "test:content": "npm run test:featured-articles && npm run test:airline-directory && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:importer && npm run test:import-collisions && npm run test:on-this-day && npm run test:aviation-feed && npm run test:random-aircraft && npm run test:sitemap && npm run test:commercial-aircraft && npm run test:aviation-history && npm run test:alliance-images",
+    "test:data": "npm run test:aviation-data && npm run test:aviation-data-flags && npm run test:ba-a350-import && npm run test:airframe-projections && npm run test:aviation-data-reconciliation && npm run test:fleet && npm run test:csv",
+    "test:ui": "npm run test:charts && npm run test:chart-roundtrip && npm run test:routes && npm run test:frontend-audit && npm run test:editorial-ui && npm run test:open-source-alert && npm run test:auth-ui",
+    "test:services": "npm run test:notifications && npm run test:source-health && npm run test:sqlite-digest && npm run test:tracwell && npm run test:pro && npm run test:donations"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

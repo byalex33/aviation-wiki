@@ -58,7 +58,13 @@ function harness(mode = "sign-in") {
   function field(label, value) { const node = nodes().find((n) => n.type === "field" && n.props.label === label); assert.ok(node, label); node.props.onChange(value); render(); }
   async function settle() { await new Promise((resolve) => setImmediate(resolve)); render(); }
   async function submit() { nodes().find((n) => n.type === "form").props.onSubmit({ preventDefault() {} }); await settle(); }
-  async function click(text) { const node = nodes().find((n) => n.type === "button" && n.props.children === text); assert.ok(node, text); node.props.onClick(); await settle(); }
+  function textContent(node) {
+    if (typeof node === "string" || typeof node === "number") return String(node);
+    if (Array.isArray(node)) return node.map(textContent).join("");
+    if (!node || node.props?.["aria-hidden"] === "true" || node.props?.["aria-hidden"] === true) return "";
+    return textContent(node.props?.children);
+  }
+  async function click(text) { const node = nodes().find((n) => n.type === "button" && (n.props["aria-label"] ?? textContent(n)) === text); assert.ok(node, text); node.props.onClick(); await settle(); }
   render();
   return { field, submit, click, calls, signIn, signUp, render, nodes, setFailure: (value) => { fail = value; }, resume: async () => { effects.splice(0).forEach((fn) => fn()); await settle(); } };
 }
