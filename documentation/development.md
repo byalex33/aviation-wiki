@@ -162,6 +162,12 @@ Entries are upserted by source URL and retained when they leave the feed; failed
 preserve saved entries. This imports external links, not approved local wiki articles.
 Run `npm run test:aviation-feed` to check parsing, persistence, and cron authentication.
 
+To populate the full calendar, run `node --conditions=react-server --import tsx scripts/backfill-aviation-feed.ts`.
+This previews the publisher's paginated archive and reports coverage across all 366 dates.
+Add `--apply` with the intended `DATABASE_URL` to save it. Two archive gaps use short,
+original summaries with U.S. Army and U.S. Air Force sources. The command refuses to
+save incomplete coverage. The daily RSS job then updates entries without removing history.
+
 Wikipedia's [aviation anniversary calendar](https://en.wikipedia.org/wiki/Portal:Aviation/Anniversaries)
 provides date-specific event lists. Fetch a day through the MediaWiki API:
 

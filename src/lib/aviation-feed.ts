@@ -10,6 +10,10 @@ export async function refreshAviationFeed() {
   });
   if (!response.ok) throw new Error(`Aviation RSS returned ${response.status}`);
   const events = parseAviationFeed(await response.text());
+  return saveAviationFeedEvents(events);
+}
+
+export async function saveAviationFeedEvents(events: DatedAviationEvent[]) {
   await ensureSchema();
   await sql.begin(async transaction => {
     for (const event of events) {

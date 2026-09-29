@@ -17,6 +17,9 @@ assert.throws(() => parseAviationFeed(feed(item("28 September 1952", "javascript
 assert.throws(() => parseAviationFeed(feed(item("28 September 1952", "https://evil.example/"))));
 assert.equal(parseAviationFeed(feed(item("29 February 2000")))[0].day, 29);
 assert.equal(parseAviationFeed(feed(item("28 September 1920: The Gordon-Bennett Air Race")))[0].year, 1920);
+assert.equal(parseAviationFeed(feed(item("28 January 1986, 16:39:13 UTC")))[0].eventDate, "1986-01-28");
+assert.equal(parseAviationFeed(feed(item("24 December 1968 16:40:07 UTC")))[0].eventDate, "1968-12-24");
+assert.throws(() => parseAviationFeed(feed(item("24–25 September 1938"))), "Date ranges are not exact dates");
 
 // Exercise production queries against an isolated PostgreSQL-compatible database.
 Object.assign(process.env, { NODE_ENV: "production", CRON_SECRET: "feed-test-secret" });

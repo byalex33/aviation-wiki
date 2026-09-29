@@ -16,11 +16,17 @@ export function parseAviationFeed(xml: string): DatedAviationEvent[] {
   const parser = new XMLParser({ parseTagValue: false, htmlEntities: true, isArray: (_name, path) => path === "rss.channel.item" });
   const channel = parser.parse(xml)?.rss?.channel;
   if (!channel || typeof channel !== "object") throw new Error("Missing RSS channel");
+  return parseAviationItems(channel.item ?? []);
+}
+
+export function parseAviationItems(items: { title?: unknown; link?: unknown; description?: unknown }[]): DatedAviationEvent[] {
+  const parser = new XMLParser({ parseTagValue: false, htmlEntities: true });
   const events = new Map<string, DatedAviationEvent>();
-  for (const item of channel.item ?? []) {
+  for (const item of items) {
     if (typeof item.title !== "string" || typeof item.link !== "string") continue;
     // RSS publication dates describe reposts, not the historical event.
-    const date = parseExactEventDate(item.title.split(/:\s*/, 1)[0]);
+    const dateText = /^(\d{1,2}\s+[A-Za-z]+\s+\d{4})(?=$|[:,(]|\s)/.exec(item.title)?.[1];
+    const date = parseExactEventDate(dateText);
     if (!date) continue;
     let url: URL;
     try { url = new URL(item.link); } catch { continue; }
