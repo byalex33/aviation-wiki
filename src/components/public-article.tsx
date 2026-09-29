@@ -1,15 +1,18 @@
 import { canonicalizeArticleLinks } from "@/lib/article-link-policy";
 import Link from "next/link";
+import { Menu } from "@base-ui/react/menu";
 import {
-  CalendarClock,
+  BadgeCheck,
   ExternalLink,
   FilePenLine,
   GitCompareArrows,
   History,
   MessageSquareWarning,
+  MoreHorizontal,
   Database,
 } from "lucide-react";
 
+import { ArticleTocDesktop, ArticleTocMobile, type TocHeading } from "@/components/article-toc";
 import { InformationSidebar } from "@/components/article-information-sidebar";
 import { ArticleMarkdown } from "@/components/article-markdown";
 import { ApprovedRelationships } from "@/components/entity-relationships";
@@ -19,6 +22,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { WatchArticleButton } from "@/components/watch-article-button";
 import {
   getArticleHeadings,
+  getArticleLeadText,
   parseArticleMarkdown,
   type ArticleMentionLink,
 } from "@/lib/article-markdown";
@@ -29,7 +33,6 @@ import type {
   ArticleRecord,
   ContentType,
   RevisionRecord,
-  SourceLink,
 } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
 import {
@@ -39,42 +42,86 @@ import {
   siteUrl,
 } from "@/lib/seo";
 
+const menuItemClass =
+  "rounded-md text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground";
+const menuLinkClass = "flex items-center gap-2.5 px-2.5 py-2";
+
+function estimateReadingMinutes(markdown: string) {
+  const words = markdown
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[\^[^\]]+\]/g, " ")
+    .replace(/[#*_>`~[\]()]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
 export function ArticleHeader({
   title,
+  description,
   contentType,
+  typeLabel,
   slug,
   articleId,
   watching,
   signedIn,
+  reviewedAt,
+  citedSourcesCount,
+  readingMinutes,
+  contributorName,
 }: {
   title: string;
+  description?: string;
   contentType: ContentType;
+  typeLabel?: string;
   slug: string;
   articleId: string;
   watching: boolean;
   signedIn: boolean;
+  reviewedAt: string;
+  citedSourcesCount: number;
+  readingMinutes: number;
+  contributorName?: string;
 }) {
   const editorHref = `/editor?type=${contentType}&slug=${encodeURIComponent(slug)}`;
   return (
-    <header className="border-b pb-6">
-      <Badge variant="outline">{formatDisplayLabel(contentType)}</Badge>
-      <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+    <header id="top">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="border-primary/15 bg-primary/10 text-primary">
+          {formatDisplayLabel(contentType)}
+        </Badge>
+        {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
+      </div>
+      <h1 className="mt-3.5 text-4xl font-bold leading-[1.03] tracking-[-0.045em] text-balance sm:text-5xl">
         {title}
       </h1>
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Link
-          href={editorHref}
-          className={`${buttonVariants({ size: "sm" })} min-h-10 px-3`}
-        >
+      {description && (
+        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-muted-foreground">
+          {description}
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <BadgeCheck className="size-3.5 text-emerald-600" />
+          Reviewed{" "}
+          {new Date(reviewedAt).toLocaleDateString(undefined, { dateStyle: "long" })}
+        </span>
+        {citedSourcesCount > 0 && (
+          <a href="#sources" className="underline underline-offset-[3px] hover:text-primary">
+            {citedSourcesCount} {citedSourcesCount === 1 ? "source" : "sources"}
+          </a>
+        )}
+        <span>{readingMinutes} min read</span>
+        {contributorName && (
+          <span>
+            Last edited by <span className="font-medium text-foreground">{contributorName}</span>
+          </span>
+        )}
+      </div>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <Link href={editorHref} className={`${buttonVariants({ size: "sm" })} min-h-10 px-3.5`}>
           <FilePenLine />
           Edit
-        </Link>
-        <Link
-          href={articleHistoryPath(contentType, slug)}
-          className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}
-        >
-          <History />
-          View history
         </Link>
         {signedIn && (
           <WatchArticleButton
@@ -83,54 +130,56 @@ export function ArticleHeader({
             watching={watching}
           />
         )}
-        <Link
-          href={`${editorHref}&correction=1`}
-          className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10 px-3`}
-        >
-          <MessageSquareWarning />
-          Suggest correction
-        </Link>
-        {contentType === "aircraft" && (
-          <Link
-            href={`/fleet/compare?aircraft=${encodeURIComponent(slug)}`}
-            className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10 px-3`}
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label="More actions"
+            className={`${buttonVariants({ variant: "outline", size: "icon" })} size-10`}
           >
-            <GitCompareArrows />
-            Compare
-          </Link>
-        )}
+            <MoreHorizontal />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[100] outline-none">
+              <Menu.Popup className="beui-dropdown w-56 border bg-popover p-1.5 text-popover-foreground outline-none">
+                <Menu.Item className={menuItemClass}>
+                  <Link href={articleHistoryPath(contentType, slug)} className={menuLinkClass}>
+                    <History className="size-4 text-muted-foreground" />
+                    View history
+                  </Link>
+                </Menu.Item>
+                <Menu.Item className={menuItemClass}>
+                  <Link href={`${editorHref}&correction=1`} className={menuLinkClass}>
+                    <MessageSquareWarning className="size-4 text-muted-foreground" />
+                    Suggest correction
+                  </Link>
+                </Menu.Item>
+                {contentType === "aircraft" && (
+                  <Menu.Item className={menuItemClass}>
+                    <Link href={`/fleet/compare?aircraft=${encodeURIComponent(slug)}`} className={menuLinkClass}>
+                      <GitCompareArrows className="size-4 text-muted-foreground" />
+                      Compare aircraft
+                    </Link>
+                  </Menu.Item>
+                )}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       </div>
     </header>
   );
 }
 
-export function ArticleMetadata({ revision }: { revision: RevisionRecord }) {
-  const approvedAt = revision.reviewedAt || revision.updatedAt;
+export function SourceList({ cited }: { cited: ReturnType<typeof citedSources> }) {
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-      <span className="inline-flex items-center gap-1.5">
-        <CalendarClock className="size-4" />
-        Last approved{" "}
-        {new Date(approvedAt).toLocaleDateString(undefined, {
-          dateStyle: "long",
-        })}
-      </span>
-      <span>Revision {revision.id.slice(0, 8)}</span>
-    </div>
-  );
-}
-
-export function SourceList({
-  sources,
-  citations,
-}: {
-  sources: SourceLink[];
-  citations: ReturnType<typeof parseArticleMarkdown>["citations"];
-}) {
-  const cited = citedSources(citations, sources);
-  return (
-    <section id="sources" className="mt-12 scroll-mt-24 border-t pt-8">
-      <h2 className="text-2xl font-bold">Sources</h2>
+    <section id="sources" className="mt-12 scroll-mt-24 border-t border-foreground/15 pt-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-bold tracking-[-0.03em]">Sources</h2>
+        {cited.length > 0 && (
+          <span className="text-[13px] text-muted-foreground">
+            {cited.length} cited
+          </span>
+        )}
+      </div>
       {cited.length ? (
         <ol className="mt-4 space-y-3 pl-5 text-sm text-muted-foreground">
           {cited.map(({ citation, source }) => (
@@ -243,6 +292,7 @@ export function PublicArticle({
   if (availableArticlePaths) parsed.root = canonicalizeArticleLinks(parsed.root, availableArticlePaths);
   parsed.root = { ...parsed.root, children: parsed.root.children.filter((node) => !(node.type === "heading" && node.depth === 1 && node.children?.map((child) => child.value ?? "").join("").trim().toLowerCase() === revision.title.trim().toLowerCase())) };
   const headings = getArticleHeadings(parsed.root);
+  const tocHeadings: TocHeading[] = headings.map(({ id, text, depth }) => ({ id, text, depth }));
   const url = new URL(articlePath(revision.contentType, article.slug), siteUrl);
   const image = articleImageDetails(revision.markdown);
   const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
@@ -255,6 +305,17 @@ export function PublicArticle({
       field.key,
     ),
   );
+  const typeField = revision.fields.find((field) =>
+    /^(role|type|category|classification)$/i.test(field.key.trim()),
+  );
+  const approvedAt = revision.reviewedAt || revision.updatedAt;
+  const readingMinutes = estimateReadingMinutes(revision.markdown);
+  const cited = citedSources(parsed.citations, revision.sources);
+  const rawDescription = getArticleLeadText(parsed.root);
+  const description = rawDescription && rawDescription.length >= 220
+    ? `${rawDescription.slice(0, 220).replace(/\s+\S*$/, "")}…`
+    : rawDescription;
+  const editorHref = `/editor?type=${revision.contentType}&slug=${encodeURIComponent(article.slug)}`;
   const jsonLdGraph = [
     {
       "@type": "TechArticle",
@@ -264,7 +325,7 @@ export function PublicArticle({
       url,
       mainEntityOfPage: url,
       datePublished: article.createdAt,
-      dateModified: revision.reviewedAt || revision.updatedAt,
+      dateModified: approvedAt,
       publisher: { "@id": `${siteUrl}#organization` },
       ...(imageUrl
         ? {
@@ -336,50 +397,47 @@ export function PublicArticle({
       </nav>
       <ArticleHeader
         title={revision.title}
+        description={description || undefined}
         contentType={revision.contentType}
+        typeLabel={typeField?.value}
         slug={article.slug}
         articleId={article.id}
         watching={watching}
         signedIn={signedIn}
+        reviewedAt={approvedAt}
+        citedSourcesCount={cited.length}
+        readingMinutes={readingMinutes}
+        contributorName={revision.contributorName || undefined}
       />
-      <div className="mt-5">
-        <ArticleMetadata revision={revision} />
-      </div>
-      {structuredData && (
-        <Link
-          href={structuredData.href}
-          className="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4 transition-colors hover:bg-primary/10"
-        >
-          <div>
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
-              <Database className="size-4" /> Structured aviation data
-            </p>
-            <p className="mt-1 font-semibold">{structuredData.label}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {structuredData.records} individual airframe records with temporal facts and provenance
-            </p>
-          </div>
-          <span className="article-link text-sm font-semibold">Explore data →</span>
-        </Link>
+      {headings.length > 0 && (
+        <div className="mt-7 xl:hidden">
+          <ArticleTocMobile headings={tocHeadings} />
+        </div>
       )}
-      <div className={`mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] ${headings.length ? "xl:grid-cols-[190px_minmax(0,1fr)_320px]" : ""}`}>
+      <div className={`mt-8 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] ${headings.length ? "xl:grid-cols-[190px_minmax(0,1fr)_320px]" : ""}`}>
         {headings.length > 0 && (
-          <aside className="hidden xl:sticky xl:top-20 xl:block">
-            <nav aria-label="On this page">
-              <p className="text-sm font-semibold">On this page</p>
-              <ul className="mt-3 space-y-2 border-l text-sm text-muted-foreground">
-                {headings.map((heading) => (
-                  <li key={heading.id} className={heading.depth === 3 ? "pl-6" : "pl-3"}>
-                    <a href={`#${heading.id}`} className="block leading-5 hover:text-primary">
-                      {heading.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+          <aside className="hidden xl:sticky xl:top-24 xl:block">
+            <ArticleTocDesktop headings={tocHeadings} />
           </aside>
         )}
         <div className="min-w-0">
+          {structuredData && (
+            <Link
+              href={structuredData.href}
+              className="mb-8 flex items-center gap-4 rounded-2xl border bg-card p-4 transition-colors hover:border-foreground/20"
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10">
+                <Database className="size-[18px] text-primary" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{structuredData.label}</span>
+                <span className="block text-[13px] text-muted-foreground">
+                  {structuredData.records} individual airframe records with dates and provenance
+                </span>
+              </span>
+              <span className="whitespace-nowrap text-sm font-semibold">Explore →</span>
+            </Link>
+          )}
           {parsed.errors.length ? (
             <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
               This approved revision cannot be rendered safely.
@@ -410,10 +468,40 @@ export function PublicArticle({
           )}
           <ApprovedRelationships article={article} />
           <ImportedRevisionData revisionId={revision.id} />
-          <SourceList sources={revision.sources} citations={parsed.citations} />
+          <SourceList cited={cited} />
+
+          <section className="mt-10 flex flex-wrap items-center gap-5 rounded-2xl border bg-card p-6">
+            <div className="min-w-[240px] flex-1">
+              <h2 className="text-lg font-bold tracking-[-0.03em]">
+                Spot something missing or out of date?
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Every change is reviewed by a moderator before it goes live.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={editorHref} className={`${buttonVariants({ size: "sm" })} min-h-10 px-3.5`}>
+                Edit this article
+              </Link>
+              <Link
+                href={`${editorHref}&correction=1`}
+                className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3.5`}
+              >
+                Suggest a correction
+              </Link>
+            </div>
+            <p className="basis-full border-t pt-3 text-xs text-muted-foreground">
+              Last approved{" "}
+              {new Date(approvedAt).toLocaleDateString(undefined, { dateStyle: "long" })} · Revision{" "}
+              {revision.id.slice(0, 8)} ·{" "}
+              <Link href={articleHistoryPath(revision.contentType, article.slug)} className="article-link">
+                View history
+              </Link>
+            </p>
+          </section>
         </div>
         <aside
-          className="space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
+          className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
           aria-label="Article information"
         >
           <InformationSidebar

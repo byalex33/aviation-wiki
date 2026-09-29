@@ -2,13 +2,14 @@
 import Link from "next/link";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Bell, BellOff, LoaderCircle } from "lucide-react";
+import { Bell, BellOff, Bookmark, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { togglePublicArticleWatchAction } from "@/app/public-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { trackArticleWatch } from "@/lib/tracwell";
 import { initialFormActionState } from "@/lib/form-action-state";
+import { cn } from "@/lib/utils";
 
 export function WatchArticleButton({
   articleId,
@@ -56,7 +57,11 @@ export function WatchArticleButton({
       />
       <input type="hidden" name="returnTo" value={returnTo} />
       <button
-        className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "min-h-10 px-3",
+          watching && "border-transparent bg-foreground text-background hover:bg-foreground/90 hover:text-background",
+        )}
         disabled={pending}
         type="submit"
       >
@@ -67,8 +72,8 @@ export function WatchArticleButton({
         ) : (
           <Bell />
         )}
-        {pending ? "Saving…" : watching ? "Unwatch" : "Watch"}
+        {pending ? "Saving…" : watching ? "Watching" : "Watch"}
       </button>
-    </form><Link href={`/saved?article=${encodeURIComponent(articleId)}`} className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}>Save</Link></div>
+    </form><Link href={`/saved?article=${encodeURIComponent(articleId)}`} className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10 px-3`}><Bookmark />Save</Link></div>
   );
 }

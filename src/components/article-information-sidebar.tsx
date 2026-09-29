@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+
 import {
   ArticleImageDisplay,
   ArticleMarkdown,
@@ -9,7 +14,10 @@ import {
   type ArticleMentionLink,
 } from "@/lib/article-markdown";
 import { formatDisplayLabel } from "@/lib/display";
+import { cn } from "@/lib/utils";
 import type { ContentType, StructuredField } from "@/lib/wiki-types";
+
+const COLLAPSED_FIELD_COUNT = 6;
 
 export function InformationSidebar({
   title,
@@ -24,8 +32,12 @@ export function InformationSidebar({
   images?: ArticleImage[];
   articleLinks?: ArticleMentionLink[];
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = fields.length > COLLAPSED_FIELD_COUNT;
+  const visibleFields = expanded ? fields : fields.slice(0, COLLAPSED_FIELD_COUNT);
+
   return (
-    <Card className="min-w-0 gap-0 overflow-hidden py-0 shadow-md">
+    <Card className="min-w-0 gap-0 overflow-hidden rounded-2xl py-0">
       {images.map((image, index) => (
         <ArticleImageDisplay
           key={`${image.url}-${index}`}
@@ -42,8 +54,8 @@ export function InformationSidebar({
       </CardHeader>
       <CardContent className="p-0">
         <dl className="divide-y">
-          {fields.length ? (
-            fields.map((field, index) => {
+          {visibleFields.length ? (
+            visibleFields.map((field, index) => {
               const parsed = parseStructuredFieldMarkdown(field.value);
               return (
                 <div
@@ -65,6 +77,16 @@ export function InformationSidebar({
             </p>
           )}
         </dl>
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="flex h-11 w-full items-center justify-center gap-1.5 border-t text-[13px] font-semibold text-foreground/70 transition-colors hover:bg-muted/60"
+          >
+            {expanded ? "Show fewer details" : `Show all ${fields.length} details`}
+            <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
       </CardContent>
     </Card>
   );

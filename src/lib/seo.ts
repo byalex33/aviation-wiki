@@ -14,6 +14,7 @@ export const siteUrl = new URL(
 
 export function articleDescription(markdown: string) {
   return markdown
+    .replace(/^#\s+.*(?:\r?\n)+/, "")
     .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
     .replace(/\[\^[^\]]+\]/g, "")
     .replace(/[#*_>`\[\]()]/g, " ")

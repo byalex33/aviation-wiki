@@ -252,6 +252,15 @@ function markdownText(node: MarkdownNode): string {
   return node.value ?? node.alt ?? node.children?.map(markdownText).join("") ?? "";
 }
 
+export function getArticleLeadText(root: MarkdownRoot): string {
+  for (const node of root.children) {
+    if (node.type !== "paragraph") continue;
+    const text = markdownText(node).replace(/\s+/g, " ").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
 export function getArticleHeadings(root: MarkdownRoot): ArticleHeading[] {
   const counts = new Map<string, number>();
   return root.children.flatMap((node) => {

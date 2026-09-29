@@ -34,7 +34,7 @@ export function ArticleBlock({ name, attributes, children }: ArticleBlockProps) 
   if (name === "Notice") {
     return (
       <aside className={cn(
-        "my-6 rounded-lg border-l-4 bg-muted/70 px-4 py-3.5",
+        "my-6 rounded-xl border-l-4 bg-muted/70 px-4 py-3.5",
         noticeVariant === "warning" && "border-l-amber-500 bg-amber-50",
         noticeVariant === "critical" && "border-l-destructive bg-destructive/5",
         noticeVariant === "info" && "border-l-primary bg-accent/60",
@@ -47,7 +47,7 @@ export function ArticleBlock({ name, attributes, children }: ArticleBlockProps) 
 
   return (
     <Card className={cn(
-      "my-6 gap-0",
+      "my-6 gap-0 rounded-2xl",
       name === "Sidebar" && "my-0 bg-muted/40",
       name === "Timeline" && "[&_li]:relative [&_li]:border-l-2 [&_li]:border-primary/25 [&_li]:pb-4 [&_li]:pl-5 [&_li]:before:absolute [&_li]:before:-left-[5px] [&_li]:before:top-2 [&_li]:before:size-2 [&_li]:before:rounded-full [&_li]:before:bg-primary",
       name === "Gallery" && (attributes.columns === "2" ? "[&_[data-markdown-children]]:grid-cols-2" : "[&_[data-markdown-children]]:grid-cols-2 md:[&_[data-markdown-children]]:grid-cols-3"),
