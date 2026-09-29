@@ -7,8 +7,29 @@ import { isDefaultNameStyle, parseNameStyle } from "@/lib/name-style";
 import { hasPro } from "@/lib/pro";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { UserFacingError } from "@/lib/user-facing-error";
+import { authError } from "@/lib/auth-ui";
 
 export type NameStyleActionState = { error: string | null };
+
+export async function saveDisplayNameAction(input: unknown) {
+  const { userId, has } = await auth();
+  if (!userId) return { error: "Sign in to change your name." };
+  if (typeof input !== "string" || input.length > 128)
+    return { error: "Use a display name of up to 128 characters." };
+  if (!has({ reverification: "strict" })) return reverificationError("strict");
+  const [firstName = "", ...rest] = input.trim().split(/\s+/);
+  try {
+    await enforceRateLimit({ scope: "display-name", subject: userId, limit: 20, windowMs: 60_000 });
+    const client = await clerkClient();
+    // The backend supports names even when Clerk's frontend name fields are disabled.
+    // Explicitly clear the surname when switching to a first name only.
+    const user = await client.users.updateUser(userId, { firstName, lastName: rest.join(" ") });
+    if (user.username) revalidatePath(`/profile/${encodeURIComponent(user.username)}`);
+    return { error: null };
+  } catch (error) {
+    return { error: authError(error) };
+  }
+}
 
 export async function closeAccountAction(action: unknown, confirmation: unknown) {
   const { userId, has } = await auth();

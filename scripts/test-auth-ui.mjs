@@ -136,7 +136,10 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
     "@clerk/nextjs": { useUser: () => ({ user, isLoaded: true }), useClerk: () => ({ signOut() {} }), useReverification: (action) => action },
     "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton", RoleLabel: "role", normalizeRole: () => "contributor" }, "./settings-field": { SettingsInput: "field", SettingsRow: "row" }, "./auth.module.css": { default: {} },
     "./name-style-panel": { NameStylePanel: "name-style-panel" }, "@/components/styled-name": { StyledName: "styled-name" }, "@/lib/name-style": nameStyle, "@/lib/pro": pro,
-    "@/app/settings/profile/actions": { closeAccountAction: async (...args) => { calls.push(["close", ...args]); return { error: "Test failure" }; } },
+    "@/app/settings/profile/actions": {
+      closeAccountAction: async (...args) => { calls.push(["close", ...args]); return { error: "Test failure" }; },
+      saveDisplayNameAction: async (name) => { calls.push(["name", name]); return { error: null }; },
+    },
     "sonner": { toast: { success() {}, error() {} } }, "@/lib/utils": { cn: (...classes) => classes.filter(Boolean).join(" ") },
   });
   const Editor = ProfileForm().type;
@@ -162,8 +165,10 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
   field("Username", "newpilot"); await submit(0);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify(["update", { username: "newpilot" }]));
   field("Display name", "  Draft   Pilot Jr "); await submit(0);
-  const nameUpdate = calls.filter(([name]) => name === "update").at(-1)[1];
-  assert.equal(nameUpdate.firstName, "Draft"); assert.equal(nameUpdate.lastName, "Pilot Jr");
+  assert.equal(calls.find(([name]) => name === "name")[1], "Draft Pilot Jr");
+  field("Display name", "Alex"); await submit(0);
+  assert.equal(calls.filter(([name]) => name === "name").at(-1)[1], "Alex");
+  assert.ok(!calls.some(([name, args]) => name === "update" && ("firstName" in args || "lastName" in args)), "Names must not use the disabled frontend fields");
   assert.ok(!calls.some(([name, args]) => name === "update" && ("publicMetadata" in args || "unsafeMetadata" in args || "bio" in args)), "The browser never writes profile metadata");
   calls.length = 0;
   field("New password", "fixture-new-password"); field("Confirm new password", "different"); await submit(2);
@@ -191,16 +196,17 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
 {
   let userId = null, verified = false, failKeys = false;
   const calls = [];
-  const { closeAccountAction } = load("../src/app/settings/profile/actions.ts", {
+  const { closeAccountAction, saveDisplayNameAction } = load("../src/app/settings/profile/actions.ts", {
     "@clerk/nextjs/server": {
       auth: async () => ({ userId, has: () => verified }),
       reverificationError: () => ({ reverify: true }),
       clerkClient: async () => ({ users: {
         banUser: async (id) => calls.push(["ban", id]),
         deleteUser: async (id) => calls.push(["delete", id]),
+        updateUser: async (id, fields) => { calls.push(["name", id, fields]); return { username: "pilot" }; },
       } }),
     },
-    "next/cache": {}, "@/lib/name-style": {}, "@/lib/pro": {}, "@/lib/rate-limit": {}, "@/lib/user-facing-error": {},
+    "next/cache": { revalidatePath() {} }, "@/lib/name-style": {}, "@/lib/pro": {}, "@/lib/rate-limit": { enforceRateLimit: async () => {} }, "@/lib/user-facing-error": {}, "@/lib/auth-ui": helpers,
     "@/lib/api-keys": { revokeAllApiKeys: async (id) => { if (failKeys) throw new Error("Database unavailable"); calls.push(["revoke", id]); } },
   }, { process: { env: { DATABASE_URL: "test" } } });
   assert.ok((await closeAccountAction("delete", "DELETE")).error);
@@ -216,6 +222,20 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
   await closeAccountAction("deactivate", "DEACTIVATE");
   await closeAccountAction("delete", "DELETE");
   assert.deepEqual(calls, [["revoke", "caller"], ["ban", "caller"], ["revoke", "caller"], ["delete", "caller"]]);
+  calls.length = 0;
+  userId = null;
+  assert.ok((await saveDisplayNameAction("Alex")).error);
+  userId = "caller"; verified = false;
+  assert.ok((await saveDisplayNameAction("Alex")).reverify);
+  verified = true;
+  for (const invalid of [null, {}, "x".repeat(129)]) assert.ok((await saveDisplayNameAction(invalid)).error);
+  assert.equal(calls.length, 0);
+  for (const name of [" Alex ", "  Alex   Baldry ", ""]) assert.equal((await saveDisplayNameAction(name)).error, null);
+  assert.equal(JSON.stringify(calls), JSON.stringify([
+    ["name", "caller", { firstName: "Alex", lastName: "" }],
+    ["name", "caller", { firstName: "Alex", lastName: "Baldry" }],
+    ["name", "caller", { firstName: "", lastName: "" }],
+  ]));
 }
 console.log("Profile checks passed: username updates, display names, password confirmation, session revocation, secret clearing, email verification before primary selection.");
 

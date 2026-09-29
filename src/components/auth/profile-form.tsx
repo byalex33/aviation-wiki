@@ -16,7 +16,7 @@ import { hasPro } from "@/lib/pro";
 import { authError } from "@/lib/auth-ui";
 import { cn } from "@/lib/utils";
 import styles from "./auth.module.css";
-import { closeAccountAction } from "@/app/settings/profile/actions";
+import { closeAccountAction, saveDisplayNameAction } from "@/app/settings/profile/actions";
 
 type ContributionStats = { approvedCount: number; articleCount: number } | null;
 type ProfileFormProps = { initialSection?: ProfileSection; apiKeys?: ReactNode; stats?: ContributionStats };
@@ -59,6 +59,7 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
   const protectedAction = useReverification((action: () => Promise<unknown>) => action(), { onNeedsReverification: setReverification });
   const createEmail = useReverification((email: string) => user!.createEmailAddress({ email }), { onNeedsReverification: setReverification });
   const closeAccount = useReverification(closeAccountAction, { onNeedsReverification: setReverification });
+  const saveDisplayName = useReverification(saveDisplayNameAction, { onNeedsReverification: setReverification });
   const fileInput = useRef<HTMLInputElement>(null);
   const resendAt = useRef(0);
 
@@ -90,10 +91,13 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
     <fieldset disabled={busy} className="m-0 min-w-0 border-0 p-0" aria-busy={busy}>
       <div className="mt-7" hidden={section !== "profile"}>
       <form onSubmit={(event) => { event.preventDefault(); if (!dirty || usernameError) return; void run(async () => {
-        const updates: { username?: string; firstName?: string; lastName?: string } = {};
-        if (usernameChanged) updates.username = trimmedUsername;
-        if (nameChanged) { const [firstName = "", ...rest] = collapseSpaces(name).split(" "); updates.firstName = firstName; updates.lastName = rest.join(" "); }
-        if (Object.keys(updates).length) await protectedAction(() => user.update(updates));
+        if (nameChanged) {
+          const result = await saveDisplayName(collapseSpaces(name));
+          if (!result) throw new Error("Name change cancelled.");
+          if (result.error) throw new Error(result.error);
+          await user.reload();
+        }
+        if (usernameChanged) await protectedAction(() => user.update({ username: trimmedUsername }));
         setName(collapseSpaces(name)); setUsername(trimmedUsername);
       }, "Profile saved."); }}>
         <div className="flex flex-wrap items-start gap-6">
@@ -123,7 +127,7 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
                 </div>
               </div>
             </SettingsRow>
-            <SettingsRow title="Display name" hint="The name at the top of your profile.">
+            <SettingsRow title="Display name" hint="The name at the top of your profile. A first name alone is fine.">
               <SettingsInput label="Display name" hideLabel autoComplete="name" value={name} onChange={setName} maxLength={128}/>
             </SettingsRow>
             <SettingsRow title="Username" hint="Credited on every edit and used in your profile link.">
