@@ -160,6 +160,11 @@ export async function revokeApiKey(keyId: string, userId: string): Promise<boole
   return result.length > 0;
 }
 
+export async function revokeAllApiKeys(userId: string): Promise<void> {
+  await ensureSchema();
+  await sql`UPDATE api_keys SET revoked_at = ${new Date()} WHERE user_id = ${userId} AND revoked_at IS NULL`;
+}
+
 export async function regenerateApiKey(
   keyId: string,
   userId: string,

@@ -136,6 +136,7 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
     "@clerk/nextjs": { useUser: () => ({ user, isLoaded: true }), useClerk: () => ({ signOut() {} }), useReverification: (action) => action },
     "next/link": { default: "a" }, "@/lib/auth-ui": helpers, "./auth-field": { AuthField: "field" }, "./auth-shell": { AuthSkeleton: "skeleton" }, "./reverification": { Reverification: "reverification" }, "./profile-workspace": { ProfileWorkspace: "workspace", ProfileSkeleton: "skeleton", RoleLabel: "role", normalizeRole: () => "contributor" }, "./settings-field": { SettingsInput: "field", SettingsRow: "row" }, "./auth.module.css": { default: {} },
     "./name-style-panel": { NameStylePanel: "name-style-panel" }, "@/components/styled-name": { StyledName: "styled-name" }, "@/lib/name-style": nameStyle, "@/lib/pro": pro,
+    "@/app/settings/profile/actions": { closeAccountAction: async (...args) => { calls.push(["close", ...args]); return { error: "Test failure" }; } },
     "sonner": { toast: { success() {}, error() {} } }, "@/lib/utils": { cn: (...classes) => classes.filter(Boolean).join(" ") },
   });
   const Editor = ProfileForm().type;
@@ -175,6 +176,46 @@ console.log("Name style checks passed: strict parsing, Pro gating, staff perks, 
   assert.ok(!calls.some(([name, args]) => name === "update" && args.primaryEmailAddressId), "Never make an unverified email primary");
   field("Verification code", "123456"); await submit(1);
   assert.ok(calls.some(([name]) => name === "reload"));
+  const click = (label) => { nodes(tree).find((n) => n.type === "button" && n.props.children === label).props.onClick(); render(); };
+  click("Delete account");
+  field("Type DELETE to confirm", "delete"); await submit(1);
+  assert.ok(!calls.some(([name]) => name === "close"));
+  click("Cancel");
+  assert.ok(!nodes(tree).some((n) => n.props.label === "Type DELETE to confirm"));
+  click("Deactivate account");
+  field("Type DEACTIVATE to confirm", "DEACTIVATE"); await submit(1);
+  assert.equal(JSON.stringify(calls.at(-1)), JSON.stringify(["close", "deactivate", "DEACTIVATE"]));
+  assert.ok(nodes(tree).some((n) => n.props.role === "alert" && n.props.children === "Test failure"));
+}
+
+{
+  let userId = null, verified = false, failKeys = false;
+  const calls = [];
+  const { closeAccountAction } = load("../src/app/settings/profile/actions.ts", {
+    "@clerk/nextjs/server": {
+      auth: async () => ({ userId, has: () => verified }),
+      reverificationError: () => ({ reverify: true }),
+      clerkClient: async () => ({ users: {
+        banUser: async (id) => calls.push(["ban", id]),
+        deleteUser: async (id) => calls.push(["delete", id]),
+      } }),
+    },
+    "next/cache": {}, "@/lib/name-style": {}, "@/lib/pro": {}, "@/lib/rate-limit": {}, "@/lib/user-facing-error": {},
+    "@/lib/api-keys": { revokeAllApiKeys: async (id) => { if (failKeys) throw new Error("Database unavailable"); calls.push(["revoke", id]); } },
+  }, { process: { env: { DATABASE_URL: "test" } } });
+  assert.ok((await closeAccountAction("delete", "DELETE")).error);
+  userId = "caller";
+  assert.ok((await closeAccountAction("delete", "wrong")).error);
+  assert.ok((await closeAccountAction("other", "OTHER")).error);
+  assert.ok((await closeAccountAction("delete", "DELETE")).reverify);
+  assert.equal(calls.length, 0);
+  verified = true; failKeys = true;
+  await assert.rejects(closeAccountAction("delete", "DELETE"), /Database unavailable/);
+  assert.equal(calls.length, 0, "Do not close an account if revoking API access fails");
+  failKeys = false;
+  await closeAccountAction("deactivate", "DEACTIVATE");
+  await closeAccountAction("delete", "DELETE");
+  assert.deepEqual(calls, [["revoke", "caller"], ["ban", "caller"], ["revoke", "caller"], ["delete", "caller"]]);
 }
 console.log("Profile checks passed: username updates, display names, password confirmation, session revocation, secret clearing, email verification before primary selection.");
 

@@ -46,7 +46,7 @@ export const getPublicProfile = cache(
       (candidate) =>
         candidate.username?.toLocaleLowerCase() === username.toLocaleLowerCase(),
     );
-    if (!user?.username) return null;
+    if (!user?.username || user.banned) return null;
 
     const { getPublicContributorActivity } = process.env.DATABASE_URL
       ? await import("@/lib/wiki-public-db")

@@ -16,6 +16,7 @@ import { hasPro } from "@/lib/pro";
 import { authError } from "@/lib/auth-ui";
 import { cn } from "@/lib/utils";
 import styles from "./auth.module.css";
+import { closeAccountAction } from "@/app/settings/profile/actions";
 
 type ContributionStats = { approvedCount: number; articleCount: number } | null;
 type ProfileFormProps = { initialSection?: ProfileSection; apiKeys?: ReactNode; stats?: ContributionStats };
@@ -49,12 +50,15 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [accountAction, setAccountAction] = useState<"deactivate" | "delete" | null>(null);
+  const [accountConfirmation, setAccountConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState("");
   const [reverification, setReverification] = useState<ReverificationRequest | null>(null);
   const protectedAction = useReverification((action: () => Promise<unknown>) => action(), { onNeedsReverification: setReverification });
   const createEmail = useReverification((email: string) => user!.createEmailAddress({ email }), { onNeedsReverification: setReverification });
+  const closeAccount = useReverification(closeAccountAction, { onNeedsReverification: setReverification });
   const fileInput = useRef<HTMLInputElement>(null);
   const resendAt = useRef(0);
 
@@ -154,6 +158,36 @@ function ProfileEditor({ initialSection = "profile", apiKeys, stats = null }: Pr
           </div>
         </div>}
       </form>
+      <section aria-labelledby="danger-zone-heading" className="mt-7 max-w-[720px] rounded-2xl border border-red-300 dark:border-red-400/30">
+        <div className="border-b border-red-200 p-6 dark:border-red-400/20">
+          <h2 id="danger-zone-heading" className="text-[15px] font-semibold text-red-700 dark:text-red-400">Danger zone</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">Both actions sign you out on all devices and revoke your API keys. Published contributions and their attribution remain.</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 p-6">
+          <div className="flex-[1_1_300px]"><h3 className="text-sm font-semibold">Deactivate account</h3><p className="mt-1 text-[13px] text-muted-foreground">Hide your profile and disable sign-in. Your account is kept. Contact <a href="mailto:contact@aviation.wiki" className="underline underline-offset-2">contact@aviation.wiki</a> to reactivate it.</p></div>
+          <button type="button" className={cn(outlineButton, "text-red-700 dark:text-red-400")} onClick={() => { setAccountAction("deactivate"); setAccountConfirmation(""); }}>Deactivate account</button>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-red-200 p-6 dark:border-red-400/20">
+          <div className="flex-[1_1_300px]"><h3 className="text-sm font-semibold">Delete account</h3><p className="mt-1 text-[13px] text-muted-foreground">Permanently remove your login account and public profile. This cannot be undone. This does not erase retained contribution or transaction records.</p></div>
+          <button type="button" className={dangerButton} onClick={() => { setAccountAction("delete"); setAccountConfirmation(""); }}>Delete account</button>
+        </div>
+        {accountAction && <form className="border-t border-red-200 p-6 dark:border-red-400/20" onSubmit={(event) => {
+          event.preventDefault();
+          if (accountConfirmation !== accountAction.toUpperCase()) return;
+          void run(async () => {
+            const result = await closeAccount(accountAction, accountConfirmation);
+            if (!result) throw new Error("Account change cancelled.");
+            if (result.error) throw new Error(result.error);
+            await signOut({ redirectUrl: "/" });
+          }, accountAction === "delete" ? "Account deleted." : "Account deactivated.");
+        }}>
+          <SettingsInput label={`Type ${accountAction.toUpperCase()} to confirm`} value={accountConfirmation} onChange={setAccountConfirmation} autoComplete="off" spellCheck={false} required/>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="submit" disabled={accountConfirmation !== accountAction.toUpperCase()} className={cn(primaryButton, "bg-red-700 text-white hover:bg-red-800")}>{busy ? "Working…" : accountAction === "delete" ? "Permanently delete account" : "Confirm deactivation"}</button>
+            <button type="button" className={quietButton} onClick={() => { setAccountAction(null); setAccountConfirmation(""); }}>Cancel</button>
+          </div>
+        </form>}
+      </section>
       </div>
 
       <div className="mt-7 flex max-w-[720px] flex-col gap-5" hidden={section !== "email"}>

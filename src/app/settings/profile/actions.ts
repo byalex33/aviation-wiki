@@ -1,6 +1,6 @@
 "use server";
 
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser, reverificationError } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
 import { isDefaultNameStyle, parseNameStyle } from "@/lib/name-style";
@@ -9,6 +9,23 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { UserFacingError } from "@/lib/user-facing-error";
 
 export type NameStyleActionState = { error: string | null };
+
+export async function closeAccountAction(action: unknown, confirmation: unknown) {
+  const { userId, has } = await auth();
+  if (!userId) return { error: "Sign in to manage your account." };
+  if ((action !== "deactivate" && action !== "delete") || confirmation !== action.toUpperCase())
+    return { error: "Enter the confirmation exactly as shown." };
+  if (!has({ reverification: "strict" })) return reverificationError("strict");
+  const client = await clerkClient();
+  // Revoke keys before closing the account so a failed database write cannot leave access behind.
+  if (process.env.DATABASE_URL) {
+    const { revokeAllApiKeys } = await import("@/lib/api-keys");
+    await revokeAllApiKeys(userId);
+  }
+  if (action === "deactivate") await client.users.banUser(userId);
+  else await client.users.deleteUser(userId);
+  return { error: null };
+}
 
 /** Saves the caller's Pro name style. The browser cannot write public metadata, so Pro is enforced here. */
 export async function saveNameStyleAction(input: unknown): Promise<NameStyleActionState> {
