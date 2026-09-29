@@ -167,6 +167,8 @@ This previews the publisher's paginated archive and reports coverage across all 
 Add `--apply` with the intended `DATABASE_URL` to save it. Two archive gaps use short,
 original summaries with U.S. Army and U.S. Air Force sources. The command refuses to
 save incomplete coverage. The daily RSS job then updates entries without removing history.
+Use `--snapshot` to import the checked `scripts/data/aviation-history.json` excerpts
+without downloading the archive again, including when the publisher blocks cloud requests.
 
 Wikipedia's [aviation anniversary calendar](https://en.wikipedia.org/wiki/Portal:Aviation/Anniversaries)
 provides date-specific event lists. Fetch a day through the MediaWiki API:

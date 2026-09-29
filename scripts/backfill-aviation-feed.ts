@@ -2,6 +2,7 @@ import { parseAviationItems } from "../src/lib/aviation-feed-data";
 import { saveAviationFeedEvents } from "../src/lib/aviation-feed";
 import { sql } from "../src/lib/postgres";
 import type { DatedAviationEvent } from "../src/lib/on-this-day-data";
+import { readFile } from "node:fs/promises";
 
 // Two gaps in the publisher's archive, checked against primary sources.
 const additionalEvents: DatedAviationEvent[] = [
@@ -23,8 +24,10 @@ const additionalEvents: DatedAviationEvent[] = [
 
 async function main() {
   const posts: { title: { rendered: string }; link: string; excerpt: { rendered: string } }[] = [];
+  const snapshot = process.argv.includes("--snapshot")
+    ? JSON.parse(await readFile(new URL("./data/aviation-history.json", import.meta.url), "utf8")) : null;
   let pages = 1;
-  for (let page = 1; page <= pages; page++) {
+  for (let page = 1; !snapshot && page <= pages; page++) {
     const response = await fetch(`https://www.thisdayinaviation.com/wp-json/wp/v2/posts?per_page=100&_fields=title,link,excerpt&page=${page}`, {
       headers: { "User-Agent": "aviation.wiki archive importer" }, signal: AbortSignal.timeout(30_000),
     });
@@ -35,7 +38,9 @@ async function main() {
     if (!Array.isArray(batch)) throw new Error("Invalid archive response");
     posts.push(...batch);
   }
-  const events = [...parseAviationItems(posts.map(post => ({ title: post.title?.rendered, link: post.link, description: post.excerpt?.rendered }))), ...additionalEvents];
+  const items = snapshot ? snapshot.items : posts.map(post => ({ title: post.title?.rendered, link: post.link, description: post.excerpt?.rendered }));
+  if (!Array.isArray(items)) throw new Error("Invalid archive snapshot");
+  const events = [...parseAviationItems(items), ...additionalEvents];
   const dates = new Set(events.map(event => `${event.month}-${event.day}`));
   const missing: string[] = [];
   for (let day = new Date("2000-01-01T00:00:00Z"); day.getUTCFullYear() === 2000; day.setUTCDate(day.getUTCDate() + 1)) {
