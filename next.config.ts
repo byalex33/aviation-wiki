@@ -1,5 +1,6 @@
-import { ARTICLE_PATH_ALIASES } from "./src/lib/article-path-aliases";
 import { ARTICLE_IMAGE_HOSTS } from "./src/lib/image-policy";
+import { indexNowKey } from "./src/lib/indexnow-key";
+import { legacyRedirects } from "./src/lib/legacy-redirects";
 import type { NextConfig } from "next";
 
 // Applied to every response. The Content-Security-Policy is emitted separately
@@ -23,6 +24,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   // If `next dev` rejects requests from another device on your LAN, add that
   // origin here locally — it is not needed for production and should not be
   // committed. https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
@@ -30,11 +32,11 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   async redirects() {
-    return [
-      ...Object.entries(ARTICLE_PATH_ALIASES).map(([source, destination]) => ({ source, destination, permanent: true })),
-      ...["airline", "airlines"].map((prefix) => ({ source: `/${prefix}/:path*`, destination: "/commercial/:path*", permanent: true })),
-      { source: "/airport/:path*", destination: "/airports/:path*", permanent: true },
-    ];
+    return legacyRedirects();
+  },
+  async rewrites() {
+    const key = indexNowKey();
+    return key ? [{ source: `/${key}.txt`, destination: "/api/indexnow-key" }] : [];
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

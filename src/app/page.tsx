@@ -36,27 +36,27 @@ import { featuredArticles } from "@/lib/growth-content";
 import { eventsOnDate } from "@/lib/on-this-day-data";
 import { loadDatedAviationEvents } from "@/lib/public-events";
 import type { SearchDocument } from "@/lib/search-types";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { getHomepageActivity, listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
+const homeTitle = "aviation.wiki: the free encyclopedia of aircraft, airlines and aviation history";
+
 export const metadata: Metadata = {
-  title: "aviation.wiki",
-  description:
-    "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+  title: { absolute: homeTitle },
+  description: SITE_DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: "/",
-    siteName: "aviation.wiki",
-    title: "aviation.wiki",
-    description:
-      "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+    siteName: SITE_NAME,
+    title: homeTitle,
+    description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "aviation.wiki",
-    description:
-      "The free encyclopedia of aircraft, engines, airports, and aviation history.",
+    title: homeTitle,
+    description: SITE_DESCRIPTION,
   },
 };
 

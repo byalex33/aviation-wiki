@@ -3,7 +3,7 @@ import "server-only";
 import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
-import { SITE_NAME } from "@/lib/site";
+import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site";
 import {
   getArticleBySlug,
   normalizeSlug,
@@ -133,11 +133,13 @@ export function metadataForArticle(
       type: "article",
       publishedTime,
       modifiedTime,
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: [DEFAULT_OG_IMAGE.url],
     },
   };
 }

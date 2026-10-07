@@ -58,11 +58,11 @@ const aviationDataRoutes = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const documents = await listPublicSearchDocuments();
-  const generatedAt = new Date();
+  // Static and data routes carry no lastmod: stamping them with the request
+  // time makes every lastmod in the file untrustworthy to crawlers.
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map(
     (pathname, index) => ({
       url: new URL(pathname, SITE_URL).toString(),
-      lastModified: generatedAt,
       changeFrequency: pathname === "/" ? "daily" : "weekly",
       priority: pathname === "/" ? 1 : index < 13 ? 0.8 : 0.5,
     }),
@@ -74,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return {
       url: new URL(document.href, SITE_URL).toString(),
-      lastModified: document.updatedAt || generatedAt,
+      lastModified: document.updatedAt || undefined,
       changeFrequency: "monthly",
       priority: 0.7,
       images: imageUrl ? [imageUrl] : undefined,
@@ -83,7 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const routeEntries: MetadataRoute.Sitemap = aviationRoutes.map((route) => ({
     url: new URL(`/routes/${route.slug}`, SITE_URL).toString(),
-    lastModified: route.checkedAt ? new Date(route.checkedAt) : generatedAt,
+    lastModified: route.checkedAt ? new Date(route.checkedAt) : undefined,
     changeFrequency: "monthly",
     priority: 0.6,
   }));
@@ -91,7 +91,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const aviationDataEntries: MetadataRoute.Sitemap = aviationDataEnabled
     ? aviationDataRoutes.map((pathname) => ({
         url: new URL(pathname, SITE_URL).toString(),
-        lastModified: generatedAt,
         changeFrequency: "weekly",
         priority: 0.5,
       }))

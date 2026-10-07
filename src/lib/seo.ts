@@ -6,6 +6,7 @@ import {
   parseArticleImageShorthand,
 } from "@/lib/article-markdown";
 import { getArticleBySlug, normalizeSlug } from "@/lib/wiki-public-db";
+import { DEFAULT_OG_IMAGE } from "@/lib/site";
 import type { ContentType } from "@/lib/wiki-types";
 
 export const siteUrl = new URL(
@@ -65,13 +66,13 @@ export async function publicArticleMetadata(
       description,
       publishedTime: article.createdAt,
       modifiedTime,
-      images: imageUrl ? [{ url: imageUrl, alt: revision.title }] : undefined,
+      images: [imageUrl ? { url: imageUrl, alt: revision.title } : DEFAULT_OG_IMAGE],
     },
     twitter: {
-      card: imageUrl ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: revision.title,
       description,
-      images: imageUrl ? [imageUrl] : undefined,
+      images: [imageUrl || DEFAULT_OG_IMAGE.url],
     },
   };
 }

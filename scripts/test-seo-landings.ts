@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+
+import { legacyRedirects } from "../src/lib/legacy-redirects";
 import { documentsForSeoLanding, seoLandingDefinition, seoLandingDefinitions } from "../src/lib/seo-landing-data";
 import type { SearchDocument } from "../src/lib/search-types";
 
@@ -19,3 +22,20 @@ assert.deepEqual(documentsForSeoLanding(seoLandingDefinition("engines-rolls-royc
 assert.equal(new Set(seoLandingDefinitions.map((item) => item.href)).size, seoLandingDefinitions.length);
 
 console.log("SEO landing page tests passed");
+
+// Legacy redirects must never shadow a live landing page.
+const redirectFor = (pathname: string) => {
+  for (const redirect of legacyRedirects()) {
+    const params = getPathMatch(redirect.source, { removeUnnamedParams: true, strict: true })(pathname);
+    if (params) return redirect.destination.replace(/:(\w+)\*?/g, (_: string, key: string) => [params[key]].flat().join("/"));
+  }
+  return null;
+};
+for (const landing of seoLandingDefinitions) assert.equal(redirectFor(landing.href), null, `${landing.href} must not redirect`);
+assert.equal(redirectFor("/airlines"), null);
+assert.equal(redirectFor("/airlines/british-airways"), "/commercial/british-airways");
+assert.equal(redirectFor("/airlines/united-kingdom-airways"), "/commercial/united-kingdom-airways");
+assert.equal(redirectFor("/airline/british-airways"), "/commercial/british-airways");
+assert.equal(redirectFor("/airport/heathrow"), "/airports/heathrow");
+
+console.log("Legacy redirect tests passed");
