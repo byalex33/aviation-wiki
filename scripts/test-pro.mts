@@ -29,12 +29,14 @@ function adapter(db: QueryDatabase) {
   });
 }
 mock("postgres", () => adapter(database));
-type TestUser = { id: string; username: string; publicMetadata: Record<string, unknown> };
+type TestUser = { id: string; username: string; publicMetadata: Record<string, unknown>; banned?: boolean; locked?: boolean };
 const users = new Map<string, TestUser>([
   ["free", { id: "free", username: "free", publicMetadata: {} }],
   ["pro", { id: "pro", username: "pro", publicMetadata: { pro: true } }],
   ["other", { id: "other", username: "other", publicMetadata: { pro: true } }],
   ["admin", { id: "admin", username: "admin", publicMetadata: { role: "admin" } }],
+  ["banned", { id: "banned", username: "banned", publicMetadata: { pro: true }, banned: true }],
+  ["locked", { id: "locked", username: "locked", publicMetadata: {}, locked: true }],
 ]);
 let signedIn: string | null = "pro";
 let clerkUnavailable = false;
@@ -196,6 +198,14 @@ try {
     clerkUnavailable = true;
     assert.equal((await POST(new Request("http://localhost/api/v1/drafts", { method: "POST", headers: { authorization: `Bearer ${keys[0].rawToken}` }, body: "{}" }))).status, 503);
     clerkUnavailable = false;
+  }
+  // Keys of accounts banned or deleted in Clerk stop working and are revoked; a locked account is refused but keeps its keys.
+  const { listApiKeys } = await import("../src/lib/api-keys");
+  for (const [userId, status] of [["banned", 401], ["deleted", 401], ["locked", 403]] as const) {
+    const { rawToken } = await createApiKey({ userId, userName: userId, name: "closed", scopes: ["articles:draft"] });
+    const response = await POST(new Request("http://localhost/api/v1/drafts", { method: "POST", headers: { authorization: `Bearer ${rawToken}` }, body: "{}" }));
+    assert.equal(response.status, status, `${userId} account`);
+    assert.equal((await listApiKeys(userId)).every(key => key.revokedAt !== null), status === 401, `${userId} keys revoked`);
   }
   await storage.deleteCollection("pro", collection);
   assert.equal((await storage.listSavedArticles("pro")).collections.some(c => c.id === collection), false);

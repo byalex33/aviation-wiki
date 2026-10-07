@@ -15,6 +15,20 @@ export async function getProUserIds(userIds: string[]) {
   return pro;
 }
 
+export type ApiKeyOwner =
+  | { status: "active"; pro: boolean }
+  | { status: "locked" }
+  | { status: "closed" };
+
+/** A deleted or banned Clerk account is closed; a locked one is only temporarily unavailable. */
+export async function getApiKeyOwner(userId: string): Promise<ApiKeyOwner> {
+  const client = await clerkClient();
+  const user = (await client.users.getUserList({ userId: [userId], limit: 1 })).data[0];
+  if (!user || user.banned) return { status: "closed" };
+  if (user.locked) return { status: "locked" };
+  return { status: "active", pro: hasPro(user.publicMetadata) };
+}
+
 /** Preserve chronological order within each tier. Resolve every candidate before limiting the queue. */
 export async function prioritizeReviewQueue<T>(items: T[], contributorId: (item: T) => string) {
   // ponytail: loads the open queue; persist entitlements beside revisions if queue size makes this expensive.

@@ -1,7 +1,7 @@
 import { reconcileCitationSources } from "@/lib/article-citations";
 import { isSafeCitationUrl, parseArticleMarkdown } from "@/lib/article-markdown";
-import { verifyApiKey } from "@/lib/api-keys";
-import { getProUserIds } from "@/lib/pro-server";
+import { revokeAllApiKeys, verifyApiKey } from "@/lib/api-keys";
+import { getApiKeyOwner, type ApiKeyOwner } from "@/lib/pro-server";
 import { FREE_DRAFTS_PER_MINUTE, PRO_DRAFTS_PER_MINUTE } from "@/lib/pro";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { absoluteUrl } from "@/lib/site";
@@ -40,13 +40,21 @@ export async function POST(request: Request) {
   if (!apiKey.scopes.includes("articles:draft"))
     return errorResponse("This API key does not have the articles:draft scope.", 403);
 
-  // 2. All keys for one account share the draft request allowance.
-  let limit: number;
+  // 2. Keys stop working once the Clerk account is closed, even when it was
+  // banned or deleted outside the app. All keys for one account share the draft allowance.
+  let owner: ApiKeyOwner;
   try {
-    limit = (await getProUserIds([apiKey.userId])).has(apiKey.userId) ? PRO_DRAFTS_PER_MINUTE : FREE_DRAFTS_PER_MINUTE;
+    owner = await getApiKeyOwner(apiKey.userId);
   } catch {
     return errorResponse("Account access could not be checked. Please retry shortly.", 503, { "Cache-Control": "private, no-store" });
   }
+  if (owner.status === "closed") {
+    await revokeAllApiKeys(apiKey.userId);
+    return errorResponse("Invalid or revoked API key.", 401);
+  }
+  if (owner.status === "locked")
+    return errorResponse("This account is temporarily locked. Try again later.", 403);
+  const limit = owner.pro ? PRO_DRAFTS_PER_MINUTE : FREE_DRAFTS_PER_MINUTE;
   const rateLimit = await consumeRateLimit({
     scope: "api-v1-draft-create-account",
     subject: apiKey.userId,

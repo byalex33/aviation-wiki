@@ -1,10 +1,10 @@
 import { refreshAviationFeed } from "@/lib/aviation-feed";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
+  if (!isAuthorizedCron(request))
     return new Response("Unauthorized", { status: 401 });
   try {
     return Response.json(await refreshAviationFeed());

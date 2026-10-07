@@ -5,7 +5,8 @@ import { createRequire, Module } from "node:module";
 const require = createRequire(import.meta.url);
 const clerkPath = require.resolve("@clerk/nextjs/server");
 const clerk = new Module(clerkPath);
-clerk.exports = { clerkClient: async () => ({ users: { getUserList: async () => ({ data: [] }) } }) };
+// Every key owner is an active, non-Pro Clerk account.
+clerk.exports = { clerkClient: async () => ({ users: { getUserList: async ({ userId = [] }: { userId?: string[] }) => ({ data: userId.map(id => ({ id, publicMetadata: {} })) }) } }) };
 require.cache[clerkPath] = clerk;
 
 const database = new URL(process.env.DATABASE_URL || "postgresql://invalid");

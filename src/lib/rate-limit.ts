@@ -73,6 +73,17 @@ export async function consumeRateLimit({
   };
 }
 
+// The longest window in use is one hour, so a day-old window is always expired.
+// Run daily from the source-health cron so one row per visitor IP is not kept forever.
+export async function pruneExpiredRateLimits() {
+  await ensureSchema();
+  const deleted = await sql`
+    DELETE FROM request_rate_limits
+    WHERE window_started_at < now() - interval '1 day'
+  `;
+  return deleted.count;
+}
+
 export async function enforceRateLimit(
   options: RateLimitOptions,
   message = "Too many requests. Wait a moment and try again.",

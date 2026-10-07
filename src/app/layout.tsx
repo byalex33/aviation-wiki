@@ -122,7 +122,10 @@ export default async function RootLayout({
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
+        {/* `dynamic` makes Clerk render its script tags with the request nonce,
+            so the strict CSP does not block them. */}
         <ClerkProvider
+          dynamic
           appearance={{ theme: clerkShadcnAppearance }}
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
