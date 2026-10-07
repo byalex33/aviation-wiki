@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Calendar, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+import { loadOnThisDayEventsAction } from "./actions";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const SHORT_MONTHS = MONTHS.map((month) => month.slice(0, 3));
@@ -14,27 +16,35 @@ const WEEK_OFFSETS = [-3, -2, -1, 0, 1, 2, 3];
 
 const dateHeadingFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", timeZone: "UTC" });
 
-export type OnThisDayEvent = {
-  id: string;
+/** Every event, without details: enough for counts, the calendar and the month list. */
+export type OnThisDayIndexEntry = {
   title: string;
   href: string;
-  description: string;
   year: number;
   month: number;
   day: number;
+};
+
+export type OnThisDayEvent = OnThisDayIndexEntry & {
+  description: string;
   location?: string;
   eventType?: string;
   sourceCount: number;
 };
 
+type SelectedEvent = OnThisDayIndexEntry & Partial<OnThisDayEvent>;
+
 type OnThisDayExplorerProps = {
-  events: OnThisDayEvent[];
+  index: OnThisDayIndexEntry[];
+  initialEvents: OnThisDayEvent[];
   initialMonth: number;
   initialDay: number;
   todayMonth: number;
   todayDay: number;
   currentYear: number;
 };
+
+const dateKey = (month: number, day: number) => `${month}-${day}`;
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -46,33 +56,52 @@ function shiftDate(month: number, day: number, offset: number): [number, number]
   return [shifted.getUTCMonth() + 1, shifted.getUTCDate()];
 }
 
-export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth, todayDay, currentYear }: OnThisDayExplorerProps) {
+export function OnThisDayExplorer({ index, initialEvents, initialMonth, initialDay, todayMonth, todayDay, currentYear }: OnThisDayExplorerProps) {
   const [month, setMonth] = useState(initialMonth);
   const [day, setDay] = useState(initialDay);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [browseMonth, setBrowseMonth] = useState(initialMonth);
   const [copied, setCopied] = useState(false);
+  const [details, setDetails] = useState<Record<string, OnThisDayEvent[]>>({
+    [dateKey(initialMonth, initialDay)]: initialEvents,
+  });
 
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, OnThisDayEvent[]>();
-    for (const event of events) {
-      const key = `${event.month}-${event.day}`;
+    const map = new Map<string, OnThisDayIndexEntry[]>();
+    for (const event of index) {
+      const key = dateKey(event.month, event.day);
       const bucket = map.get(key);
       if (bucket) bucket.push(event);
       else map.set(key, [event]);
     }
     return map;
-  }, [events]);
+  }, [index]);
 
   const browseCounts = useMemo(() => {
     const counts = new Array(12).fill(0);
-    for (const event of events) counts[event.month - 1] += 1;
+    for (const event of index) counts[event.month - 1] += 1;
     return counts;
-  }, [events]);
+  }, [index]);
 
   function eventsOn(m: number, d: number) {
-    return eventsByDate.get(`${m}-${d}`) ?? [];
+    return eventsByDate.get(dateKey(m, d)) ?? [];
   }
+
+  const selectedKey = dateKey(month, day);
+  const needsDetails = !(selectedKey in details) && eventsOn(month, day).length > 0;
+  useEffect(() => {
+    if (!needsDetails) return;
+    let current = true;
+    loadOnThisDayEventsAction(month, day)
+      .then((loaded) => {
+        if (current && loaded) setDetails((previous) => ({ ...previous, [dateKey(month, day)]: loaded }));
+      })
+      // Titles, years and links from the index still render without details.
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [needsDetails, month, day]);
 
   function goTo(nextMonth: number, nextDay: number, options: { closePicker?: boolean } = {}) {
     setMonth(nextMonth);
@@ -82,7 +111,7 @@ export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth
     if (options.closePicker) setPickerOpen(false);
   }
 
-  const selectedEvents = eventsOn(month, day);
+  const selectedEvents: SelectedEvent[] = details[selectedKey] ?? eventsOn(month, day);
   const dateLabel = dateHeadingFormatter.format(new Date(Date.UTC(2000, month - 1, day)));
   const notToday = month !== todayMonth || day !== todayDay;
 
@@ -110,7 +139,7 @@ export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth
     setCopied(true);
   }
 
-  const browseEvents = events.filter((event) => event.month === browseMonth);
+  const browseEvents = index.filter((event) => event.month === browseMonth);
 
   return (
     <>
@@ -201,15 +230,15 @@ export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth
           <>
             <p className="text-sm text-muted-foreground">{selectedEvents.length === 1 ? "1 event on this date" : `${selectedEvents.length} events on this date`}</p>
             <ol className="mt-3.5 flex flex-col gap-3">
-              {selectedEvents.map((event) => (
-                <li key={event.id} className="grid grid-cols-[minmax(88px,120px)_minmax(0,1fr)] gap-5 rounded-[18px] border bg-card p-5 sm:p-[22px]">
+              {selectedEvents.map((event, position) => (
+                <li key={`${event.href}-${event.year}-${position}`} className="grid grid-cols-[minmax(88px,120px)_minmax(0,1fr)] gap-5 rounded-[18px] border bg-card p-5 sm:p-[22px]">
                   <div>
                     <p className="font-mono text-[28px] font-semibold leading-none tracking-[-0.04em] sm:text-[30px]">{event.year}</p>
                     <p className="mt-1.5 text-xs text-muted-foreground">{currentYear - event.year} years ago</p>
                   </div>
                   <div className="min-w-0">
                     <Link href={event.href} className="text-pretty text-[19px] font-semibold leading-[1.3] tracking-[-0.02em] hover:underline">{event.title}</Link>
-                    <p className="mt-2 text-pretty text-sm leading-[1.6] text-muted-foreground">{event.description}</p>
+                    {event.description && <p className="mt-2 text-pretty text-sm leading-[1.6] text-muted-foreground">{event.description}</p>}
                     <div className="mt-3.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {event.eventType && <span className="rounded-full bg-accent px-2.5 py-0.5 font-semibold text-accent-foreground">{event.eventType}</span>}
                       {event.location && (
@@ -217,7 +246,7 @@ export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth
                           <MapPin className="size-3" aria-hidden="true" />{event.location}
                         </span>
                       )}
-                      {event.sourceCount > 0 && (
+                      {!!event.sourceCount && (
                         <>
                           <span>·</span>
                           <span>{event.sourceCount} source{event.sourceCount === 1 ? "" : "s"}</span>
@@ -272,9 +301,9 @@ export function OnThisDayExplorer({ events, initialMonth, initialDay, todayMonth
         </div>
         <div className="mt-3.5 border-t border-foreground">
           {browseEvents.length ? (
-            browseEvents.map((event) => (
+            browseEvents.map((event, position) => (
               <button
-                key={event.id}
+                key={`${event.day}-${event.href}-${position}`}
                 type="button"
                 onClick={() => goTo(event.month, event.day)}
                 className="grid w-full grid-cols-[72px_56px_minmax(0,1fr)] items-baseline gap-3 border-b py-3.5 text-left hover:bg-secondary"

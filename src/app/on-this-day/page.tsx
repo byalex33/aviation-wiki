@@ -3,7 +3,8 @@ import Link from "next/link";
 
 import { anniversaryDate } from "@/lib/on-this-day-data";
 import { loadDatedAviationEvents } from "@/lib/public-events";
-import { OnThisDayExplorer, type OnThisDayEvent } from "./on-this-day-explorer";
+import { onThisDayEvents, toIndexEntry } from "./events";
+import { OnThisDayExplorer } from "./on-this-day-explorer";
 
 export const metadata: Metadata = {
   title: "On This Day in Aviation",
@@ -23,19 +24,10 @@ export default async function OnThisDayPage({ searchParams }: {
   const initialMonth = parsed ? parsed.getUTCMonth() + 1 : todayMonth;
   const initialDay = parsed ? parsed.getUTCDate() : todayDay;
 
+  // Only the selected date ships with descriptions and sources; the explorer
+  // loads other dates on demand, which keeps ~1,500 descriptions off the page.
   const rawEvents = await loadDatedAviationEvents();
-  const events: OnThisDayEvent[] = rawEvents.map((event) => ({
-    id: event.id,
-    title: event.title,
-    href: event.href,
-    description: event.description,
-    year: event.year,
-    month: event.month,
-    day: event.day,
-    location: event.location,
-    eventType: event.eventType,
-    sourceCount: event.sources?.length ?? 0,
-  }));
+  const initialEvents = (await onThisDayEvents(initialMonth, initialDay, rawEvents)) ?? [];
 
   return (
     <main className="mx-auto w-full max-w-[960px] px-5 pb-24 pt-8 sm:px-6">
@@ -45,7 +37,8 @@ export default async function OnThisDayPage({ searchParams }: {
         <span className="text-foreground">On this day</span>
       </nav>
       <OnThisDayExplorer
-        events={events}
+        index={rawEvents.map(toIndexEntry)}
+        initialEvents={initialEvents}
         initialMonth={initialMonth}
         initialDay={initialDay}
         todayMonth={todayMonth}

@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import { wikimediaThumbnail } from "@/lib/wikimedia-thumbnail";
+
 export function ArticleCardBackdrop({
   imageUrl,
   sizes = "(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw",
@@ -15,7 +17,8 @@ export function ArticleCardBackdrop({
       aria-hidden="true"
     >
       <Image
-        src={imageUrl}
+        // A faded backdrop never needs more than a small thumbnail.
+        src={wikimediaThumbnail(imageUrl, 500)}
         alt=""
         fill
         sizes={sizes}
