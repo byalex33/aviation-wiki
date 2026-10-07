@@ -79,7 +79,7 @@
     "fast-xml-parser": "^5.11.1",
     "lucide-react": "^1.25.0",
     "motion": "^13.2.0",
-    "next": "16.3.3",
+    "next": "16.3.8",
     "postgres": "^3.4.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -103,7 +103,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "16.3.8",
     "shadcn": "^4.13.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
@@ -112,7 +112,7 @@
   "overrides": {
     "@hono/node-server": "2.0.11",
     "postcss": "8.5.26",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "uuid": "11.1.1"
   }
 }
