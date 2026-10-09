@@ -23,8 +23,9 @@ export async function togglePublicArticleWatchAction(
     const watching = formData.get("watching") === "true";
     await enforceRateLimit({ scope: "article-watch", subject: session.userId, limit: 60, windowMs: 60_000 });
     await setArticleWatch(session.userId, articleId, watching);
+    // Not the article itself: its page is cached for everyone, and the Watch
+    // button keeps its own state.
     revalidatePath("/saved");
-    revalidatePath(String(formData.get("returnTo") || "/notifications"));
     return { error: null };
   } catch (error) {
     return formActionError(error);

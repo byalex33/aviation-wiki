@@ -63,8 +63,6 @@ export function ArticleHeader({
   typeLabel,
   slug,
   articleId,
-  watching,
-  signedIn,
   reviewedAt,
   citedSourcesCount,
   readingMinutes,
@@ -76,8 +74,6 @@ export function ArticleHeader({
   typeLabel?: string;
   slug: string;
   articleId: string;
-  watching: boolean;
-  signedIn: boolean;
   reviewedAt: string;
   citedSourcesCount: number;
   readingMinutes: number;
@@ -123,13 +119,7 @@ export function ArticleHeader({
           <FilePenLine />
           Edit
         </Link>
-        {signedIn && (
-          <WatchArticleButton
-            articleId={articleId}
-            returnTo={articlePath(contentType, slug)}
-            watching={watching}
-          />
-        )}
+        <WatchArticleButton articleId={articleId} />
         <Menu.Root>
           <Menu.Trigger
             aria-label="More actions"
@@ -274,16 +264,12 @@ export function MissingArticleState({
 export function PublicArticle({
   article,
   revision,
-  watching,
-  signedIn,
   articleLinks,
   availableArticlePaths,
   structuredData,
 }: {
   article: ArticleRecord;
   revision: RevisionRecord;
-  watching: boolean;
-  signedIn: boolean;
   articleLinks: ArticleMentionLink[];
   availableArticlePaths?: string[];
   structuredData?: { href: string; label: string; records: number };
@@ -402,8 +388,6 @@ export function PublicArticle({
         typeLabel={typeField?.value}
         slug={article.slug}
         articleId={article.id}
-        watching={watching}
-        signedIn={signedIn}
         reviewedAt={approvedAt}
         citedSourcesCount={cited.length}
         readingMinutes={readingMinutes}

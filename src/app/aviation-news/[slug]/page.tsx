@@ -14,3 +14,11 @@ export function generateMetadata({
 export default function Page({ params }: AviationEventPageProps) {
   return <PublicArticleRoute params={params} contentType="event" />;
 }
+
+// Cached for every reader (ISR). Approvals and edits revalidate the path
+// immediately; the hour bounds staleness of cross-article links. Nothing is
+// prerendered at build, so preview builds without a database still succeed.
+export const revalidate = 3600;
+export function generateStaticParams() {
+  return [];
+}

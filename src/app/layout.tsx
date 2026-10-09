@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
-import { ClerkProvider, Show } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Search, Sparkles } from "lucide-react";
 import { Toaster } from "sonner";
 
 import { TracwellAnalytics } from "@/components/tracwell-analytics";
-import { AccountMenu } from "@/components/account-menu";
+import { HeaderAuth } from "@/components/header-auth";
 import { HeaderSearch } from "@/components/header-search";
 import { OpenSourceAlert } from "@/components/open-source-alert";
-import { NotificationBell } from "@/components/notification-bell";
 import { ThemeSelector } from "@/components/theme-selector";
 import { buttonVariants } from "@/components/ui/button";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { clerkShadcnAppearance } from "@/lib/clerk-appearance";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/inline-scripts";
 import { nameFontVariables } from "@/lib/name-style-fonts";
 import { cn } from "@/lib/utils";
 import { jsonLd } from "@/lib/seo";
@@ -70,7 +69,6 @@ export const metadata: Metadata = {
   },
 };
 
-const themeScript = `(function(){var t="light";try{var saved=localStorage.getItem("aviation-theme");if(saved==="dark"||saved==="pastel-dark"||saved==="twitter-dark")t="dark"}catch(e){}document.documentElement.classList.toggle("dark",t==="dark");delete document.documentElement.dataset.theme;try{localStorage.setItem("aviation-theme",t)}catch(e){}})()`;
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -100,12 +98,11 @@ function GithubMark({ className }: { className: string }) {
   );
 }
 
-export default async function RootLayout({
+// Nothing here may read the request (headers, cookies, auth): the shared
+// layout must stay static so public pages can be served from the ISR cache.
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // Set by clerkMiddleware's strict CSP; Next injects it into its own scripts,
-  // and it authorizes the inline theme bootstrap below.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -114,18 +111,16 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
       </head>
       <body className="flex min-h-screen flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
-          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
-        {/* `dynamic` makes Clerk render its script tags with the request nonce,
-            so the strict CSP does not block them. */}
+        {/* Not `dynamic`: that reads the request and would stop every page
+            from being cached. Clerk's script host is on the CSP allowlist. */}
         <ClerkProvider
-          dynamic
           appearance={{ theme: clerkShadcnAppearance }}
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
@@ -168,18 +163,7 @@ export default async function RootLayout({
                 >
                   <Search />
                 </Link>
-                <Show when="signed-out">
-                  <Link href="/sign-in" className={cn(buttonVariants({ variant: "ghost" }), "h-10 px-3")}>
-                    Log in
-                  </Link>
-                  <Link href="/sign-up" className={cn(buttonVariants(), "h-10 px-4")}>
-                    Sign up
-                  </Link>
-                </Show>
-                <Show when="signed-in">
-                  <NotificationBell />
-                  <AccountMenu />
-                </Show>
+                <HeaderAuth />
               </nav>
             </div>
           </header>

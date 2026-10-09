@@ -110,3 +110,7 @@ export default async function MilitaryAircraftPage() {
     </main>
   );
 }
+
+// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
+// listing renders per request instead of being prerendered at build.
+export const dynamic = "force-dynamic";

@@ -1,38 +1,30 @@
-import { ARTICLE_IMAGE_HOSTS } from "@/lib/image-policy";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
+
+import { contentSecurityPolicy, isStrictCspPath } from "@/lib/csp";
 
 // Authorization stays in each protected page and Server Action. The proxy
 // attaches Clerk's request context and emits the Content-Security-Policy.
 //
-// Strict mode: script-src becomes a per-request nonce plus 'strict-dynamic' —
-// no 'unsafe-inline', no host allowlist. Clerk generates the nonce and exposes
-// it as the `x-nonce` request header; Next applies it to framework and page
-// scripts automatically, and the root layout applies it to the inline theme
-// script. style-src keeps 'unsafe-inline': component libraries (Tailwind,
-// Recharts, Base UI, sonner) emit inline styles and CSS injection is far lower
-// risk than script injection.
-//
-// A per-request nonce forces every route to render dynamically. The app is
-// already fully dynamic, so this costs nothing today, but it is incompatible
-// with static / ISR article pages (issue #5) until the nonce is removed from
-// the shared layout.
-const withClerk = clerkMiddleware({
-  contentSecurityPolicy: {
-    strict: true,
-    directives: {
-      "connect-src": ["https://collect.tracwell.app"],
-      "base-uri": ["'self'"],
-      "object-src": ["'none'"],
-      "frame-ancestors": ["'none'"],
-      "img-src": [
-        "'self'",
-        "data:",
-        "blob:",
-        ...ARTICLE_IMAGE_HOSTS.map((host) => `https://${host}`),
-      ],
-    },
-  },
+// Account, editing and staff routes get a per-request nonce. Next reads it from
+// the request's Content-Security-Policy header and applies it to its own inline
+// scripts, which works because those routes always render dynamically. Every
+// other route gets the cacheable policy so public pages can be served from the
+// ISR cache (see src/lib/csp.ts for what each policy allows).
+const withClerk = clerkMiddleware((_auth, request) => {
+  if (!isStrictCspPath(request.nextUrl.pathname)) {
+    const response = NextResponse.next();
+    response.headers.set("Content-Security-Policy", contentSecurityPolicy());
+    return response;
+  }
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const policy = contentSecurityPolicy({ nonce });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Content-Security-Policy", policy);
+  requestHeaders.set("x-nonce", nonce);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
 });
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {

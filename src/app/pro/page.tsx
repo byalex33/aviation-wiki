@@ -169,3 +169,6 @@ export default function ProPage() {
     </main>
   );
 }
+
+// Under the strict, nonce-based CSP (src/lib/csp.ts), which needs per-request rendering.
+export const dynamic = "force-dynamic";

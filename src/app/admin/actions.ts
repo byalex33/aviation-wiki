@@ -113,7 +113,10 @@ export async function adminModerateRevisionAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/moderation");
   revalidatePath(`/admin/moderation/${revisionId}`);
-  revalidatePath(`/wiki/${before.articleSlug}`);
+  // The canonical paths, not the /wiki alias: article pages are ISR-cached.
+  revalidatePath(articlePath(before.contentType, before.articleSlug));
+  revalidatePath(articlePath(before.contentType, before.proposedSlug));
+  revalidatePath(articleHistoryPath(before.contentType, before.articleSlug));
   redirect("/admin/moderation");
 }
 

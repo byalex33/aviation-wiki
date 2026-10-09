@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import {
@@ -19,7 +18,6 @@ import {
   listArticleHistory,
   normalizeSlug,
   getArticlePublicationControls,
-  isWatchingArticle,
   listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
@@ -36,10 +34,8 @@ export async function PublicArticleRoute({
   params: Promise<{ slug: string }>;
   contentType: ContentType;
 }) {
-  // Initialize Clerk's request context before Next can transfer rendering to a
-  // not-found boundary. Calling auth() after notFound() branches may lose the
-  // middleware chain when Next renders the boundary as an internal /_not-found.
-  const session = await auth();
+  // Rendered once and cached for every reader (ISR), so nothing here may read
+  // the request or depend on who is viewing; the Watch button loads its own state.
   const slug = normalizeSlug((await params).slug);
   if (!slug) notFound();
   const controls = await getArticlePublicationControls(contentType, slug);
@@ -60,10 +56,7 @@ export async function PublicArticleRoute({
       : contentType === "aircraft" && ["airbus-a350", "airbus-a350-1000"].includes(slug)
         ? { href: "/production-lists/a350-1000", label: "A350-1000 production data", records: (await listProductionAirframes("A350-1041")).length }
         : undefined;
-  const [watching, entities] = await Promise.all([
-    session.userId ? isWatchingArticle(session.userId, article.id) : false,
-    listApprovedEntityOptions(),
-  ]);
+  const entities = await listApprovedEntityOptions();
   const articleLinks = entities
     .filter((entity) => entity.contentType === "aircraft")
     .flatMap((entity) =>
@@ -79,8 +72,6 @@ export async function PublicArticleRoute({
     <PublicArticle
       article={article}
       revision={article.liveRevision}
-      watching={watching}
-      signedIn={Boolean(session.userId)}
       articleLinks={articleLinks}
       availableArticlePaths={entities.map((entity) => articlePath(entity.contentType, entity.slug))}
       structuredData={structuredData}

@@ -10,16 +10,17 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  comparisonDefinition,
-  comparisonDefinitions,
-} from "@/lib/comparison-content";
+import { comparisonDefinition } from "@/lib/comparison-content";
 import { comparisonPath, loadComparison } from "@/lib/comparison-data";
 import { absoluteUrl, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
+// Cached for every reader (ISR). loadComparison() reads the database and
+// preview builds have no DATABASE_URL, so nothing is prerendered at build;
+// each comparison renders on its first request.
+export const revalidate = 3600;
 export function generateStaticParams() {
-  return comparisonDefinitions.map(({ slug }) => ({ slug }));
+  return [];
 }
 
 export async function generateMetadata({
