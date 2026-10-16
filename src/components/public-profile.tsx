@@ -66,11 +66,11 @@ const contentTypeLabels: Record<ContentType, string> = {
   airline: "Airlines",
   alliance: "Alliances",
   aircraft: "Aircraft",
+  airframe: "Airframes",
   airport: "Airports",
   manufacturer: "Manufacturers",
   engine: "Engines",
   event: "Aviation news",
-  airframe: "Airframes",
 };
 
 const monthFormatter = new Intl.DateTimeFormat("en", {

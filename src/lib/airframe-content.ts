@@ -24,6 +24,24 @@ export type AirframeSeed = {
   sources?: SourceLink[];
 };
 
+export const airframeStarterMarkdown = `<Sidebar>
+Registration: G-XXXX
+Manufacturer serial number:
+Aircraft type:
+Variant:
+Status: Active
+Delivery date: YYYY-MM-DD
+Year of manufacture:
+Current operator:
+Fate:
+</Sidebar>
+
+Describe this individual aircraft. Put each operator and registration spell on its own structured field, using the form \`Name | YYYY-MM-DD | YYYY-MM-DD\` or \`present\`.
+
+## Notes
+
+Add sourced notes that the structured fields do not capture. Cite every factual claim.`;
+
 export const FAA_SOURCE: SourceLink = {
   identifier: "faa",
   title: "Releasable Aircraft Database",

@@ -11,24 +11,6 @@ import { contentTypes, type RevisionContent } from "@/lib/wiki-types";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ title?: string; type?: string; saved?: string; submitted?: string }> };
 
-const airframeStarterMarkdown = `<Sidebar>
-Registration: G-XXXX
-Manufacturer serial number:
-Aircraft type:
-Variant:
-Status: Active
-Delivery date: YYYY-MM-DD
-Year of manufacture:
-Current operator:
-Fate:
-</Sidebar>
-
-Describe this individual aircraft. Put each operator and registration spell on its own structured field, using the form \`Name | YYYY-MM-DD | YYYY-MM-DD\` or \`present\`.
-
-## Notes
-
-Add sourced notes that the structured fields do not capture. Cite every factual claim.`;
-
 const eventStarterMarkdown = `<Sidebar>
 Event date: YYYY-MM-DD
 Location: Add the city, airport, or region
@@ -68,8 +50,7 @@ export default async function ContributionEditorPage({ params, searchParams }: P
     draftUpdatedAt: draft.updatedAt,
   } : undefined;
   const contentType = requestedType ?? article?.contentType ?? "aircraft";
-  const starterMarkdown = contentType === "event" ? eventStarterMarkdown : contentType === "airframe" ? airframeStarterMarkdown : "";
-  const initialContent: RevisionContent = draft || article?.liveRevision || { title: query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" "), contentType, markdown: starterMarkdown, fields: [], sections: [], sources: [], relationships: [] };
+  const initialContent: RevisionContent = draft || article?.liveRevision || { title: query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" "), contentType, markdown: contentType === "event" ? eventStarterMarkdown : "", fields: [], sections: [], sources: [], relationships: [] };
 
   return (
     <main className="mx-auto max-w-[1000px] px-5 pb-20 pt-8 sm:px-6">

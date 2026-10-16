@@ -83,13 +83,13 @@ export function articleDescription(revision: RevisionRecord) {
 
   const fallbacks: Record<ContentType, string> = {
     aircraft: `Explore ${revision.title} specifications, variants, operators, engines, history, and cited aviation data.`,
+    airframe: `Explore ${revision.title}: type, serial number, registration history, operators, status, and cited sources.`,
     airline: `Explore the ${revision.title} fleet, hubs, airline codes, history, and cited aviation data.`,
     airport: `Explore ${revision.title} codes, location, airlines, facilities, history, and cited aviation data.`,
     manufacturer: `Explore ${revision.title} aircraft, engines, company history, and cited aviation data.`,
     engine: `Explore ${revision.title} specifications, applications, variants, history, and cited aviation data.`,
     alliance: `Explore ${revision.title} members, partners, history, and cited aviation data.`,
     event: `Read a sourced account of ${revision.title}, including when it happened, what changed, and its aviation significance.`,
-    airframe: `Explore ${revision.title}: type, serial number, registration history, operators, status, and cited sources.`,
   };
   return truncateSentence(fallbacks[revision.contentType]);
 }
@@ -97,13 +97,13 @@ export function articleDescription(revision: RevisionRecord) {
 function searchTitle(revision: RevisionRecord) {
   const suffixes: Record<ContentType, string> = {
     aircraft: "specifications, variants and operators",
+    airframe: "registration, serial number and operator history",
     airline: "fleet, hubs and airline profile",
     alliance: "members, airlines and history",
     airport: "codes, airlines and airport guide",
     manufacturer: "aircraft, engines and company history",
     engine: "specifications, applications and variants",
     event: "what happened, timeline and aviation impact",
-    airframe: "registration, serial number and operator history",
   };
   return `${revision.title}: ${suffixes[revision.contentType]}`;
 }

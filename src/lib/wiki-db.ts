@@ -7,7 +7,7 @@ import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
-import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, VerificationResult } from "@/lib/wiki-types";
+import { contentTypeSqlList, type ArticleRecord, type ArticleWithLiveRevision, type ContentType, type EntityOption, type EntityRelationship, type RevisionContent, type RevisionRecord, type RevisionStatus, type VerificationResult } from "@/lib/wiki-types";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { buildFleetRows, type FleetEntity, type FleetRelationship } from "@/lib/fleet";
 import { articlePath } from "@/lib/article-routes";
@@ -172,16 +172,16 @@ db.exec(`
   DROP TRIGGER IF EXISTS revisions_content_type_insert;
   DROP TRIGGER IF EXISTS revisions_content_type_update;
   CREATE TRIGGER articles_content_type_insert
-  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')
+  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER articles_content_type_update
-  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')
+  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER revisions_content_type_insert
-  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')
+  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER revisions_content_type_update
-  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')
+  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER IF NOT EXISTS revisions_status_insert
   BEFORE INSERT ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')

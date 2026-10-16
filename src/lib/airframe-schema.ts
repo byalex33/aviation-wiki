@@ -1,7 +1,6 @@
-export const AIRFRAME_MIGRATION_ID = "20261016_airframe_articles";
+import { contentTypeSqlList } from "@/lib/wiki-types";
 
-const contentTypes =
-  "'airline','alliance','aircraft','airport','manufacturer','engine','event','airframe'";
+export const AIRFRAME_MIGRATION_ID = "20261016_airframe_articles";
 const relationshipTypes =
   "'operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine','instance_of','operated_by'";
 
@@ -13,9 +12,9 @@ const relationshipTypes =
  */
 export const AIRFRAME_SCHEMA_SQL = `
 ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_content_type_check;
-ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN (${contentTypes}));
+ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN (${contentTypeSqlList}));
 ALTER TABLE revisions DROP CONSTRAINT IF EXISTS revisions_content_type_check;
-ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN (${contentTypes}));
+ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN (${contentTypeSqlList}));
 ALTER TABLE article_relationships DROP CONSTRAINT IF EXISTS article_relationships_type_check;
 ALTER TABLE article_relationships ADD CONSTRAINT article_relationships_type_check
   CHECK (relationship_type IN (${relationshipTypes}));
