@@ -109,7 +109,10 @@ export async function adminModerateRevisionAction(formData: FormData) {
     before: { status: before.status },
     after: { status: after?.status, note },
   });
-  if (intent === "approve") revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+  if (intent === "approve") {
+    revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+    revalidatePath("/sitemap.xml");
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/moderation");
   revalidatePath(`/admin/moderation/${revisionId}`);
@@ -217,6 +220,7 @@ export async function updateArticleAction(formData: FormData) {
     after,
   });
   revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/admin/articles");
   revalidatePath(
     articlePath(
