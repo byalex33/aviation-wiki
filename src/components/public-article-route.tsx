@@ -22,10 +22,6 @@ import {
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
 import { aviationDataEnabled } from "@/lib/aviation-data-flags";
-import {
-  listOperatorFleet,
-  listProductionAirframes,
-} from "@/lib/aviation-data-public";
 
 export async function PublicArticleRoute({
   params,
@@ -52,11 +48,12 @@ export async function PublicArticleRoute({
   const structuredData = !aviationDataEnabled
     ? undefined
     : contentType === "airline" && slug === "british-airways"
-      ? { href: "/fleet/british-airways", label: "Fleet history", records: (await listOperatorFleet("british-airways")).length }
+      ? { href: "/fleet/british-airways", label: "Fleet history" }
       : contentType === "aircraft" && ["airbus-a350", "airbus-a350-1000"].includes(slug)
-        ? { href: "/production-lists/a350-1000", label: "A350-1000 production data", records: (await listProductionAirframes("A350-1041")).length }
+        ? { href: "/production-lists/a350-1000", label: "A350-1000 production data" }
         : undefined;
   const entities = await listApprovedEntityOptions();
+  const markdown = article.liveRevision.markdown.toLocaleLowerCase("en");
   const articleLinks = entities
     .filter((entity) => entity.contentType === "aircraft")
     .flatMap((entity) =>
@@ -67,7 +64,8 @@ export async function PublicArticleRoute({
             ? null
             : articlePath(entity.contentType, entity.slug),
       })),
-    );
+    )
+    .filter((link) => markdown.includes(link.title.toLocaleLowerCase("en")));
   return (
     <PublicArticle
       article={article}

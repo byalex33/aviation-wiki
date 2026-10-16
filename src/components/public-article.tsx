@@ -272,7 +272,7 @@ export function PublicArticle({
   revision: RevisionRecord;
   articleLinks: ArticleMentionLink[];
   availableArticlePaths?: string[];
-  structuredData?: { href: string; label: string; records: number };
+  structuredData?: { href: string; label: string };
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
   if (availableArticlePaths) parsed.root = canonicalizeArticleLinks(parsed.root, availableArticlePaths);
@@ -416,7 +416,7 @@ export function PublicArticle({
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{structuredData.label}</span>
                 <span className="block text-[13px] text-muted-foreground">
-                  {structuredData.records} individual airframe records with dates and provenance
+                  Individual airframe records with dates and provenance
                 </span>
               </span>
               <span className="whitespace-nowrap text-sm font-semibold">Explore →</span>
