@@ -3,10 +3,12 @@ import Link from "next/link";
 import { ArrowUpRight, Package } from "lucide-react";
 
 import { ArticleCardBackdrop } from "@/components/article-card-backdrop";
+import { PublicDataPending } from "@/components/public-data-pending";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { isCargoAirline } from "@/lib/article-categories";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { cn } from "@/lib/utils";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
@@ -17,7 +19,10 @@ export const metadata: Metadata = {
     "Browse approved air cargo, freight, parcel, and logistics operator articles on aviation.wiki.",
 };
 
+export const revalidate = 3600;
+
 export default async function CargoAirlinesPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="Cargo airlines and logistics" />;
   const operators = (await listPublicSearchDocuments())
     .filter(isCargoAirline)
     .toSorted((first, second) => first.title.localeCompare(second.title));
@@ -114,7 +119,3 @@ export default async function CargoAirlinesPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";

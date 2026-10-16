@@ -3,6 +3,8 @@ import { MapPin } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
@@ -12,7 +14,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/airports" },
 };
 
+export const revalidate = 3600;
+
 export default async function AirportsPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="Airports and airfields" />;
   const articles = (await listPublicSearchDocuments())
     .filter((article) => article.contentType === "airport")
     .toSorted((first, second) => first.title.localeCompare(second.title));
@@ -40,7 +45,3 @@ export default async function AirportsPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";

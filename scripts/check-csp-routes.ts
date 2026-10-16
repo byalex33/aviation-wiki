@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 
 import { isStrictCspPath } from "../src/lib/csp";
+import { PUBLIC_DIRECTORY_PATHS } from "../src/lib/public-page-cache";
 
 const manifest = JSON.parse(readFileSync(".next/prerender-manifest.json", "utf8")) as {
   routes: Record<string, unknown>;
@@ -25,6 +26,14 @@ const articleRoutes = ["aircraft", "airports", "alliances", "aviation-news", "co
 const uncached = articleRoutes.filter((route) => !(route in manifest.dynamicRoutes));
 if (uncached.length)
   console.warn(`Warning: these article routes are no longer served from the ISR cache:\n  ${uncached.join("\n  ")}`);
+
+const missingLandings = PUBLIC_DIRECTORY_PATHS.filter((route) => !(route in manifest.routes));
+if (missingLandings.length) {
+  console.error(
+    `These public landing pages are not in the prerender cache:\n  ${missingLandings.join("\n  ")}\nExport \`revalidate\` and avoid reading the request so they can be ISR'd.`,
+  );
+  process.exit(1);
+}
 
 if (!("/sitemap.xml" in manifest.routes)) {
   console.error("sitemap.xml is not in the prerender cache. Remove force-dynamic and export revalidate from src/app/sitemap.ts.");

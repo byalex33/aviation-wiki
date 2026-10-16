@@ -10,6 +10,8 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import {
   Card,
   CardContent,
@@ -51,7 +53,10 @@ function sortableDate(value: string | undefined, fallback: string | undefined) {
   return Number.isFinite(fallbackParsed) ? fallbackParsed : 0;
 }
 
+export const revalidate = 3600;
+
 export default async function AviationNewsPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="Aviation news archive" />;
   const documents = (await listPublicSearchDocuments()).filter(
     (document) => document.contentType === "event",
   );
@@ -213,7 +218,3 @@ export default async function AviationNewsPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";

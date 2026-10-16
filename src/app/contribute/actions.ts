@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
+import { revalidatePublicPages } from "@/lib/public-page-cache";
 import {
   formActionError,
   type FormActionState,
@@ -371,7 +372,7 @@ export async function submitRevisionAction(formData: FormData) {
       after: { status: "approved", note },
     });
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
-    revalidatePath("/sitemap.xml");
+    await revalidatePublicPages();
     revalidatePath(articlePath(article.contentType, revision.articleSlug));
     revalidatePath(articlePath(article.contentType, article.slug));
     revalidatePath(articleHistoryPath(article.contentType, article.slug));
@@ -461,7 +462,7 @@ export async function moderateRevisionAction(formData: FormData) {
 
   if (intent === "approve") {
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
-    revalidatePath("/sitemap.xml");
+    await revalidatePublicPages();
   }
   revalidatePath("/moderation");
   revalidatePath(articlePath(revision.contentType, revision.articleSlug));
@@ -543,7 +544,7 @@ export async function editAndApproveAction(formData: FormData) {
     });
 
   revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
-  revalidatePath("/sitemap.xml");
+  await revalidatePublicPages();
   revalidatePath(articlePath(article.contentType, article.slug));
   revalidatePath(articleHistoryPath(article.contentType, article.slug));
   revalidatePath("/moderation");

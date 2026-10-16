@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Factory, Gauge, MapPin, PlaneTakeoff } from "lucide-react";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { buttonVariants } from "@/components/ui/button";
 import { documentsForSeoLanding, seoLandingDefinition, seoLandingDefinitions, type SeoLandingId } from "@/lib/seo-landing-data";
 import { absoluteUrl } from "@/lib/site";
@@ -22,6 +24,7 @@ export function metadataForSeoLanding(id: SeoLandingId): Metadata {
 
 export async function SeoLandingPage({ id }: { id: SeoLandingId }) {
   const definition = seoLandingDefinition(id);
+  if (!publicDatabaseConfigured()) return <PublicDataPending title={definition.title} />;
   const documents = await listPublicSearchDocuments();
   const articles = documentsForSeoLanding(definition, documents);
   const parentHref = definition.contentType === "airline" ? "/airlines" : `/${definition.contentType === "aircraft" ? "aircraft" : definition.contentType === "airport" ? "airports" : "engines"}`;

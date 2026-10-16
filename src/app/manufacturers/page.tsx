@@ -3,6 +3,8 @@ import { Factory } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
@@ -12,7 +14,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/manufacturers" },
 };
 
+export const revalidate = 3600;
+
 export default async function ManufacturersPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="Aircraft and engine manufacturers" />;
   const articles = (await listPublicSearchDocuments())
     .filter((article) => article.contentType === "manufacturer")
     .toSorted((first, second) => first.title.localeCompare(second.title));
@@ -39,7 +44,3 @@ export default async function ManufacturersPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";

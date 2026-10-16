@@ -3,6 +3,8 @@ import { Compass } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import {
   isCommercialAircraft,
   isMilitaryAircraft,
@@ -16,7 +18,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/general-aviation" },
 };
 
+export const revalidate = 3600;
+
 export default async function GeneralAviationPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="General aviation aircraft" />;
   const articles = (await listPublicSearchDocuments())
     .filter(
       (article) =>
@@ -52,7 +57,3 @@ export default async function GeneralAviationPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";
