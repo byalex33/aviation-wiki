@@ -55,7 +55,7 @@ export function ArticleImageDisplay({
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image.url} alt={alt} width={1200} height={800} className="h-auto w-full" />
+      <img src={image.url} alt={alt} width={1200} height={800} loading="lazy" decoding="async" className="h-auto w-full" />
       {image.credit && (
         <figcaption className="border-t px-3 py-2 text-[11px] leading-4 text-muted-foreground">
           {credit?.errors.length
@@ -93,7 +93,7 @@ function renderText(
           <Link
             key={`${key}-article-${textOffset}-${index}`}
             href={part.href}
-            className={compact ? "font-medium text-primary underline-offset-4 hover:underline" : undefined}
+            className={compact ? "font-medium text-primary underline-offset-4 hover:underline" : "wiki-a"}
           >
             {part.text}
           </Link>
@@ -121,6 +121,8 @@ function renderText(
             alt={`Flag of ${regionNames.of(flagCode.toUpperCase()) ?? flagCode.toUpperCase()}`}
             width={40}
             height={30}
+            loading="lazy"
+            decoding="async"
             className={compact ? "mr-1 inline-block h-auto w-6 rounded-xs align-middle" : "wiki-flag"}
           />
         ) : token.value,
@@ -152,6 +154,9 @@ function renderChildren(node: MarkdownNode, definitions: Definitions, citations:
   return node.children?.map((child, index) => renderNode(child, `${child.type}-${index}`, definitions, citations, citationSources, headingIds, compact, articleLinks));
 }
 
+// Literal class names so Tailwind generates the wiki-h* utilities.
+const headingClasses = ["wiki-h wiki-h1", "wiki-h wiki-h2", "wiki-h wiki-h3", "wiki-h wiki-h4"];
+
 function renderNode(node: MarkdownNode, key: string, definitions: Definitions, citations: CitationMap, citationSources: CitationSourceMap, headingIds: Map<MarkdownNode, string>, compact = false, articleLinks: ArticleMentionLink[] = []): ReactNode {
   const children = node.type === "table" ? null : renderChildren(
     node,
@@ -172,7 +177,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
         const image = parseArticleImageShorthand(onlyChild.value ?? "");
         if (image) return <ArticleImageDisplay key={key} image={image} />;
       }
-      return <p key={key} className={compact ? "leading-normal" : undefined}>{children}</p>;
+      return <p key={key} className={compact ? "leading-normal" : "wiki-p"}>{children}</p>;
     }
     case "heading": {
       const Heading = `h${node.depth}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -182,9 +187,9 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
         node.depth === 2 && "text-2xl",
         node.depth === 3 && "text-xl",
         (node.depth ?? 0) >= 4 && "text-base",
-      ) : undefined}>{children}</Heading>;
+      ) : headingClasses[Math.min(node.depth ?? 4, 4) - 1]}>{children}</Heading>;
     }
-    case "strong": return <strong key={key} className={compact ? "font-semibold text-foreground" : undefined}>{children}</strong>;
+    case "strong": return <strong key={key} className={compact ? "font-semibold text-foreground" : "wiki-strong"}>{children}</strong>;
     case "emphasis": return <em key={key}>{children}</em>;
     case "delete": return <del key={key}>{children}</del>;
     case "inlineCode": return <code key={key} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]">{node.value}</code>;
@@ -194,10 +199,10 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     case "blockquote": return <blockquote key={key} className="my-5 border-l-4 border-primary/30 pl-4 italic text-muted-foreground">{children}</blockquote>;
     case "list": {
       const List = node.ordered ? "ol" : "ul";
-      return <List key={key} start={node.ordered ? node.start ?? undefined : undefined} className={compact ? (node.ordered ? "mb-4 list-decimal space-y-1 pl-6" : "mb-4 list-disc space-y-1 pl-6") : undefined}>{children}</List>;
+      return <List key={key} start={node.ordered ? node.start ?? undefined : undefined} className={compact ? (node.ordered ? "mb-4 list-decimal space-y-1 pl-6" : "mb-4 list-disc space-y-1 pl-6") : node.ordered ? "wiki-ol" : "wiki-ul"}>{children}</List>;
     }
-    case "listItem": return <li key={key} className={compact ? "pl-1" : undefined}>{children}</li>;
-    case "link": return <a key={key} href={node.url} className={compact ? "font-medium text-primary underline-offset-4 hover:underline" : undefined} rel={node.url?.startsWith("http") ? "noreferrer" : undefined}>{children}</a>;
+    case "listItem": return <li key={key} className={compact ? "pl-1" : "wiki-li"}>{children}</li>;
+    case "link": return <a key={key} href={node.url} className={compact ? "font-medium text-primary underline-offset-4 hover:underline" : "wiki-a"} rel={node.url?.startsWith("http") ? "noreferrer" : undefined}>{children}</a>;
     case "image": return <ArticleImageDisplay key={key} image={{ url: node.url ?? "", credit: node.title ?? null }} alt={node.alt ?? ""} />;
     case "linkReference": {
       const definition = definitions.get(node.identifier?.toLowerCase() ?? "");
@@ -249,7 +254,7 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
     case "footnoteDefinition": return null;
     case "table": {
       const [header, ...rows] = node.children ?? [];
-      return <div key={key} className="wiki-table render-deferred"><table>
+      return <div key={key} className="wiki-table"><table>
         {header && <thead><tr>{header.children?.map((cell, index) => <th key={index} scope="col">{renderChildren(cell, definitions, citations, citationSources, headingIds, compact, articleLinks)}</th>)}</tr></thead>}
         <tbody>{rows.map((row, index) => renderNode(row, `row-${index}`, definitions, citations, citationSources, headingIds, compact, articleLinks))}</tbody>
       </table></div>;
@@ -299,7 +304,7 @@ export function ArticleMarkdown({ root, citations = [], citationSources = [], co
 
   return (
     <div className={compact ? "" : showSidebar ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]" : "mx-auto max-w-3xl"}>
-      <article className={compact ? "min-w-0" : "wiki-body min-w-0"}>{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, citationSourceMap, headingIds, compact, articleLinks))}</article>
+      <article className="min-w-0">{mainNodes.map((node, index) => renderNode(node, `main-${index}`, definitions, citationMap, citationSourceMap, headingIds, compact, articleLinks))}</article>
       {showSidebar && <aside className="space-y-5 lg:sticky lg:top-20">{sidebarNodes.map((node, index) => renderNode(node, `sidebar-${index}`, definitions, citationMap, citationSourceMap, headingIds, false, articleLinks))}</aside>}
     </div>
   );

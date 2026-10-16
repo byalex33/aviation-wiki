@@ -171,35 +171,12 @@ html.dark .site-footer {
     @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
   }
 
-  .wiki-body p {
-    @apply mb-4 leading-7 text-foreground/80;
-  }
-
-  .wiki-body :is(h1, h2, h3, h4, h5, h6) {
-    @apply mb-3 mt-8 scroll-mt-24 font-bold tracking-tight;
-  }
-
-  .wiki-body > :is(h1, h2, h3, h4, h5, h6):first-child {
-    margin-top: 0;
-  }
-
-  .wiki-body h1 { @apply text-3xl; }
-  .wiki-body h2 { @apply text-2xl; }
-  .wiki-body h3 { @apply text-xl; }
-  .wiki-body :is(h4, h5, h6) { @apply text-base; }
-  .wiki-body strong { @apply font-semibold text-foreground; }
-  .wiki-body a { @apply font-medium text-primary underline-offset-4 hover:underline; }
-  .wiki-body ul { @apply mb-4 list-disc space-y-1 pl-6; }
-  .wiki-body ol { @apply mb-4 list-decimal space-y-1 pl-6; }
-  .wiki-body li { @apply pl-1; }
-  .wiki-body .wiki-cite > a { @apply rounded-sm font-semibold text-primary no-underline hover:underline; }
-
-  .wiki-flag {
-    @apply mr-1 inline-block h-auto w-10 rounded-xs align-middle;
-  }
-
   .wiki-cite {
     @apply relative ml-0.5 inline-block align-super text-[0.72em];
+  }
+
+  .wiki-cite > a {
+    @apply rounded-sm font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring;
   }
 
   .wiki-cite-tip {
@@ -249,6 +226,33 @@ html.dark .site-footer {
     border-bottom-width: 0;
   }
 }
+
+/* Each rendered article element gets one short class instead of repeated
+   utility strings. These are utilities, not components, so they keep the
+   precedence of the inline classes they replace (for example over
+   `article > p`), and charts inside the article keep their own styles. */
+@utility wiki-p {
+  @apply mb-4 leading-7 text-foreground/80;
+}
+
+@utility wiki-h {
+  @apply mb-3 mt-8 scroll-mt-24 font-bold tracking-tight first:mt-0;
+}
+
+@utility wiki-h1 { @apply text-3xl; }
+@utility wiki-h2 { @apply text-2xl; }
+@utility wiki-h3 { @apply text-xl; }
+@utility wiki-h4 { @apply text-base; }
+@utility wiki-strong { @apply font-semibold text-foreground; }
+@utility wiki-a { @apply font-medium text-primary underline-offset-4 hover:underline; }
+@utility wiki-ul { @apply mb-4 list-disc space-y-1 pl-6; }
+@utility wiki-ol { @apply mb-4 list-decimal space-y-1 pl-6; }
+@utility wiki-li { @apply pl-1; }
+
+@utility wiki-flag {
+  @apply mr-1 inline-block h-auto w-10 rounded-xs align-middle;
+}
+
 
 /* beUI Select's origin-aware unfold, adapted for existing Base UI menus. */
 .beui-dropdown {
