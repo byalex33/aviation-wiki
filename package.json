@@ -45,6 +45,7 @@
     "test:routes": "tsx scripts/test-routes.ts",
     "test:source-health": "node --conditions=react-server --import tsx scripts/test-source-health.ts",
     "test:sitemap": "tsx scripts/test-sitemap.ts",
+    "test:article-summary": "tsx scripts/test-article-summary.ts",
     "test:commercial-aircraft": "node --conditions=react-server --import tsx scripts/publish-commercial-aircraft.ts",
     "indexnow": "node scripts/submit-indexnow.mjs",
     "test:frontend-audit": "node --import tsx scripts/test-frontend-audit.tsx",
@@ -65,7 +66,7 @@
     "test:tracwell": "node --import tsx scripts/test-tracwell.mts",
     "test:auth-ui": "node scripts/test-auth-ui.mjs",
     "test:alliance-images": "node --conditions=react-server --import tsx scripts/add-alliance-images.ts",
-    "test:content": "npm run test:featured-articles && npm run test:airline-directory && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:importer && npm run test:import-collisions && npm run test:on-this-day && npm run test:aviation-feed && npm run test:random-aircraft && npm run test:sitemap && npm run test:commercial-aircraft && npm run test:aviation-history && npm run test:alliance-images",
+    "test:content": "npm run test:featured-articles && npm run test:airline-directory && npm run test:citations && npm run test:relationships && npm run test:search && npm run test:seo-landings && npm run test:importer && npm run test:import-collisions && npm run test:on-this-day && npm run test:aviation-feed && npm run test:random-aircraft && npm run test:sitemap && npm run test:article-summary && npm run test:commercial-aircraft && npm run test:aviation-history && npm run test:alliance-images",
     "test:data": "npm run test:aviation-data && npm run test:aviation-data-flags && npm run test:ba-a350-import && npm run test:airframe-projections && npm run test:aviation-data-reconciliation && npm run test:fleet && npm run test:csv",
     "test:ui": "npm run test:charts && npm run test:wikimedia-thumbnail && npm run test:csp &&npm run test:chart-roundtrip && npm run test:routes && npm run test:frontend-audit && npm run test:editorial-ui && npm run test:open-source-alert && npm run test:auth-ui",
     "test:services": "npm run test:notifications && npm run test:source-health && npm run test:sqlite-digest && npm run test:tracwell && npm run test:pro && npm run test:donations"
