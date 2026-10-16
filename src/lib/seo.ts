@@ -15,6 +15,7 @@ export function articleDescription(markdown: string) {
     markdown
       .replace(/^#\s+.*(?:\r?\n)+/, "")
       .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+    .replace(/<SpottingLocations(?:\s[^>]*)?>[\s\S]*?<\/SpottingLocations>/gi, " ")
       .replace(/\[\^[^\]]+\]/g, "")
       .replace(/[#*_>`\[\]()]/g, " ")
       .replace(/\s+/g, " ")

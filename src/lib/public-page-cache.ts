@@ -18,6 +18,7 @@ export const PUBLIC_DIRECTORY_PATHS = [
   "/aircraft/boeing",
   "/airports",
   "/airports/united-kingdom",
+  "/spotting",
   "/airlines/united-kingdom",
   "/manufacturers",
   "/engines",

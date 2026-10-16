@@ -5,12 +5,14 @@ export const contentTypePaths: Record<ContentType, string> = {
   alliance: "alliances",
   aircraft: "aircraft",
   airport: "airports",
+  spotting_guide: "spotting",
   manufacturer: "manufacturers",
   engine: "engines",
   event: "aviation-news",
 };
 
 export function articlePath(contentType: ContentType, slug: string) {
+  if (contentType === "spotting_guide") return `/airports/${slug}/spotting`;
   return `/${contentTypePaths[contentType]}/${slug}`;
 }
 

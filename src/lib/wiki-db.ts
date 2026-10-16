@@ -5,10 +5,11 @@ import { randomUUID } from "node:crypto";
 import { canonicalizeSearchDocuments, F15_LEGACY_SLUG } from "@/lib/article-path-aliases";
 import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
+import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
-import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, VerificationResult } from "@/lib/wiki-types";
+import { contentTypeSqlList, type ArticleRecord, type ArticleWithLiveRevision, type ContentType, type EntityOption, type EntityRelationship, type RevisionContent, type RevisionRecord, type RevisionStatus, type VerificationResult } from "@/lib/wiki-types";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { buildFleetRows, type FleetEntity, type FleetRelationship } from "@/lib/fleet";
 import { articlePath } from "@/lib/article-routes";
@@ -173,16 +174,16 @@ db.exec(`
   DROP TRIGGER IF EXISTS revisions_content_type_insert;
   DROP TRIGGER IF EXISTS revisions_content_type_update;
   CREATE TRIGGER articles_content_type_insert
-  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER articles_content_type_update
-  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER revisions_content_type_insert
-  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER revisions_content_type_update
-  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER IF NOT EXISTS revisions_status_insert
   BEFORE INSERT ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')
@@ -543,6 +544,17 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     if (revision.contentType !== article.contentType) throw new UserFacingError("An existing article cannot change content type through a revision.");
     const parsedMarkdown = parseArticleMarkdown(revision.markdown);
     if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    if (revision.contentType === "spotting_guide") {
+      const issue = spottingGuideIssues({
+        title: revision.title,
+        markdown: revision.markdown,
+        fields: revision.fields,
+        citationCount: parsedMarkdown.citations.length,
+      }, parsedMarkdown)[0];
+      if (issue) throw new UserFacingError(issue);
+      const airport = db.prepare(`SELECT a.id FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='airport' AND a.slug=? AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL`).get(revision.proposedSlug);
+      if (!airport) throw new UserFacingError("Publish an airport article with this slug before approving its spotting guide.");
+    }
     validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
     const conflicting = getArticleBySlug(revision.proposedSlug, revision.contentType);
     if (conflicting && conflicting.id !== revision.articleId) throw new UserFacingError("That slug is already used by another article of this type.");

@@ -214,6 +214,12 @@ export default function RootLayout({
                       Aviation news
                     </Link>
                     <Link
+                      href="/spotting"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Plane spotting
+                    </Link>
+                    <Link
                       href="/contribute"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >

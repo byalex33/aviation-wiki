@@ -41,7 +41,7 @@ export default async function AirportsPage() {
         emptyTitle="Help create the airport directory"
         emptyDescription="Create the first approved airport or airfield article."
       />
-      <nav className="mt-10 rounded-xl border bg-muted/30 p-5 text-sm" aria-label="Airports by country"><span className="mr-3 font-semibold">Browse by country</span><Link href="/airports/united-kingdom" className="article-link">United Kingdom airports</Link></nav>
+      <nav className="mt-10 rounded-xl border bg-muted/30 p-5 text-sm" aria-label="Airport guides"><span className="mr-3 font-semibold">Browse</span><Link href="/airports/united-kingdom" className="article-link">United Kingdom airports</Link><span className="mx-3 text-muted-foreground">·</span><Link href="/spotting" className="article-link">Plane spotting guides</Link></nav>
     </main>
   );
 }

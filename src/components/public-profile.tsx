@@ -67,6 +67,7 @@ const contentTypeLabels: Record<ContentType, string> = {
   alliance: "Alliances",
   aircraft: "Aircraft",
   airport: "Airports",
+  spotting_guide: "Spotting guides",
   manufacturer: "Manufacturers",
   engine: "Engines",
   event: "Aviation news",
