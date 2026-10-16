@@ -17,6 +17,7 @@ import {
 } from "@/lib/article-markdown";
 import { reconcileCitationSources } from "@/lib/article-citations";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { runPublishedFollowUp } from "@/lib/published-follow-up";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { isStaffRole, requireContributor, requireModerator } from "@/lib/wiki-auth";
 import {
@@ -349,28 +350,37 @@ export async function submitRevisionAction(formData: FormData) {
       contributor.userId,
       note,
     );
-    const approvedRevision = await getPostgresRevision(revision.id);
-    if (approvedRevision) {
-      const { emitRevisionOutcome } = await import("@/lib/notification-service");
-      await emitRevisionOutcome({
-        actorId: contributor.userId,
-        revision: approvedRevision,
-        outcome: "approved",
-        note,
-        previousLiveRevision,
-      });
-    }
-    await recordPostgresAdminAudit({
-      actorId: contributor.userId,
-      actorName: contributor.name,
-      action: "revision.staff_publish",
-      entityType: "revision",
-      entityId: revision.id,
-      articleId: article.id,
-      revisionId: revision.id,
-      before: { status: "pending_review" },
-      after: { status: "approved", note },
-    });
+    await runPublishedFollowUp(
+      "Staff publish notification failed after the revision was published",
+      async () => {
+        const approvedRevision = await getPostgresRevision(revision.id);
+        if (!approvedRevision) return;
+        const { emitRevisionOutcome } = await import("@/lib/notification-service");
+        await emitRevisionOutcome({
+          actorId: contributor.userId,
+          revision: approvedRevision,
+          outcome: "approved",
+          note,
+          previousLiveRevision,
+        });
+      },
+    );
+    await runPublishedFollowUp(
+      "Staff publish audit failed after the revision was published",
+      async () => {
+        await recordPostgresAdminAudit({
+          actorId: contributor.userId,
+          actorName: contributor.name,
+          action: "revision.staff_publish",
+          entityType: "revision",
+          entityId: revision.id,
+          articleId: article.id,
+          revisionId: revision.id,
+          before: { status: "pending_review" },
+          after: { status: "approved", note },
+        });
+      },
+    );
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
     await revalidatePublicPages();
     revalidatePath(articlePath(article.contentType, revision.articleSlug));
@@ -445,20 +455,25 @@ export async function moderateRevisionAction(formData: FormData) {
       audit,
     });
   } else throw new UserFacingError("Invalid moderation action.");
-  const moderatedRevision = await getPostgresRevision(revisionId);
-  if (moderatedRevision)
-    await emitRevisionOutcome({
-      actorId: moderator.userId,
-      revision: moderatedRevision,
-      outcome:
-        intent === "approve"
-          ? "approved"
-          : intent === "request_changes"
-            ? "changes_requested"
-            : "rejected",
-      note,
-      previousLiveRevision,
-    });
+  await runPublishedFollowUp(
+    "Moderation notification failed after the revision was updated",
+    async () => {
+      const moderatedRevision = await getPostgresRevision(revisionId);
+      if (!moderatedRevision) return;
+      await emitRevisionOutcome({
+        actorId: moderator.userId,
+        revision: moderatedRevision,
+        outcome:
+          intent === "approve"
+            ? "approved"
+            : intent === "request_changes"
+              ? "changes_requested"
+              : "rejected",
+        note,
+        previousLiveRevision,
+      });
+    },
+  );
 
   if (intent === "approve") {
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
@@ -533,15 +548,20 @@ export async function editAndApproveAction(formData: FormData) {
       after: { ...content, proposedSlug, status: "approved" },
     },
   );
-  const approvedRevision = await getPostgresRevision(revisionId);
-  if (approvedRevision)
-    await emitRevisionOutcome({
-      actorId: moderator.userId,
-      revision: approvedRevision,
-      outcome: "approved",
-      note: "Edited and approved by moderator.",
-      previousLiveRevision,
-    });
+  await runPublishedFollowUp(
+    "Edit-and-approve notification failed after the revision was published",
+    async () => {
+      const approvedRevision = await getPostgresRevision(revisionId);
+      if (!approvedRevision) return;
+      await emitRevisionOutcome({
+        actorId: moderator.userId,
+        revision: approvedRevision,
+        outcome: "approved",
+        note: "Edited and approved by moderator.",
+        previousLiveRevision,
+      });
+    },
+  );
 
   revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
   await revalidatePublicPages();

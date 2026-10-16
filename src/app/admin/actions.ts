@@ -21,6 +21,7 @@ import {
 } from "@/lib/wiki-auth";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
+import { runPublishedFollowUp } from "@/lib/published-follow-up";
 
 const adminDatabase = () =>
   process.env.DATABASE_URL
@@ -86,30 +87,40 @@ export async function adminModerateRevisionAction(formData: FormData) {
     });
   } else throw new UserFacingError("Invalid moderation decision.");
   const after = await wikiDb.getRevision(revisionId);
-  if (after && ["approve", "request_changes", "reject"].includes(intent))
-    await notifications.emitRevisionOutcome({
-      actorId: actor.userId,
-      revision: after,
-      outcome:
-        intent === "approve"
-          ? "approved"
-          : intent === "request_changes"
-            ? "changes_requested"
-            : "rejected",
-      note,
-      previousLiveRevision,
-    });
-  await adminDb.recordAdminAudit({
-    actorId: actor.userId,
-    actorName: actor.name,
-    action: `revision.${intent}`,
-    entityType: "revision",
-    entityId: revisionId,
-    articleId: before.articleId,
-    revisionId,
-    before: { status: before.status },
-    after: { status: after?.status, note },
-  });
+  await runPublishedFollowUp(
+    "Admin moderation notification failed after the revision was updated",
+    async () => {
+      if (!after || !["approve", "request_changes", "reject"].includes(intent)) return;
+      await notifications.emitRevisionOutcome({
+        actorId: actor.userId,
+        revision: after,
+        outcome:
+          intent === "approve"
+            ? "approved"
+            : intent === "request_changes"
+              ? "changes_requested"
+              : "rejected",
+        note,
+        previousLiveRevision,
+      });
+    },
+  );
+  await runPublishedFollowUp(
+    "Admin moderation audit failed after the revision was updated",
+    async () => {
+      await adminDb.recordAdminAudit({
+        actorId: actor.userId,
+        actorName: actor.name,
+        action: `revision.${intent}`,
+        entityType: "revision",
+        entityId: revisionId,
+        articleId: before.articleId,
+        revisionId,
+        before: { status: before.status },
+        after: { status: after?.status, note },
+      });
+    },
+  );
   if (intent === "approve") {
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
     await revalidatePublicPages();

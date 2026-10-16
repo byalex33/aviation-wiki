@@ -10,10 +10,9 @@ export const initialFormActionState: FormActionState = { error: null };
 
 export function formActionError(error: unknown): FormActionState {
   unstable_rethrow(error);
+  if (error instanceof UserFacingError) return { error: error.message };
+  console.error("Form action failed", error);
   return {
-    error:
-      error instanceof UserFacingError
-        ? error.message
-        : "The request could not be completed. Please try again.",
+    error: "The request could not be completed. Please try again.",
   };
 }
