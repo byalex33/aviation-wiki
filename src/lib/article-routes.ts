@@ -4,6 +4,7 @@ export const contentTypePaths: Record<ContentType, string> = {
   airline: "commercial",
   alliance: "alliances",
   aircraft: "aircraft",
+  airframe: "airframes",
   airport: "airports",
   spotting_guide: "spotting",
   manufacturer: "manufacturers",

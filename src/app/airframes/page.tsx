@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { AirframeCards, CompletenessPanel } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
-import { ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
+import { listAirframeRecords } from "@/lib/airframe-db";
+import { aviationDataEnabled, ensureAviationDataEnabled } from "@/lib/aviation-data-flags";
 import {
   loadAirframeProjections,
   loadAviationGraphCompleteness,
@@ -22,11 +23,18 @@ export const metadata: Metadata = {
 };
 
 export default async function AirframesPage() {
-  ensureAviationDataEnabled();
-  const [airframes, completeness] = await Promise.all([
-    loadAirframeProjections(),
-    loadAviationGraphCompleteness(),
-  ]);
+  const records = await listAirframeRecords();
+  const graphEnabled = aviationDataEnabled;
+  let airframes: Awaited<ReturnType<typeof loadAirframeProjections>> = [];
+  let completeness: Awaited<ReturnType<typeof loadAviationGraphCompleteness>> | null = null;
+  if (graphEnabled) {
+    try {
+      [airframes, completeness] = await Promise.all([loadAirframeProjections(), loadAviationGraphCompleteness()]);
+    } catch (error) {
+      if (process.env.AIRFRAME_FIXTURES !== "true") throw error;
+    }
+  }
+  if (!records.length && !airframes.length && !graphEnabled) ensureAviationDataEnabled();
   const dataset = {
     "@context": "https://schema.org",
     "@type": "Dataset",
@@ -34,7 +42,7 @@ export default async function AirframesPage() {
     description:
       "Individual aircraft records with temporal registrations, fleet events, configurations, provenance, and reconciliation state.",
     url: absoluteUrl("/airframes"),
-    dateModified: completeness.lastReconciledAt ?? undefined,
+    dateModified: completeness?.lastReconciledAt ?? undefined,
     size: airframes.length,
     variableMeasured: [
       "manufacturer serial number",
@@ -60,19 +68,41 @@ export default async function AirframesPage() {
               One stable record per airframe. Registrations, operators, events, configurations, and sources remain temporal facts instead of being flattened into a single row.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Link href="/registrations/g" className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 font-medium hover:bg-muted"><Database className="size-4" /> UK registrations</Link>
-            <Link href="/production-lists/a350-1000" className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 font-medium hover:bg-muted"><Plane className="size-4" /> A350 production list</Link>
-          </div>
+          {graphEnabled && (
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Link href="/registrations/g" className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 font-medium hover:bg-muted"><Database className="size-4" /> UK registrations</Link>
+              <Link href="/production-lists/a350-1000" className="inline-flex min-h-10 items-center gap-2 rounded-lg border bg-card px-4 font-medium hover:bg-muted"><Plane className="size-4" /> A350 production list</Link>
+            </div>
+          )}
         </header>
-        <div className="mt-9"><CompletenessPanel data={completeness} /></div>
-        <section className="mt-10" aria-labelledby="airframe-records">
+        {records.length > 0 && (
+          <section className="mt-10" aria-labelledby="wiki-airframes">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Community records</p>
+                <h2 id="wiki-airframes" className="mt-1 text-2xl font-semibold">Airframes by registration</h2>
+              </div>
+              <span className="text-sm text-muted-foreground">{records.length} records</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {records.map((record) => (
+                <Link key={record.slug} href={record.href} className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
+                  <p className="font-mono text-lg font-semibold">{record.registration}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{record.aircraftType}{record.msn ? ` · MSN ${record.msn}` : ""}</p>
+                  <p className="mt-2 text-sm">{record.currentOperatorName ?? "Operator not recorded"} · {record.status.replaceAll("_", " ")}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        {completeness && <div className="mt-9"><CompletenessPanel data={completeness} /></div>}
+        {airframes.length > 0 && <section className="mt-10" aria-labelledby="airframe-records">
           <div className="mb-4 flex items-end justify-between gap-4">
             <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">First vertical slice</p><h2 id="airframe-records" className="mt-1 text-2xl font-semibold">British Airways A350-1000 fleet</h2></div>
             <span className="text-sm text-muted-foreground">{airframes.length} records</span>
           </div>
           <AirframeCards airframes={airframes} />
-        </section>
+        </section>}
       </main>
     </>
   );

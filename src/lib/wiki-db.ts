@@ -195,12 +195,14 @@ db.exec(`
   CREATE TRIGGER relationships_insert_guard
   BEFORE INSERT ON article_relationships
   WHEN NEW.source_article_id = NEW.target_article_id
-    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine')
+    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine','instance_of','operated_by')
     OR NOT EXISTS (SELECT 1 FROM articles s JOIN articles t ON t.id=NEW.target_article_id JOIN revisions tr ON tr.id=t.live_revision_id JOIN revisions rr ON rr.id=NEW.approved_revision_id
       WHERE s.id=NEW.source_article_id AND tr.status='approved' AND t.archived_at IS NULL AND rr.article_id=s.id AND rr.status='approved' AND (
         (NEW.relationship_type='operates_aircraft' AND s.content_type='airline' AND t.content_type='aircraft') OR
         (NEW.relationship_type='hub_at_airport' AND s.content_type='airline' AND t.content_type='airport') OR
-        (NEW.relationship_type='manufactured_by' AND s.content_type='aircraft' AND t.content_type='manufacturer') OR
+        (NEW.relationship_type='manufactured_by' AND s.content_type IN ('aircraft','airframe') AND t.content_type='manufacturer') OR
+        (NEW.relationship_type='instance_of' AND s.content_type='airframe' AND t.content_type='aircraft') OR
+        (NEW.relationship_type='operated_by' AND s.content_type='airframe' AND t.content_type='airline') OR
         (NEW.relationship_type='uses_engine' AND s.content_type='aircraft' AND t.content_type='engine') OR
         (NEW.relationship_type='variant_of' AND s.content_type='aircraft' AND t.content_type='aircraft') OR
         (NEW.relationship_type='produces_aircraft' AND s.content_type='manufacturer' AND t.content_type='aircraft') OR

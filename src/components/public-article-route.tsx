@@ -15,13 +15,14 @@ import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-articl
 import {
   getApprovedRevision,
   getArticleBySlug,
-  getSlugRedirect,
+  getSlugRedirectTarget,
   listArticleHistory,
   normalizeSlug,
   getArticlePublicationControls,
   listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
+import { loadOperatorFleetSummary, loadTypeAirframeRecords } from "@/lib/airframe-db";
 import { aviationDataEnabled } from "@/lib/aviation-data-flags";
 
 export async function PublicArticleRoute({
@@ -41,8 +42,8 @@ export async function PublicArticleRoute({
     permanentRedirect(publicArticlePath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = await getSlugRedirect(contentType, slug);
-    if (destination) permanentRedirect(articlePath(contentType, destination));
+    const destination = await getSlugRedirectTarget(contentType, slug);
+    if (destination) permanentRedirect(articlePath(destination.contentType, destination.slug));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
@@ -67,6 +68,12 @@ export async function PublicArticleRoute({
       })),
     )
     .filter((link) => markdown.includes(link.title.toLocaleLowerCase("en")));
+  const operatorFleet = contentType === "airline"
+    ? await loadOperatorFleetSummary(article.slug, article.title)
+    : null;
+  const typeAirframes = contentType === "aircraft"
+    ? await loadTypeAirframeRecords(article.slug, article.title)
+    : [];
   return (
     <PublicArticle
       article={article}
@@ -74,6 +81,8 @@ export async function PublicArticleRoute({
       articleLinks={articleLinks}
       availableArticlePaths={entities.map((entity) => articlePath(entity.contentType, entity.slug))}
       structuredData={structuredData}
+      operatorFleet={operatorFleet}
+      typeAirframes={typeAirframes}
     />
   );
 }
@@ -94,9 +103,9 @@ export async function PublicArticleHistoryRoute({
     permanentRedirect(publicArticleHistoryPath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = await getSlugRedirect(contentType, slug);
+    const destination = await getSlugRedirectTarget(contentType, slug);
     if (destination)
-      permanentRedirect(articleHistoryPath(contentType, destination));
+      permanentRedirect(articleHistoryPath(destination.contentType, destination.slug));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();

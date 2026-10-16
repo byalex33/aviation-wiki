@@ -2,6 +2,7 @@ export const contentTypes = [
   "airline",
   "alliance",
   "aircraft",
+  "airframe",
   "airport",
   "spotting_guide",
   "manufacturer",
@@ -38,6 +39,8 @@ export const relationshipTypes = [
   "variant_of",
   "produces_aircraft",
   "produces_engine",
+  "instance_of",
+  "operated_by",
 ] as const;
 export type RelationshipType = (typeof relationshipTypes)[number];
 export type EntityRelationship = {

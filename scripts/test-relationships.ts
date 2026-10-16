@@ -11,6 +11,9 @@ const valid: Array<[ContentType, EntityRelationship, ContentType]> = [
   ["aircraft", { type: "variant_of", targetArticleId: "family", citationIdentifiers: [] }, "aircraft"],
   ["manufacturer", { type: "produces_aircraft", targetArticleId: "aircraft", citationIdentifiers: [] }, "aircraft"],
   ["manufacturer", { type: "produces_engine", targetArticleId: "engine", citationIdentifiers: [] }, "engine"],
+  ["airframe", { type: "instance_of", targetArticleId: "aircraft", citationIdentifiers: [] }, "aircraft"],
+  ["airframe", { type: "operated_by", targetArticleId: "airline", citationIdentifiers: [] }, "airline"],
+  ["airframe", { type: "manufactured_by", targetArticleId: "maker", citationIdentifiers: [] }, "manufacturer"],
 ];
 for (const [sourceType, relationship, targetType] of valid) assert.doesNotThrow(() => validateRelationshipShape("source", sourceType, relationship, targetType));
 assert.throws(() => validateRelationshipShape("same", "aircraft", { type: "variant_of", targetArticleId: "same", citationIdentifiers: [] }, "aircraft"), /cannot relate to itself/);

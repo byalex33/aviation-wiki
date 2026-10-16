@@ -19,6 +19,14 @@ Pro entitlement comes from Clerk `publicMetadata.pro === true`; moderators and a
   environment variable. The operator keeps a local copy in their password
   manager, never on disk.
 
+## Airframe articles
+
+`npm run db:migrate:airframes` prints the plan. `npm run db:migrate:airframes -- --apply` adds the `airframe` content type, airframe relationships, and the `airframe_index` read model. It does not change article rows. `npm run db:migrate:airframes -- --apply --migrate-articles` then moves single-registration aircraft articles such as `g-boac` and `n747na` onto `/airframes/<registration>` and leaves the old URLs redirecting.
+
+The content-type check is rebuilt from `contentTypes` in the revision that runs the script. Run `npm run db:canonicalize-articles` first when duplicate URLs are being folded, then `npm run db:migrate:spotting-guides -- --apply` if spotting guides are already deployed, and only then this airframe migration from a checkout that contains both types. Running it from this branch alone, against a database that already allows `spotting_guide`, drops that type because this branch's list does not include it yet. After the spotting-guide revision is merged, this script keeps `spotting_guide`.
+
+The FAA importer is separate and dry-run by default: `npm run data:import:faa-airframes -- --file <zip>`. Do not run either command from the Vercel build. Details, including the public-domain status of the FAA download, are in [airframes.md](airframes.md).
+
 ## Migrating providers
 
 The production database was migrated from Neon to Aiven on 2026-08-28. The

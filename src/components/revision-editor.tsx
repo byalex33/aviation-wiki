@@ -27,6 +27,7 @@ import {
   initialFormActionState,
   type FormActionState,
 } from "@/lib/form-action-state";
+import { airframeStarterMarkdown } from "@/lib/airframe-content";
 import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { allowedRelationshipTypes, relationshipLabels, relationshipTargetType } from "@/lib/relationship-rules";
 
@@ -188,9 +189,10 @@ export function RevisionEditor({
   const [contentType, setContentType] = useState(initialContent.contentType);
   const [activeTab, setActiveTab] = useState<EditorTab>("editor");
   const [markdown, setMarkdown] = useState(() => {
-    if (!initialContent.fields.length || parseArticleMarkdown(initialContent.markdown).sidebarFields) return initialContent.markdown;
+    const source = initialContent.markdown || (initialContent.contentType === "airframe" ? airframeStarterMarkdown : "");
+    if (!initialContent.fields.length || parseArticleMarkdown(source).sidebarFields) return source;
     const sidebar = initialContent.fields.map((field) => `${field.key}: ${field.value.replace(/\s*\n\s*/g, " ")}`).join("\n");
-    return `<Sidebar>\n${sidebar}\n</Sidebar>\n\n${initialContent.markdown}`;
+    return `<Sidebar>\n${sidebar}\n</Sidebar>\n\n${source}`;
   });
   const [sections] = useState(initialContent.sections);
   const [sources, setSources] = useState<SourceLink[]>(

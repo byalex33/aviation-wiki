@@ -5,6 +5,7 @@ import postgres, { type Sql } from "postgres";
 import { postgresPoolSettings } from "@/lib/build-database";
 import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "@/lib/notification-digest-schema";
 
+import { AIRFRAME_SCHEMA_SQL } from "@/lib/airframe-schema";
 import { AVIATION_DATA_SCHEMA_SQL } from "@/lib/aviation-data-schema";
 import { PRO_SCHEMA_SQL } from "@/lib/pro-schema";
 import { AVIATION_FEED_SCHEMA_SQL } from "@/lib/aviation-feed-data";
@@ -103,7 +104,9 @@ async function createSchema() {
         'uses_engine',
         'variant_of',
         'produces_aircraft',
-        'produces_engine'
+        'produces_engine',
+        'instance_of',
+        'operated_by'
       ));
     CREATE OR REPLACE FUNCTION validate_article_relationship_insert()
     RETURNS trigger
@@ -127,11 +130,13 @@ async function createSchema() {
           AND (
             (NEW.relationship_type = 'operates_aircraft' AND source.content_type = 'airline' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'hub_at_airport' AND source.content_type = 'airline' AND target.content_type = 'airport')
-            OR (NEW.relationship_type = 'manufactured_by' AND source.content_type = 'aircraft' AND target.content_type = 'manufacturer')
+            OR (NEW.relationship_type = 'manufactured_by' AND source.content_type IN ('aircraft','airframe') AND target.content_type = 'manufacturer')
             OR (NEW.relationship_type = 'uses_engine' AND source.content_type = 'aircraft' AND target.content_type = 'engine')
             OR (NEW.relationship_type = 'variant_of' AND source.content_type = 'aircraft' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'produces_aircraft' AND source.content_type = 'manufacturer' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'produces_engine' AND source.content_type = 'manufacturer' AND target.content_type = 'engine')
+            OR (NEW.relationship_type = 'instance_of' AND source.content_type = 'airframe' AND target.content_type = 'aircraft')
+            OR (NEW.relationship_type = 'operated_by' AND source.content_type = 'airframe' AND target.content_type = 'airline')
           )
       ) THEN
         RAISE EXCEPTION 'invalid or unverified relationship'
@@ -186,6 +191,7 @@ async function createSchema() {
     );
     CREATE INDEX IF NOT EXISTS api_keys_user_idx ON api_keys(user_id, created_at DESC);
     `);
+    await transaction.unsafe(AIRFRAME_SCHEMA_SQL);
     await transaction.unsafe(AVIATION_DATA_SCHEMA_SQL);
     await transaction.unsafe(NOTIFICATION_DIGEST_SCHEMA_SQL);
     await transaction.unsafe(PRO_SCHEMA_SQL);

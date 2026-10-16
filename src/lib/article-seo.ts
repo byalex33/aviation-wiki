@@ -84,6 +84,7 @@ export function articleDescription(revision: RevisionRecord) {
 
   const fallbacks: Record<ContentType, string> = {
     aircraft: `Explore ${revision.title} specifications, variants, operators, engines, history, and cited aviation data.`,
+    airframe: `Explore ${revision.title}: type, serial number, registration history, operators, status, and cited sources.`,
     airline: `Explore the ${revision.title} fleet, hubs, airline codes, history, and cited aviation data.`,
     airport: `Explore ${revision.title} codes, location, airlines, facilities, history, and cited aviation data.`,
     spotting_guide: `Community plane spotting guide for ${revision.title}, including locations, runway use, access, and when it was last verified.`,
@@ -98,6 +99,7 @@ export function articleDescription(revision: RevisionRecord) {
 function searchTitle(revision: RevisionRecord) {
   const suffixes: Record<ContentType, string> = {
     aircraft: "specifications, variants and operators",
+    airframe: "registration, serial number and operator history",
     airline: "fleet, hubs and airline profile",
     alliance: "members, airlines and history",
     airport: "codes, airlines and airport guide",

@@ -9,32 +9,36 @@ export const relationshipLabels: Record<RelationshipType, string> = {
   variant_of: "Variant of",
   produces_aircraft: "Produces aircraft",
   produces_engine: "Produces engines",
+  instance_of: "Instance of aircraft type",
+  operated_by: "Operated by",
 };
 
-const combinations: Record<RelationshipType, readonly [ContentType, ContentType]> = {
-  operates_aircraft: ["airline", "aircraft"],
-  hub_at_airport: ["airline", "airport"],
-  manufactured_by: ["aircraft", "manufacturer"],
-  uses_engine: ["aircraft", "engine"],
-  variant_of: ["aircraft", "aircraft"],
-  produces_aircraft: ["manufacturer", "aircraft"],
-  produces_engine: ["manufacturer", "engine"],
+const combinations: Record<RelationshipType, { sources: readonly ContentType[]; target: ContentType }> = {
+  operates_aircraft: { sources: ["airline"], target: "aircraft" },
+  hub_at_airport: { sources: ["airline"], target: "airport" },
+  manufactured_by: { sources: ["aircraft", "airframe"], target: "manufacturer" },
+  uses_engine: { sources: ["aircraft"], target: "engine" },
+  variant_of: { sources: ["aircraft"], target: "aircraft" },
+  produces_aircraft: { sources: ["manufacturer"], target: "aircraft" },
+  produces_engine: { sources: ["manufacturer"], target: "engine" },
+  instance_of: { sources: ["airframe"], target: "aircraft" },
+  operated_by: { sources: ["airframe"], target: "airline" },
 };
 
 export function allowedRelationshipTypes(sourceType: ContentType) {
-  return (Object.entries(combinations) as Array<[RelationshipType, readonly [ContentType, ContentType]]>)
-    .filter(([, [source]]) => source === sourceType)
+  return (Object.entries(combinations) as Array<[RelationshipType, { sources: readonly ContentType[]; target: ContentType }]>)
+    .filter(([, combination]) => combination.sources.includes(sourceType))
     .map(([type]) => type);
 }
 
 export function relationshipTargetType(type: RelationshipType) {
-  return combinations[type]?.[1];
+  return combinations[type]?.target;
 }
 
 export function validateRelationshipShape(sourceId: string, sourceType: ContentType, relationship: EntityRelationship, targetType: ContentType) {
   if (relationship.targetArticleId === sourceId) throw new UserFacingError("An article cannot relate to itself.");
   const combination = combinations[relationship.type];
-  if (!combination || combination[0] !== sourceType || combination[1] !== targetType) {
+  if (!combination || !combination.sources.includes(sourceType) || combination.target !== targetType) {
     throw new UserFacingError(`Invalid relationship combination: ${sourceType} ${relationship.type} ${targetType}.`);
   }
 }
