@@ -59,31 +59,6 @@ Keep the previous provider available as a temporary rollback source. Do not
 delete it until the new deployment has been stable for an agreed retention
 period and the external dump has been independently backed up.
 
-## Spotting guides
-
-Before deploying airport spotting guides, widen the article and revision content-type checks. The command below only prints the SQL. It does not connect.
-
-```sh
-npm run db:migrate:spotting-guides
-npm run db:migrate:spotting-guides -- --apply
-```
-
-Run `--apply` with the intended `DATABASE_URL`. It is safe to repeat. It does not insert guides. Development schema initialization includes the same check; production requests do not.
-
-Two placeholder guides (London Heathrow Airport and Manchester Airport) live in `src/data/spotting-guide-seeds.ts`. They are marked PLACEHOLDER. Their map pins are published airport coordinates, not spotting locations. Validate them without a database:
-
-```sh
-npm run data:seed:spotting-guides
-```
-
-Publish them only to a database that should show the placeholders, and only after the airport articles exist:
-
-```sh
-npm run data:seed:spotting-guides -- --publish
-```
-
-The publisher refuses hosts containing `aiven` unless you also pass `--allow-production`. Do not point it at production unless those placeholder pages should go live. A guide is skipped when no single approved airport matches its slug or title. The guide URL reads the database directly. The `/spotting` hub refreshes when the next article approval revalidates public pages, or within the hourly page cache. Search and the sitemap use the shared article index and can lag until that index is revalidated.
-
 ## Notification digest recovery
 
 Before deploying the digest recovery code, apply its additive schema to both production and any separate preview database. Use the configured database environment without writing credentials into repository files:
@@ -102,3 +77,30 @@ Resend retains idempotency keys for [24 hours](https://resend.com/docs/dashboard
 New immediate attempts carry a permanent provenance marker, so switching preferences to daily cannot classify them as legacy digests. Pre-upgrade pending/failed deliveries have no saved batch body or original-delivery marker. After 15 minutes, unknown attempts for daily-email users are held for investigation. Their original provider request or delivery mode cannot be reconstructed safely. Failures and held deliveries appear in admin notification diagnostics without exposing email addresses or contents. Check the provider record before deciding whether any manual follow-up is appropriate; do not reset a held batch or generate a new idempotency key blindly.
 
 The saved payload contains email addresses and message text. Keep it within the database's existing access controls and backups. Rollback can leave the additive tables in place, but pause both digest schedules before rolling back to code that does not understand batch ownership. Old code must not resume digest or immediate retries against these reservations. No destructive down migration is provided.
+
+## Spotting guides
+
+Before deploying airport spotting guides, widen the article and revision content-type checks. The command below only prints the SQL. It does not connect.
+
+```sh
+npm run db:migrate:spotting-guides
+npm run db:migrate:spotting-guides -- --apply
+```
+
+Run `--apply` with the intended `DATABASE_URL`. It is safe to repeat. It does not insert guides. Development schema initialization includes the same check; production requests do not. The SQL is generated from `contentTypes`, so repeating it from this revision keeps `spotting_guide` and every other type listed there.
+
+Apply this before any later migration that rebuilds `articles_content_type_check` or `revisions_content_type_check`. A later script drops and recreates those checks from the content types in the revision that runs it. Run it from a revision that already contains `spotting_guide`, or the check will lose this type.
+
+Two placeholder guides (London Heathrow Airport and Manchester Airport) live in `src/data/spotting-guide-seeds.ts`. They are marked PLACEHOLDER. Their map pins are published airport coordinates, not spotting locations. Validate them without a database:
+
+```sh
+npm run data:seed:spotting-guides
+```
+
+Publish them only to a database that should show the placeholders, and only after the airport articles exist:
+
+```sh
+npm run data:seed:spotting-guides -- --publish
+```
+
+The publisher refuses hosts containing `aiven` unless you also pass `--allow-production`. Do not point it at production unless those placeholder pages should go live. A guide is skipped when no single approved airport matches its slug or title. The guide URL reads the database directly. The `/spotting` hub refreshes when the next article approval revalidates public pages, or within the hourly page cache. Search and the sitemap use the shared article index and can lag until that index is revalidated.

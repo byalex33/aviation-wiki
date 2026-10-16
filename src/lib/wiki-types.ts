@@ -3,10 +3,10 @@ export const contentTypes = [
   "alliance",
   "aircraft",
   "airport",
+  "spotting_guide",
   "manufacturer",
   "engine",
   "event",
-  "spotting_guide",
 ] as const;
 
 /** SQL literal list for content-type checks. Values come from the const above. */

@@ -85,11 +85,11 @@ export function articleDescription(revision: RevisionRecord) {
     aircraft: `Explore ${revision.title} specifications, variants, operators, engines, history, and cited aviation data.`,
     airline: `Explore the ${revision.title} fleet, hubs, airline codes, history, and cited aviation data.`,
     airport: `Explore ${revision.title} codes, location, airlines, facilities, history, and cited aviation data.`,
+    spotting_guide: `Community plane spotting guide for ${revision.title}, including locations, runway use, access, and when it was last verified.`,
     manufacturer: `Explore ${revision.title} aircraft, engines, company history, and cited aviation data.`,
     engine: `Explore ${revision.title} specifications, applications, variants, history, and cited aviation data.`,
     alliance: `Explore ${revision.title} members, partners, history, and cited aviation data.`,
     event: `Read a sourced account of ${revision.title}, including when it happened, what changed, and its aviation significance.`,
-    spotting_guide: `Community plane spotting guide for ${revision.title}, including locations, runway use, access, and when it was last verified.`,
   };
   return truncateSentence(fallbacks[revision.contentType]);
 }
@@ -100,10 +100,10 @@ function searchTitle(revision: RevisionRecord) {
     airline: "fleet, hubs and airline profile",
     alliance: "members, airlines and history",
     airport: "codes, airlines and airport guide",
+    spotting_guide: "plane spotting locations, access and last verified",
     manufacturer: "aircraft, engines and company history",
     engine: "specifications, applications and variants",
     event: "what happened, timeline and aviation impact",
-    spotting_guide: "plane spotting locations, access and last verified",
   };
   return `${revision.title}: ${suffixes[revision.contentType]}`;
 }

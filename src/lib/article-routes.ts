@@ -5,10 +5,10 @@ export const contentTypePaths: Record<ContentType, string> = {
   alliance: "alliances",
   aircraft: "aircraft",
   airport: "airports",
+  spotting_guide: "spotting",
   manufacturer: "manufacturers",
   engine: "engines",
   event: "aviation-news",
-  spotting_guide: "spotting",
 };
 
 export function articlePath(contentType: ContentType, slug: string) {
