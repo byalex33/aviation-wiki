@@ -35,4 +35,5 @@ export const PUBLIC_DIRECTORY_PATHS = [
 export async function revalidatePublicPages() {
   const { revalidatePath } = await import("next/cache");
   for (const path of PUBLIC_DIRECTORY_PATHS) revalidatePath(path);
+  revalidatePath("/sitemap.xml");
 }

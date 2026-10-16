@@ -35,4 +35,9 @@ if (missingLandings.length) {
   process.exit(1);
 }
 
+if (!("/sitemap.xml" in manifest.routes)) {
+  console.error("sitemap.xml is not in the prerender cache. Remove force-dynamic and export revalidate from src/app/sitemap.ts.");
+  process.exit(1);
+}
+
 console.log("CSP route check passed: no strict-CSP route is prerendered.");
