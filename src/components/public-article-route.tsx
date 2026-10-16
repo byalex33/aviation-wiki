@@ -10,7 +10,7 @@ import {
   RevisionHistory,
 } from "@/components/revision-history";
 import { RevisionComparison } from "@/components/revision-comparison";
-import { articlePath } from "@/lib/article-routes";
+import { articleHistoryPath, articlePath } from "@/lib/article-routes";
 import { publicArticleHistoryPath, publicArticlePath } from "@/lib/article-path-aliases";
 import {
   getApprovedRevision,
@@ -42,7 +42,7 @@ export async function PublicArticleRoute({
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
     const destination = await getSlugRedirect(contentType, slug);
-    if (destination) permanentRedirect(publicArticlePath(contentType, destination));
+    if (destination) permanentRedirect(articlePath(contentType, destination));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
@@ -95,7 +95,8 @@ export async function PublicArticleHistoryRoute({
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
     const destination = await getSlugRedirect(contentType, slug);
-    if (destination) permanentRedirect(publicArticleHistoryPath(contentType, destination));
+    if (destination)
+      permanentRedirect(articleHistoryPath(contentType, destination));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
