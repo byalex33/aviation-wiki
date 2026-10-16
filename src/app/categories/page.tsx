@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
 import {
   ArrowUpRight,
   Compass,
@@ -15,6 +14,8 @@ import {
   Shield,
 } from "lucide-react";
 
+import { ContributePrompt } from "@/components/contribute-prompt";
+import { PublicDataPending } from "@/components/public-data-pending";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   aviationCategories,
@@ -22,6 +23,7 @@ import {
   type AviationCategoryId,
 } from "@/lib/article-categories";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 
 export const metadata: Metadata = {
   title: "Aviation categories",
@@ -76,8 +78,10 @@ const categoryPresentation = {
   { icon: typeof Compass; color: string }
 >;
 
+export const revalidate = 3600;
+
 export default async function CategoriesPage() {
-  const { isAuthenticated } = await auth();
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="All aviation categories" />;
   const documents = await listPublicSearchDocuments();
   const counts = getAviationCategoryCounts(documents);
 
@@ -109,18 +113,13 @@ export default async function CategoriesPage() {
           aria-label="Contribute a category"
         >
           <p className="font-semibold">Missing a category?</p>
-          <Link
-            href={
-              isAuthenticated
-                ? "/contribute"
-                : `/sign-in?redirect_url=${encodeURIComponent("/contribute")}`
-            }
+          <ContributePrompt
+            signedInHref="/contribute"
+            signedOutHref={`/sign-in?redirect_url=${encodeURIComponent("/contribute")}`}
+            signedInLabel="Contribute now."
+            signedOutLabel="Sign in to contribute."
             className="article-link mt-1 inline-block"
-          >
-            {isAuthenticated
-              ? "Contribute now."
-              : "Sign in to contribute."}
-          </Link>
+          />
         </aside>
       </section>
 

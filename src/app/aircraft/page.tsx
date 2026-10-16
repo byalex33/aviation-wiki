@@ -3,7 +3,9 @@ import { Dices, Plane } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleCollection } from "@/components/article-collection";
+import { PublicDataPending } from "@/components/public-data-pending";
 import { buttonVariants } from "@/components/ui/button";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
 export const metadata: Metadata = {
@@ -13,7 +15,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/aircraft" },
 };
 
+export const revalidate = 3600;
+
 export default async function AircraftIndexPage() {
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="Aircraft encyclopedia" />;
   const articles = (await listPublicSearchDocuments())
     .filter((article) => article.contentType === "aircraft")
     .toSorted((first, second) => first.title.localeCompare(second.title));
@@ -55,7 +60,3 @@ export default async function AircraftIndexPage() {
     </main>
   );
 }
-
-// Reads the database, and Vercel preview builds have no DATABASE_URL, so this
-// listing renders per request instead of being prerendered at build.
-export const dynamic = "force-dynamic";

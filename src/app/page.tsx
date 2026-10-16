@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { connection } from "next/server";
+import { PublicDataPending } from "@/components/public-data-pending";
+import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -120,8 +121,12 @@ function featuredLinkProps(article: SearchDocument) {
 const darkPanel = "bg-[hsl(210_12%_11%)] text-white dark:border dark:bg-card";
 const eyebrow = "font-mono text-[10px] font-semibold uppercase tracking-[0.18em]";
 
+// Hourly ISR, same as article pages. Signed-in header controls stay in the
+// client (HeaderAuth) so this route does not read the request.
+export const revalidate = 3600;
+
 export default async function Home() {
-  await connection();
+  if (!publicDatabaseConfigured()) return <PublicDataPending title="aviation.wiki" />;
   const [documents, datedEvents, activity] = await Promise.all([
     listPublicSearchDocuments(),
     loadDatedAviationEvents(),
