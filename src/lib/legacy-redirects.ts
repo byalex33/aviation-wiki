@@ -16,7 +16,11 @@ export function legacyRedirects(): Redirect[] {
     ? `(?!(?:${airlineLandingSlugs.map(escapeRegExp).join("|")})(?:/|$))`
     : "";
   return [
-    ...Object.entries(ARTICLE_PATH_ALIASES).map(([source, destination]) => ({ source, destination, permanent: true as const })),
+    // permanent: true is a 308. History follows the article so old revision URLs do not stay indexable.
+    ...Object.entries(ARTICLE_PATH_ALIASES).flatMap(([source, destination]) => [
+      { source, destination, permanent: true as const },
+      { source: `${source}/history`, destination: `${destination}/history`, permanent: true as const },
+    ]),
     { source: "/airline/:path*", destination: "/commercial/:path*", permanent: true },
     { source: `/airlines/:path(${landingExclusion}.+)`, destination: "/commercial/:path", permanent: true },
     { source: "/airport/:path*", destination: "/airports/:path*", permanent: true },

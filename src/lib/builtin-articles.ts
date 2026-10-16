@@ -1,7 +1,8 @@
+import { F15_CANONICAL_SLUG } from "@/lib/article-path-aliases";
 import type { RevisionContent } from "@/lib/wiki-types";
 
 export const f15Article: RevisionContent & { slug: string } = {
-  slug: "f-15-eagle",
+  slug: F15_CANONICAL_SLUG,
   title: "McDonnell Douglas F-15 Eagle",
   contentType: "aircraft",
   markdown: [

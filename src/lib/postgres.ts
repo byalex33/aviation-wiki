@@ -2,6 +2,7 @@ import "server-only";
 
 import postgres, { type Sql } from "postgres";
 
+import { postgresPoolSettings } from "@/lib/build-database";
 import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "@/lib/notification-digest-schema";
 
 import { AVIATION_DATA_SCHEMA_SQL } from "@/lib/aviation-data-schema";
@@ -21,23 +22,21 @@ function connectionString() {
   return process.env.DATABASE_URL ?? "";
 }
 
-function poolSize() {
-  const configured = Number.parseInt(process.env.DATABASE_POOL_SIZE ?? "1", 10);
-  return Number.isFinite(configured) ? Math.min(5, Math.max(1, configured)) : 1;
-}
-
 export const sql =
   globalThis.aviationWikiSql ??
   postgres(connectionString(), {
     // Serverless instances each create their own pool. Keep the default at one
     // connection so small managed Postgres plans are not exhausted by bursts.
-    max: poolSize(),
-    idle_timeout: 20,
-    connect_timeout: 15,
-    prepare: false,
+    // During `next build` the cap stays at one and idle connections close
+    // after a second, because static workers would otherwise hold a slot per
+    // bundled copy of this module until the sitemap is prerendered.
+    ...postgresPoolSettings(),
   });
 
-if (process.env.NODE_ENV !== "production") globalThis.aviationWikiSql = sql;
+// `next build` sets NODE_ENV=production, and the server bundle can evaluate
+// this module once per route chunk. Remember the client on globalThis in every
+// environment so those copies share one pool instead of opening another.
+globalThis.aviationWikiSql = sql;
 
 async function createSchema() {
   await sql.begin(async (transaction) => {

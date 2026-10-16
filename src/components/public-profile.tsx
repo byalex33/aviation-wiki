@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowUpRight, Check, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { articlePath } from "@/lib/article-routes";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import type { PublicContribution } from "@/lib/public-profile-types";
 import { cn } from "@/lib/utils";
 import type { ContentType } from "@/lib/wiki-types";
@@ -162,7 +162,7 @@ export function ContributionHistory({
                 return (
                   <li key={contribution.id} className="border-b">
                     <Link
-                      href={articlePath(contribution.contentType, contribution.articleSlug)}
+                      href={publicArticlePath(contribution.contentType, contribution.articleSlug)}
                       className="group grid grid-cols-[40px_minmax(0,1fr)] items-center gap-4 px-2 py-4 outline-none transition-colors hover:bg-card focus-visible:bg-card sm:grid-cols-[48px_minmax(0,1fr)_auto] sm:gap-5"
                     >
                       <time dateTime={contribution.contributedAt} className="text-center font-mono">

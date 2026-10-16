@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { articlePath } from "@/lib/article-routes";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import { hasPro } from "@/lib/pro";
 import { row } from "@/lib/postgres";
 import { listSavedArticles, type SavedArticle } from "@/lib/saved-articles";
@@ -42,7 +42,7 @@ export default async function SavedArticlesPage({ searchParams }: { searchParams
         <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">{c.name}</h3>{pro && <SavedForm operation="delete" collectionId={c.id} label={`Delete ${c.name}`} />}</div>
         {!c.articles.length && <p className="mt-3 text-sm text-muted-foreground">This collection is empty.</p>}
         <ul className="divide-y">{c.articles.map(a => <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <Link href={articlePath(a.content_type, a.slug)} className="text-primary hover:underline">{a.title}</Link>
+          <Link href={publicArticlePath(a.content_type, a.slug)} className="text-primary hover:underline">{a.title}</Link>
           {pro && <SavedForm operation="remove" collectionId={c.id} articleId={a.id} label="Remove" />}
         </li>)}</ul>
       </div>)}
@@ -53,7 +53,7 @@ export default async function SavedArticlesPage({ searchParams }: { searchParams
       <p className="mt-2 text-sm text-muted-foreground">{pro ? "Choose approved edits, sources added or removed, or relationships added or removed. Clear all three to mute an article." : "You receive an alert when a watched article has an approved edit."}</p>
       {!watches.length && <p className="mt-4 text-sm text-muted-foreground">Use “Watch” on an article to follow its updates.</p>}
       {watches.map(a => <div key={a.id} className="mt-4 space-y-4 rounded-xl border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><Link href={articlePath(a.content_type, a.slug)} className="font-semibold text-primary hover:underline">{a.title}</Link><SavedForm operation="unwatch" articleId={a.id} label="Unwatch" /></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><Link href={publicArticlePath(a.content_type, a.slug)} className="font-semibold text-primary hover:underline">{a.title}</Link><SavedForm operation="unwatch" articleId={a.id} label="Unwatch" /></div>
         {pro && <SavedForm operation="alerts" articleId={a.id} label="Save alerts">
           <label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="edits" defaultChecked={a.edits} />Approved edits</label>
           <label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="sources" defaultChecked={a.sources} />Source changes</label>

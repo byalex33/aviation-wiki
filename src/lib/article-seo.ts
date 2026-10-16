@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
 import { firstArticleImage } from "@/lib/article-summary";
+import { socialCardImageUrl } from "@/lib/wikimedia-thumbnail";
 import { siteUrl } from "@/lib/seo";
 import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site";
 import {
@@ -125,7 +126,7 @@ export function metadataForArticle(
   const publishedTime = revision.reviewedAt || revision.createdAt;
   const modifiedTime = revision.updatedAt;
   const image = firstArticleImage(revision.markdown);
-  const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
+  const imageUrl = image ? socialCardImageUrl(new URL(image.url, siteUrl).href) : undefined;
   const images = imageUrl ? [{ url: imageUrl, alt: revision.title }] : [DEFAULT_OG_IMAGE];
 
   return {
