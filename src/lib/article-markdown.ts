@@ -9,6 +9,10 @@ import {
   parseChartDefinition,
   type ChartDefinition,
 } from "@/lib/article-chart";
+import {
+  parseSpottingLocationsBlock,
+  type SpottingLocationsBlock,
+} from "@/lib/spotting-locations";
 
 export const ARTICLE_BLOCKS = [
   "Infobox",
@@ -21,6 +25,7 @@ export const ARTICLE_BLOCKS = [
   "Timeline",
   "Gallery",
   "RelatedPages",
+  "SpottingLocations",
 ] as const;
 
 export type ArticleBlockName = (typeof ARTICLE_BLOCKS)[number];
@@ -39,6 +44,7 @@ export type MarkdownNode = {
   attributes?: Array<{ type: string; name?: string; value?: unknown }>;
   children?: MarkdownNode[];
   chartDefinition?: ChartDefinition;
+  spottingLocations?: SpottingLocationsBlock;
   position?: {
     start: { line: number; column: number; offset?: number };
     end: { line: number; column: number; offset?: number };
@@ -110,6 +116,7 @@ const allowedAttributes: Record<ArticleBlockName, Set<string>> = {
   Timeline: new Set(["title"]),
   Gallery: new Set(["title", "columns"]),
   RelatedPages: new Set(["title"]),
+  SpottingLocations: new Set(["title", "placeholder"]),
 };
 
 export function getArticleMentionParts(
@@ -275,7 +282,7 @@ export function getArticleHeadings(root: MarkdownRoot): ArticleHeading[] {
   });
 }
 
-function extractChartBody(source: string, node: MarkdownNode) {
+function extractElementBody(source: string, node: MarkdownNode, closingTag: string) {
   const start = node.position?.start.offset;
   const end = node.position?.end.offset;
   if (start === undefined || end === undefined)
@@ -293,7 +300,7 @@ function extractChartBody(source: string, node: MarkdownNode) {
       break;
     }
   }
-  const closingStart = block.lastIndexOf("</Chart>");
+  const closingStart = block.lastIndexOf(closingTag);
   const bodyStart = openingEnd + 1;
   const body =
     openingEnd >= 0 && closingStart >= bodyStart
@@ -305,6 +312,10 @@ function extractChartBody(source: string, node: MarkdownNode) {
   };
 }
 
+function extractChartBody(source: string, node: MarkdownNode) {
+  return extractElementBody(source, node, "</Chart>");
+}
+
 export type ParsedArticleMarkdown = {
   root: MarkdownRoot;
   errors: MarkdownError[];
@@ -313,6 +324,7 @@ export type ParsedArticleMarkdown = {
   sidebarFields: SidebarField[] | null;
   sidebarImages: ArticleImage[];
   charts: ChartDefinition[];
+  spottingLocations: SpottingLocationsBlock | null;
 };
 
 export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
@@ -326,9 +338,14 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       "Expected a closing tag for `<Chart>`",
     )
       ? "Missing closing </Chart> tag."
+      : parseError.message.includes("Expected a closing tag for `<SpottingLocations>`")
+        ? "Missing closing </SpottingLocations> tag."
       : parseError.message.includes("before attribute value") &&
           /<Chart\b/.test(source)
         ? "Chart attribute values must use quotes."
+        : parseError.message.includes("before attribute value") &&
+            /<SpottingLocations\b/.test(source)
+          ? "SpottingLocations attribute values must use quotes."
         : parseError.message;
     return {
       root: { type: "root", children: [] },
@@ -344,6 +361,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       sidebarFields: null,
       sidebarImages: [],
       charts: [],
+      spottingLocations: null,
     };
   }
 
@@ -520,6 +538,32 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       charts.push(parsedChart.definition);
     }
   }
+  const spottingNodes: MarkdownNode[] = [];
+  const collectSpottingLocations = (node: MarkdownNode, topLevel: boolean) => {
+    if (node.type === "mdxJsxFlowElement" && node.name === "SpottingLocations") {
+      if (!topLevel) report(node, "<SpottingLocations> must be a standalone top-level article block.");
+      else spottingNodes.push(node);
+    }
+    node.children?.forEach((child) => collectSpottingLocations(child, false));
+  };
+  root.children.forEach((node) => collectSpottingLocations(node, true));
+  if (spottingNodes.length > 1) report(spottingNodes[1], "Only one <SpottingLocations> block is allowed.");
+  let spottingLocations: SpottingLocationsBlock | null = null;
+  if (spottingNodes.length) {
+    const node = spottingNodes[0];
+    const { body, bodyLine } = extractElementBody(source, node, "</SpottingLocations>");
+    const parsedLocations = parseSpottingLocationsBlock({
+      attributes: getBlockAttributes(node),
+      body,
+      blockLine: node.position?.start.line ?? 1,
+      bodyLine,
+    });
+    errors.push(...parsedLocations.errors);
+    if (parsedLocations.block) {
+      node.spottingLocations = parsedLocations.block;
+      spottingLocations = parsedLocations.block;
+    }
+  }
   const sidebarNodes = root.children.filter((node) => node.type === "mdxJsxFlowElement" && node.name === "Sidebar");
   let sidebarFields: SidebarField[] | null = null;
   const sidebarImages: ArticleImage[] = [];
@@ -553,7 +597,7 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       ? [{ identifier, number: index + 1, url: definition.url, occurrences: citationCounts.get(identifier) ?? 1 }]
       : [];
   });
-  return { root, errors, warnings, citations, sidebarFields, sidebarImages, charts };
+  return { root, errors, warnings, citations, sidebarFields, sidebarImages, charts, spottingLocations };
 }
 
 export function parseStructuredFieldMarkdown(source: string) {

@@ -2,15 +2,18 @@ import type { Metadata } from "next";
 import { AlertTriangle, CheckCircle2, Clock3, Database, Plane } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
+import { AirframeArticle } from "@/components/airframe-article";
 import { aviationDate, SourceList } from "@/components/aviation-data";
 import { Badge } from "@/components/ui/badge";
+import { airframeSlug, graphAirframePath } from "@/lib/airframe-record";
+import { loadAirframePage } from "@/lib/airframe-db";
 import {
   aviationDataEnabled,
   ensureAviationDataEnabled,
 } from "@/lib/aviation-data-flags";
-import { getAirframeProjection } from "@/lib/aviation-data-public";
+import { findAirframesByRegistration, getAirframeProjection } from "@/lib/aviation-data-public";
 import type { GraphSource } from "@/lib/aviation-data-projections";
 import { jsonLd } from "@/lib/seo";
 import { absoluteUrl } from "@/lib/site";
@@ -20,16 +23,27 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const slug = airframeSlug((await params).id);
+  const page = await loadAirframePage(slug).catch(() => null);
+  if (page && !page.redirectTo) {
+    const title = `${page.record.registration} — ${page.record.aircraftType}`;
+    return {
+      title,
+      description: `${page.record.registration}${page.record.msn ? `, MSN ${page.record.msn}` : ""}: type, operator history, registration changes, delivery date, status, and fate.`,
+      alternates: { canonical: page.record.href },
+      openGraph: { title, url: page.record.href, type: "website" },
+    };
+  }
   if (!aviationDataEnabled) return { title: "Airframe not found", robots: { index: false } };
-  const airframe = await getAirframeProjection((await params).id);
+  const airframe = await getAirframeProjection(slug).catch(() => undefined) ?? (await findAirframesByRegistration(slug).catch(() => []))[0];
   if (!airframe) return { title: "Airframe not found", robots: { index: false } };
   const registration = airframe.currentRegistration?.registration ?? airframe.publicId;
   const title = `${registration} — ${airframe.model?.designation ?? "airframe"}`;
   return {
     title,
     description: `${registration}, MSN ${airframe.msn ?? "unknown"}: registration, operator, configuration, event history, and cited evidence.`,
-    alternates: { canonical: `/airframes/${airframe.publicId}` },
-    openGraph: { title, url: `/airframes/${airframe.publicId}`, type: "website" },
+    alternates: { canonical: graphAirframePath(airframe) },
+    openGraph: { title, url: graphAirframePath(airframe), type: "website" },
   };
 }
 
@@ -44,9 +58,15 @@ function configuration(value: unknown) {
 }
 
 export default async function AirframePage({ params }: { params: Params }) {
+  const slug = airframeSlug((await params).id);
+  const page = await loadAirframePage(slug).catch(() => null);
+  if (page?.redirectTo) permanentRedirect(page.redirectTo);
+  if (page) return <AirframeArticle record={page.record} markdown={page.markdown} sources={page.sources} editHref={page.editHref} />;
   ensureAviationDataEnabled();
-  const airframe = await getAirframeProjection((await params).id);
+  const airframe = await getAirframeProjection(slug) ?? (await findAirframesByRegistration(slug))[0];
   if (!airframe) notFound();
+  const canonical = graphAirframePath(airframe);
+  if (canonical !== `/airframes/${slug}`) permanentRedirect(canonical);
   const registration = airframe.currentRegistration?.registration ?? airframe.publicId;
   const config = configuration(airframe.currentConfiguration?.configuration);
   const sources: GraphSource[] = [
@@ -60,7 +80,7 @@ export default async function AirframePage({ params }: { params: Params }) {
     "@context": "https://schema.org",
     "@type": "Vehicle",
     name: `${registration} — ${airframe.model?.designation ?? "aircraft"}`,
-    url: absoluteUrl(`/airframes/${airframe.publicId}`),
+    url: absoluteUrl(graphAirframePath(airframe)),
     vehicleIdentificationNumber: airframe.msn ?? undefined,
     vehicleConfiguration: airframe.model?.designation ?? undefined,
     manufacturer: airframe.manufacturer ? { "@type": "Organization", name: airframe.manufacturer.name } : undefined,

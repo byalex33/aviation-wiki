@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
@@ -10,6 +11,19 @@ const db = new Database(databasePath, { readonly: true, fileMustExist: true });
 function scalar(sql) {
   return Object.values(db.prepare(sql).get())[0];
 }
+
+function articleContentTypeList() {
+  const source = readFileSync(new URL("../src/lib/wiki-types.ts", import.meta.url), "utf8");
+  const block = source.match(/export const contentTypes = \[([\s\S]*?)\] as const;/);
+  if (!block) throw new Error("contentTypes array was not found in wiki-types.ts.");
+  const types = [...block[1].matchAll(/"([a-z0-9_]+)"/g)].map((match) => match[1]);
+  if (!types.includes("aircraft") || !types.includes("event")) {
+    throw new Error("contentTypes parser returned an unexpected list.");
+  }
+  return types.map((type) => `'${type}'`).join(",");
+}
+
+const articleContentTypeSql = articleContentTypeList();
 
 const requiredTables = [
   "articles",
@@ -85,11 +99,11 @@ const checks = [
   ["foreign key violations", "SELECT COUNT(*) FROM pragma_foreign_key_check"],
   [
     "invalid article types",
-    "SELECT COUNT(*) FROM articles WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')",
+    `SELECT COUNT(*) FROM articles WHERE content_type NOT IN (${articleContentTypeSql})`,
   ],
   [
     "invalid revision types",
-    "SELECT COUNT(*) FROM revisions WHERE content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')",
+    `SELECT COUNT(*) FROM revisions WHERE content_type NOT IN (${articleContentTypeSql})`,
   ],
   [
     "invalid revision statuses",

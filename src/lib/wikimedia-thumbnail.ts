@@ -5,6 +5,14 @@ type ThumbnailWidth = (typeof WIKIMEDIA_THUMBNAIL_WIDTHS)[number];
 
 const RASTER = /\.(?:jpe?g|png|gif|webp)$/i;
 
+// Open Graph cards are 1200px wide. 1280 is the smallest standard Wikimedia
+// thumbnail that still covers that card.
+export const SOCIAL_CARD_IMAGE_WIDTH = 1280;
+
+export function socialCardImageUrl(imageUrl: string) {
+  return wikimediaThumbnail(imageUrl, SOCIAL_CARD_IMAGE_WIDTH);
+}
+
 /**
  * Points an upload.wikimedia.org image at a thumbnail no wider than `width`.
  * Originals and larger thumbnails are rewritten; other URLs are returned unchanged.

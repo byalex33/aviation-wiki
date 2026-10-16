@@ -11,16 +11,18 @@ import {
 } from "@/components/revision-history";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import {
   getApprovedRevision,
   getArticleBySlug,
-  getSlugRedirect,
+  getSlugRedirectTarget,
   listArticleHistory,
   normalizeSlug,
   getArticlePublicationControls,
   listApprovedEntityOptions,
 } from "@/lib/wiki-public-db";
 import type { ContentType } from "@/lib/wiki-types";
+import { loadOperatorFleetSummary, loadTypeAirframeRecords } from "@/lib/airframe-db";
 import { aviationDataEnabled } from "@/lib/aviation-data-flags";
 
 export async function PublicArticleRoute({
@@ -37,11 +39,11 @@ export async function PublicArticleRoute({
   const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
-    permanentRedirect(articlePath(contentType, controls.redirect_to_slug));
+    permanentRedirect(publicArticlePath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = await getSlugRedirect(contentType, slug);
-    if (destination) permanentRedirect(articlePath(contentType, destination));
+    const destination = await getSlugRedirectTarget(contentType, slug);
+    if (destination) permanentRedirect(articlePath(destination.contentType, destination.slug));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
@@ -62,10 +64,16 @@ export async function PublicArticleRoute({
         href:
           entity.id === article.id
             ? null
-            : articlePath(entity.contentType, entity.slug),
+            : publicArticlePath(entity.contentType, entity.slug),
       })),
     )
     .filter((link) => markdown.includes(link.title.toLocaleLowerCase("en")));
+  const operatorFleet = contentType === "airline"
+    ? await loadOperatorFleetSummary(article.slug, article.title)
+    : null;
+  const typeAirframes = contentType === "aircraft"
+    ? await loadTypeAirframeRecords(article.slug, article.title)
+    : [];
   return (
     <PublicArticle
       article={article}
@@ -73,6 +81,8 @@ export async function PublicArticleRoute({
       articleLinks={articleLinks}
       availableArticlePaths={entities.map((entity) => articlePath(entity.contentType, entity.slug))}
       structuredData={structuredData}
+      operatorFleet={operatorFleet}
+      typeAirframes={typeAirframes}
     />
   );
 }
@@ -90,14 +100,12 @@ export async function PublicArticleHistoryRoute({
   const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
-    permanentRedirect(
-      articleHistoryPath(contentType, controls.redirect_to_slug),
-    );
+    permanentRedirect(publicArticleHistoryPath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
-    const destination = await getSlugRedirect(contentType, slug);
+    const destination = await getSlugRedirectTarget(contentType, slug);
     if (destination)
-      permanentRedirect(articleHistoryPath(contentType, destination));
+      permanentRedirect(articleHistoryPath(destination.contentType, destination.slug));
   }
   if (!article?.liveRevision || article.liveRevision.status !== "approved")
     notFound();
@@ -105,11 +113,11 @@ export async function PublicArticleHistoryRoute({
   const query = await searchParams;
   const from = query.from ? await getApprovedRevision(article.id, query.from) : null;
   const to = query.to ? await getApprovedRevision(article.id, query.to) : null;
-  const pathname = articleHistoryPath(contentType, slug);
+  const pathname = publicArticleHistoryPath(contentType, article.slug);
   return (
     <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="text-sm text-muted-foreground">
-        <Link href={articlePath(contentType, slug)} className="article-link">
+        <Link href={publicArticlePath(contentType, article.slug)} className="article-link">
           {article.title}
         </Link>
         <span> / History</span>

@@ -27,6 +27,7 @@ import {
   initialFormActionState,
   type FormActionState,
 } from "@/lib/form-action-state";
+import { airframeStarterMarkdown } from "@/lib/airframe-content";
 import { parseArticleMarkdown, parseStructuredFieldMarkdown } from "@/lib/article-markdown";
 import { allowedRelationshipTypes, relationshipLabels, relationshipTargetType } from "@/lib/relationship-rules";
 
@@ -188,9 +189,10 @@ export function RevisionEditor({
   const [contentType, setContentType] = useState(initialContent.contentType);
   const [activeTab, setActiveTab] = useState<EditorTab>("editor");
   const [markdown, setMarkdown] = useState(() => {
-    if (!initialContent.fields.length || parseArticleMarkdown(initialContent.markdown).sidebarFields) return initialContent.markdown;
+    const source = initialContent.markdown || (initialContent.contentType === "airframe" ? airframeStarterMarkdown : "");
+    if (!initialContent.fields.length || parseArticleMarkdown(source).sidebarFields) return source;
     const sidebar = initialContent.fields.map((field) => `${field.key}: ${field.value.replace(/\s*\n\s*/g, " ")}`).join("\n");
-    return `<Sidebar>\n${sidebar}\n</Sidebar>\n\n${initialContent.markdown}`;
+    return `<Sidebar>\n${sidebar}\n</Sidebar>\n\n${source}`;
   });
   const [sections] = useState(initialContent.sections);
   const [sources, setSources] = useState<SourceLink[]>(
@@ -352,6 +354,7 @@ export function RevisionEditor({
               publication. Cite sources with <code>[^1]</code> and define them with <code>[^1]: https://example.com</code>. Add flags with <code>f![gr]</code> or <code>f![usa]</code>.
               Add photos with <code>![https://example.com/photo.jpg]</code>, or add a small credit with <code>![https://example.com/photo.jpg | Photo by Jane Smith]</code>.
               Edit the right-hand card inside <code>&lt;Sidebar&gt;</code>, with one image shortcode or <code>Label: value</code> per line. {ARTICLE_IMAGE_GUIDANCE}
+              {contentType === "spotting_guide" && " Spotting guides need one SpottingLocations block, sections for runway use, parking and access, legal and security, best times and light, and typical traffic. Add Last verified: YYYY-MM-DD only after an in-person check. Unchecked notes must say PLACEHOLDER."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

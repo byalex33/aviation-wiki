@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AirframeCards, CompletenessPanel } from "@/components/aviation-data";
+import { graphAirframePath } from "@/lib/airframe-record";
 import { Badge } from "@/components/ui/badge";
 import {
   aviationDataEnabled,
@@ -47,7 +48,7 @@ export default async function RegistrationPage({ params }: { params: Params }) {
     name: title,
     url: absoluteUrl(`/registrations/${value.toLowerCase()}`),
     numberOfItems: airframes.length,
-    itemListElement: airframes.map((airframe, index) => ({ "@type": "ListItem", position: index + 1, url: absoluteUrl(`/airframes/${airframe.publicId}`), name: airframe.currentRegistration?.registration })),
+    itemListElement: airframes.map((airframe, index) => ({ "@type": "ListItem", position: index + 1, url: absoluteUrl(`${graphAirframePath(airframe)}`), name: airframe.currentRegistration?.registration })),
   };
   return (
     <>

@@ -2,12 +2,14 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { canonicalizeSearchDocuments, F15_LEGACY_SLUG } from "@/lib/article-path-aliases";
 import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
+import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
-import type { ArticleRecord, ArticleWithLiveRevision, ContentType, EntityOption, EntityRelationship, RevisionContent, RevisionRecord, RevisionStatus, VerificationResult } from "@/lib/wiki-types";
+import { contentTypeSqlList, type ArticleRecord, type ArticleWithLiveRevision, type ContentType, type EntityOption, type EntityRelationship, type RevisionContent, type RevisionRecord, type RevisionStatus, type VerificationResult } from "@/lib/wiki-types";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
 import { buildFleetRows, type FleetEntity, type FleetRelationship } from "@/lib/fleet";
 import { articlePath } from "@/lib/article-routes";
@@ -172,16 +174,16 @@ db.exec(`
   DROP TRIGGER IF EXISTS revisions_content_type_insert;
   DROP TRIGGER IF EXISTS revisions_content_type_update;
   CREATE TRIGGER articles_content_type_insert
-  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE INSERT ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER articles_content_type_update
-  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE UPDATE OF content_type ON articles WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid article content type'); END;
   CREATE TRIGGER revisions_content_type_insert
-  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE INSERT ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER revisions_content_type_update
-  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')
+  BEFORE UPDATE OF content_type ON revisions WHEN NEW.content_type NOT IN (${contentTypeSqlList})
   BEGIN SELECT RAISE(ABORT, 'invalid revision content type'); END;
   CREATE TRIGGER IF NOT EXISTS revisions_status_insert
   BEFORE INSERT ON revisions WHEN NEW.status NOT IN ('draft','verifying','pending_review','changes_requested','approved','rejected')
@@ -193,12 +195,14 @@ db.exec(`
   CREATE TRIGGER relationships_insert_guard
   BEFORE INSERT ON article_relationships
   WHEN NEW.source_article_id = NEW.target_article_id
-    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine')
+    OR NEW.relationship_type NOT IN ('operates_aircraft','hub_at_airport','manufactured_by','uses_engine','variant_of','produces_aircraft','produces_engine','instance_of','operated_by')
     OR NOT EXISTS (SELECT 1 FROM articles s JOIN articles t ON t.id=NEW.target_article_id JOIN revisions tr ON tr.id=t.live_revision_id JOIN revisions rr ON rr.id=NEW.approved_revision_id
       WHERE s.id=NEW.source_article_id AND tr.status='approved' AND t.archived_at IS NULL AND rr.article_id=s.id AND rr.status='approved' AND (
         (NEW.relationship_type='operates_aircraft' AND s.content_type='airline' AND t.content_type='aircraft') OR
         (NEW.relationship_type='hub_at_airport' AND s.content_type='airline' AND t.content_type='airport') OR
-        (NEW.relationship_type='manufactured_by' AND s.content_type='aircraft' AND t.content_type='manufacturer') OR
+        (NEW.relationship_type='manufactured_by' AND s.content_type IN ('aircraft','airframe') AND t.content_type='manufacturer') OR
+        (NEW.relationship_type='instance_of' AND s.content_type='airframe' AND t.content_type='aircraft') OR
+        (NEW.relationship_type='operated_by' AND s.content_type='airframe' AND t.content_type='airline') OR
         (NEW.relationship_type='uses_engine' AND s.content_type='aircraft' AND t.content_type='engine') OR
         (NEW.relationship_type='variant_of' AND s.content_type='aircraft' AND t.content_type='aircraft') OR
         (NEW.relationship_type='produces_aircraft' AND s.content_type='manufacturer' AND t.content_type='aircraft') OR
@@ -250,13 +254,16 @@ function mapRevision(row: RevisionRow): RevisionRecord {
 const revisionSelect = `SELECT r.*, a.slug AS article_slug FROM revisions r JOIN articles a ON a.id = r.article_id`;
 
 function seedBuiltinArticle() {
-  if (db.prepare("SELECT 1 FROM articles WHERE slug = ? AND content_type = ?").get(f15Article.slug, f15Article.contentType)) return;
+  if (db.prepare("SELECT 1 FROM articles WHERE content_type = ? AND slug IN (?, ?)").get(f15Article.contentType, f15Article.slug, F15_LEGACY_SLUG)) return;
   const articleId = randomUUID();
   const revisionId = randomUUID();
   const now = new Date().toISOString();
   const transaction = db.transaction(() => {
     db.prepare("INSERT INTO articles (id, slug, title, content_type, live_revision_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(articleId, f15Article.slug, f15Article.title, f15Article.contentType, revisionId, now, now);
     db.prepare(`INSERT INTO revisions (id, article_id, status, contributor_id, contributor_name, edit_summary, title, content_type, markdown, fields_json, sections_json, sources_json, proposed_slug, parent_revision_id, created_at, updated_at, submitted_at, reviewed_at, moderator_id, moderator_note) VALUES (?, ?, 'approved', 'system', 'aviation.wiki', 'Initial import of the existing article', ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, 'system', 'Imported from the existing live article')`).run(revisionId, articleId, f15Article.title, f15Article.contentType, f15Article.markdown, JSON.stringify(f15Article.fields), JSON.stringify(f15Article.sections), JSON.stringify(f15Article.sources), f15Article.slug, now, now, now, now);
+    if (f15Article.slug !== F15_LEGACY_SLUG) {
+      db.prepare("INSERT INTO article_slug_redirects (content_type, old_slug, article_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(content_type, old_slug) DO NOTHING").run(f15Article.contentType, F15_LEGACY_SLUG, articleId, now);
+    }
   });
   transaction();
 }
@@ -305,7 +312,7 @@ export function listPublicSearchDocuments(): SearchDocument[] {
   const titles = new Map<string, string[]>();
   for (const row of redirects) aliases.set(row.article_id, [...(aliases.get(row.article_id) || []), row.old_slug.replaceAll("-", " ")]);
   for (const row of previousTitles) titles.set(row.article_id, [...(titles.get(row.article_id) || []), row.title]);
-  return rows.map((row) => {
+  const documents = rows.map((row) => {
     const fields = JSON.parse(row.fields_json) as Array<{ key?: string; value?: string }>;
     const searchableFields = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
     const countries = [...new Set(searchableFields.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((value) => value.trim()).filter(Boolean)))];
@@ -320,6 +327,7 @@ export function listPublicSearchDocuments(): SearchDocument[] {
     const images = parseArticleMarkdown(row.markdown).sidebarImages;
     return { id: row.id, title: row.title, slug: row.slug, contentType: row.content_type, href: articlePath(row.content_type, row.slug), description, updatedAt: row.updated_at, imageUrl: images[0]?.url, imageUrls: images.map((image) => image.url), imageCredit: images[0]?.credit || undefined, countries, terms };
   });
+  return canonicalizeSearchDocuments(documents);
 }
 
 export function listEntityOptions(): EntityOption[] {
@@ -538,6 +546,17 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     if (revision.contentType !== article.contentType) throw new UserFacingError("An existing article cannot change content type through a revision.");
     const parsedMarkdown = parseArticleMarkdown(revision.markdown);
     if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    if (revision.contentType === "spotting_guide") {
+      const issue = spottingGuideIssues({
+        title: revision.title,
+        markdown: revision.markdown,
+        fields: revision.fields,
+        citationCount: parsedMarkdown.citations.length,
+      }, parsedMarkdown)[0];
+      if (issue) throw new UserFacingError(issue);
+      const airport = db.prepare(`SELECT a.id FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='airport' AND a.slug=? AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL`).get(revision.proposedSlug);
+      if (!airport) throw new UserFacingError("Publish an airport article with this slug before approving its spotting guide.");
+    }
     validateRelationships(revision.articleId, revision.contentType, revision.relationships, new Set(parsedMarkdown.citations.map((citation) => citation.identifier)));
     const conflicting = getArticleBySlug(revision.proposedSlug, revision.contentType);
     if (conflicting && conflicting.id !== revision.articleId) throw new UserFacingError("That slug is already used by another article of this type.");

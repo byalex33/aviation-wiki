@@ -16,6 +16,7 @@ import {
   parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
 import { reconcileCitationSources } from "@/lib/article-citations";
+import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { runPublishedFollowUp } from "@/lib/published-follow-up";
 import { UserFacingError } from "@/lib/user-facing-error";
@@ -178,6 +179,15 @@ function parseContent(
     throw new UserFacingError(
       "Article Markdown and at least one inline citation are required before submission.",
     );
+  if (requireSubmissionFields && contentType === "spotting_guide") {
+    const issue = spottingGuideIssues({
+      title,
+      markdown,
+      fields,
+      citationCount: parsedMarkdown.citations.length,
+    }, parsedMarkdown)[0];
+    if (issue) throw new UserFacingError(issue);
+  }
   return {
     title,
     contentType,

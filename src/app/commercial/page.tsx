@@ -1,15 +1,21 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 
-import { CommercialDirectoryControls } from "@/components/commercial-directory-controls";
+import {
+  CommercialDirectory,
+  CommercialDirectoryControls,
+  CommercialDirectoryFallback,
+} from "@/components/commercial-directory";
 import { ContributePrompt } from "@/components/contribute-prompt";
 import { PublicDataPending } from "@/components/public-data-pending";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { buildAirlineDirectory } from "@/lib/airline-directory";
-import { getOpenFlightsAirlines } from "@/lib/openflights";
+import {
+  type CommercialAirlineCard,
+  type CommercialOperatingStatus,
+} from "@/lib/commercial-filters";
+import { getOpenFlightsAirlines, type OpenFlightsAirline } from "@/lib/openflights";
 import { publicDatabaseConfigured } from "@/lib/public-page-cache";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
@@ -21,18 +27,38 @@ export const metadata: Metadata = {
 
 export const revalidate = 3600;
 
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+type DirectoryAirline = ReturnType<typeof buildAirlineDirectory>[number]["airlines"][number];
 
-const filterLinkClass = (active: boolean) =>
-  `flex min-h-11 items-center rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
+function airlineCard(airline: DirectoryAirline, openFlights: OpenFlightsAirline | undefined): CommercialAirlineCard {
+  const operatingStatus: CommercialOperatingStatus = airline.isActive ? "active" : airline.isHistoric ? "historic" : "unknown";
+  return {
+    name: airline.name,
+    href: airline.href,
+    iata: airline.iata,
+    icao: airline.icao || openFlights?.icao || "Unknown",
+    callsign: airline.callsign !== "Unknown" ? airline.callsign : openFlights?.callsign || "Unknown",
+    status: airline.status,
+    operatingStatus,
+    country: airline.country,
+    countryCode: airline.countryCode,
+    detailLabel: openFlights?.alias ? "Alias" : "Main hub",
+    detailValue: openFlights?.alias || airline.hub,
+    showLogo: /^[A-Z0-9]{2}$/.test(airline.iata),
+  };
+}
 
 export default async function CommercialAirlinesPage() {
   if (!publicDatabaseConfigured()) return <PublicDataPending title="Commercial airlines" />;
-  const groups = buildAirlineDirectory(await listPublicSearchDocuments());
-  const airlines = groups.flatMap((group) => group.airlines);
+  const airlines = buildAirlineDirectory(await listPublicSearchDocuments()).flatMap((group) => group.airlines);
   const openFlightsAirlines = await getOpenFlightsAirlines(airlines.filter((airline) => /^[A-Z0-9]{2}$/.test(airline.iata)));
-  const countryOptions = [...new Set(airlines.map((airline) => airline.country))].toSorted((a, b) => a.localeCompare(b));
-  const activeLetters = new Set(groups.map((group) => group.letter));
+  const cards = airlines.map((airline) => {
+    const candidate = openFlightsAirlines.get(airline.iata);
+    const openFlights = candidate && (airline.icao
+      ? candidate.icao === airline.icao
+      : candidate.name.toLowerCase() === airline.name.toLowerCase()) ? candidate : undefined;
+    return airlineCard(airline, openFlights);
+  });
+  const countryOptions = [...new Set(cards.map((airline) => airline.country))].toSorted((left, right) => left.localeCompare(right));
 
   return (
     <main className="mx-auto max-w-[1200px] px-5 pb-20 pt-6 sm:px-6">
@@ -49,82 +75,11 @@ export default async function CommercialAirlinesPage() {
         </aside>
       </section>
 
-      <div className="mt-9 grid items-start gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <Suspense fallback={
-          <aside className="rounded-lg border bg-card p-4 shadow-xs lg:sticky lg:top-6" aria-label="Sort and filter commercial airlines">
-            <div className="flex items-baseline justify-between border-b pb-3">
-              <h2 className="font-semibold">Commercial airlines</h2>
-              <span className="font-mono text-xs text-muted-foreground">{airlines.length}</span>
-            </div>
-            <div className="mt-4">
-              <h3 className="field-label">Show</h3>
-              <nav className="mt-2 grid gap-1" aria-label="Filter airlines by status">
-                <Link href="/commercial" aria-current="page" className={filterLinkClass(true)}>All airlines</Link>
-                <Link href="/commercial?status=active" className={filterLinkClass(false)}>Active</Link>
-                <Link href="/commercial?status=historic" className={filterLinkClass(false)}>Ceased</Link>
-              </nav>
-            </div>
-          </aside>
-        }>
-          <CommercialDirectoryControls countries={countryOptions} total={airlines.length} />
+      <CommercialDirectory airlines={cards} countries={countryOptions}>
+        <Suspense fallback={<CommercialDirectoryFallback total={cards.length} />}>
+          <CommercialDirectoryControls />
         </Suspense>
-
-        <div id="airline-directory">
-          <nav className="mb-9 flex flex-wrap gap-1.5 border-y py-4" aria-label="Airline alphabet index">
-            {alphabet.map((letter) => activeLetters.has(letter) ? <a key={letter} data-letter-index={letter} href={`#letter-${letter}`} className="grid size-10 place-items-center rounded-md bg-foreground font-mono text-xs font-semibold text-background transition-colors hover:bg-primary">{letter}</a> : <span key={letter} className="grid size-10 place-items-center rounded-md font-mono text-xs text-muted-foreground/35">{letter}</span>)}
-          </nav>
-          <div className="space-y-12" data-airline-sections>
-        {groups.map((group) => (
-          <section id={`letter-${group.letter}`} key={group.letter} data-letter={group.letter} className="scroll-mt-24">
-            <div className="mb-4 flex items-end gap-4 border-b pb-3"><h2 className="font-mono text-4xl font-semibold text-primary">{group.letter}</h2><span data-letter-count className="mb-1 text-sm text-muted-foreground">{group.airlines.length} {group.airlines.length === 1 ? "airline" : "airlines"}</span></div>
-            <div data-airline-grid className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {group.airlines.map((airline) => {
-                const candidate = openFlightsAirlines.get(airline.iata);
-                const openFlights = candidate && (airline.icao
-                  ? candidate.icao === airline.icao
-                  : candidate.name.toLowerCase() === airline.name.toLowerCase()) ? candidate : undefined;
-                const name = airline.name;
-                const status = airline.status;
-                const operatingStatus = airline.isActive ? "active" : airline.isHistoric ? "historic" : "unknown";
-
-                return (
-                <Link
-                  key={airline.href}
-                  href={airline.href}
-                  data-airline=""
-                  data-name={name}
-                  data-status={operatingStatus}
-                  data-country={airline.country}
-                  className="group block"
-                  aria-label={`View ${name}`}
-                >
-                  <Card className="h-full gap-0 overflow-hidden py-0 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-lg">
-                    <div className="flex h-28 items-center justify-center border-b bg-white p-5">
-                      {/^[A-Z0-9]{2}$/.test(airline.iata) ? <Image src={`https://images.kiwi.com/airlines/64/${airline.iata}.png`} alt={`${name} logo`} width={64} height={64} unoptimized className="max-h-16 w-auto object-contain transition-transform group-hover:scale-105" /> : <span className="text-sm text-muted-foreground">{name}</span>}
-                    </div>
-                    <CardContent className="p-5">
-                      <h3 className="text-xl font-semibold tracking-tight transition-colors group-hover:text-primary">{name}</h3>
-                      <Badge variant="secondary" className="mt-3 rounded-full font-normal">
-                        {airline.countryCode && <Image src={`https://flagcdn.com/w40/${airline.countryCode}.png`} alt="" width={20} height={15} unoptimized className="h-3.5 w-5 rounded-[2px] object-cover shadow-[0_0_0_1px_rgb(0_0_0/0.08)]" />}
-                        {airline.country}
-                      </Badge>
-                      <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t pt-4 text-sm">
-                        <div><dt className="field-label">IATA / ICAO</dt><dd className="mt-1 font-mono font-medium">{airline.iata || "Unknown"} / {airline.icao || openFlights?.icao || "Unknown"}</dd></div>
-                        <div><dt className="field-label">Status</dt><dd className="mt-1"><Badge variant="outline" className={airline.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}>{status}</Badge></dd></div>
-                        <div><dt className="field-label">Callsign</dt><dd className="mt-1 font-mono text-xs font-medium">{airline.callsign !== "Unknown" ? airline.callsign : openFlights?.callsign || "Unknown"}</dd></div>
-                        <div><dt className="field-label">{openFlights?.alias ? "Alias" : "Main hub"}</dt><dd className="mt-1 font-medium leading-5">{openFlights?.alias || airline.hub}</dd></div>
-                      </dl>
-                    </CardContent>
-                  </Card>
-                </Link>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-          </div>
-        </div>
-      </div>
+      </CommercialDirectory>
       <p className="mt-12 border-t pt-5 text-xs leading-5 text-muted-foreground">
         Airline data from <a href="https://openflights.org/data.php" target="_blank" rel="noreferrer" className="article-link">OpenFlights</a>, available under the Open Database License. OpenFlights notes that airline operating status may not always be current.
       </p>

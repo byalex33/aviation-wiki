@@ -22,6 +22,7 @@ See [development](../documentation/development.md) for its required environment.
 
 - `migrate-*.ts` contains additive database migrations. Review the relevant
   [database procedure](../documentation/database-operations.md) before applying them.
+- `migrate-airframes.ts` adds the airframe content type and can move single-registration aircraft articles. `import-faa-airframes.ts` seeds airframes from the FAA registry download. Both default to a dry run and are never invoked by the Vercel build. See [airframes](../documentation/airframes.md).
 - `import-*.ts`, `reconcile-*.ts`, and `backfill-*.ts` import or reconcile data.
   The aviation history backfill defaults to a dry run; `--snapshot` uses the
   checked excerpts in `data/aviation-history.json`.

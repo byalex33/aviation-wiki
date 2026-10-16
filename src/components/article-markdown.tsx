@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ArticleBlock } from "@/components/article-blocks";
+import { SpottingLocationsView } from "@/components/spotting-map";
 import {
   ArticleChart,
   UnavailableArticleChart,
@@ -268,10 +269,14 @@ function renderNode(node: MarkdownNode, key: string, definitions: Definitions, c
         ) : (
           <UnavailableArticleChart key={key} />
         );
+      if (node.name === "SpottingLocations")
+        return node.spottingLocations ? (
+          <SpottingLocationsView key={key} block={node.spottingLocations} />
+        ) : null;
       return (
         <ArticleBlock
           key={key}
-          name={node.name as Exclude<ArticleBlockName, "Chart">}
+          name={node.name as Exclude<ArticleBlockName, "Chart" | "SpottingLocations">}
           attributes={getBlockAttributes(node)}
         >
           {children}

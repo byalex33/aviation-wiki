@@ -7,6 +7,7 @@ import { saveDraftFormAction, submitRevisionFormAction, reconcileDraftFormAction
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getArticleBySlug, getEditableRevision, getRevision, listApprovedEntityOptions, normalizeSlug } from "@/lib/wiki-public-db";
+import { spottingGuideStarterMarkdown } from "@/lib/spotting-guide";
 import { contentTypes, type RevisionContent } from "@/lib/wiki-types";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ title?: string; type?: string; saved?: string; submitted?: string }> };
@@ -50,7 +51,13 @@ export default async function ContributionEditorPage({ params, searchParams }: P
     draftUpdatedAt: draft.updatedAt,
   } : undefined;
   const contentType = requestedType ?? article?.contentType ?? "aircraft";
-  const initialContent: RevisionContent = draft || article?.liveRevision || { title: query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" "), contentType, markdown: contentType === "event" ? eventStarterMarkdown : "", fields: [], sections: [], sources: [], relationships: [] };
+  const starterTitle = query.title || slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ");
+  const starterMarkdown = contentType === "event"
+    ? eventStarterMarkdown
+    : contentType === "spotting_guide"
+      ? spottingGuideStarterMarkdown(starterTitle)
+      : "";
+  const initialContent: RevisionContent = draft || article?.liveRevision || { title: starterTitle, contentType, markdown: starterMarkdown, fields: [], sections: [], sources: [], relationships: [] };
 
   return (
     <main className="mx-auto max-w-[1000px] px-5 pb-20 pt-8 sm:px-6">

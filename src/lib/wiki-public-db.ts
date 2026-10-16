@@ -6,6 +6,7 @@ import type { Sql, TransactionSql } from "postgres";
 
 import { canonicalCountry } from "@/lib/countries";
 import { validateInternalArticleLinks } from "@/lib/article-link-policy";
+import { canonicalizeSearchDocuments } from "@/lib/article-path-aliases";
 import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
@@ -15,7 +16,9 @@ import {
   parseArticleMarkdown,
   parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
+import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { f15Article } from "@/lib/builtin-articles";
+import { queryForPrerender } from "@/lib/prerender-database";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
 import { UserFacingError } from "@/lib/user-facing-error";
@@ -60,16 +63,27 @@ function mapRevision(value: RevisionRow): RevisionRecord {
 let seeded: Promise<void> | undefined;
 async function ready() {
   await ensureSchema();
-  seeded ??= sql.begin(async (transaction) => {
-    const existing = await transaction`SELECT id FROM articles WHERE slug=${f15Article.slug} AND content_type=${f15Article.contentType} LIMIT 1`;
-    if (existing.length) return;
-    const articleId = randomUUID();
-    const revisionId = randomUUID();
-    const now = new Date();
-    await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${f15Article.slug},${f15Article.title},${f15Article.contentType},NULL,${now},${now})`;
-    await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${articleId},'approved','system','aviation.wiki','Initial import of the existing article',${f15Article.title},${f15Article.contentType},${f15Article.markdown},${transaction.json(f15Article.fields)},${transaction.json(f15Article.sections)},${transaction.json(f15Article.sources)},${transaction.json([])},${f15Article.slug},NULL,${now},${now},${now},${now},'system','Imported from the existing live article')`;
-    await transaction`UPDATE articles SET live_revision_id=${revisionId} WHERE id=${articleId}`;
-  }).then(() => undefined);
+  if (!seeded) {
+    const attempt: { promise?: Promise<void> } = {};
+    attempt.promise = sql.begin(async (transaction) => {
+      const existing = await transaction`SELECT id FROM articles WHERE content_type=${f15Article.contentType} AND slug IN (${f15Article.slug}, ${"f-15-eagle"}) LIMIT 1`;
+      if (existing.length) return;
+      const articleId = randomUUID();
+      const revisionId = randomUUID();
+      const now = new Date();
+      await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${f15Article.slug},${f15Article.title},${f15Article.contentType},NULL,${now},${now})`;
+      await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${articleId},'approved','system','aviation.wiki','Initial import of the existing article',${f15Article.title},${f15Article.contentType},${f15Article.markdown},${transaction.json(f15Article.fields)},${transaction.json(f15Article.sections)},${transaction.json(f15Article.sources)},${transaction.json([])},${f15Article.slug},NULL,${now},${now},${now},${now},'system','Imported from the existing live article')`;
+      await transaction`UPDATE articles SET live_revision_id=${revisionId} WHERE id=${articleId}`;
+      if (f15Article.slug !== "f-15-eagle")
+        await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
+          VALUES (${f15Article.contentType},${"f-15-eagle"},${articleId},${now})
+          ON CONFLICT (content_type,old_slug) DO NOTHING`;
+    }).then(() => undefined).catch((error: unknown) => {
+      if (seeded === attempt.promise) seeded = undefined;
+      throw error;
+    });
+    seeded = attempt.promise;
+  }
   await seeded;
 }
 
@@ -468,14 +482,16 @@ export async function getRevision(id: string) {
   return value ? mapRevision(value) : null;
 }
 
-export async function getArticleBySlug(slug: string, contentType?: ContentType): Promise<ArticleWithLiveRevision | null> {
-  await ready();
-  const value = contentType
-    ? await row<ArticleRow>("SELECT * FROM articles WHERE slug=$1 AND content_type=$2", [slug, contentType])
-    : await row<ArticleRow>("SELECT * FROM articles WHERE slug=$1 ORDER BY updated_at DESC LIMIT 1", [slug]);
-  if (!value) return null;
-  const article = mapArticle(value);
-  return { ...article, liveRevision: article.liveRevisionId ? await getRevision(article.liveRevisionId) : null };
+export function getArticleBySlug(slug: string, contentType?: ContentType): Promise<ArticleWithLiveRevision | null> {
+  return queryForPrerender(async () => {
+    await ready();
+    const value = contentType
+      ? await row<ArticleRow>("SELECT * FROM articles WHERE slug=$1 AND content_type=$2", [slug, contentType])
+      : await row<ArticleRow>("SELECT * FROM articles WHERE slug=$1 ORDER BY updated_at DESC LIMIT 1", [slug]);
+    if (!value) return null;
+    const article = mapArticle(value);
+    return { ...article, liveRevision: article.liveRevisionId ? await getRevision(article.liveRevisionId) : null };
+  });
 }
 
 export async function ensureDirectoryAirlineArticle(
@@ -781,6 +797,17 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     if (revision.contentType !== currentArticle.content_type) throw new UserFacingError("An existing article cannot change content type through a revision.");
     const parsedMarkdown = parseArticleMarkdown(revision.markdown);
     if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    if (revision.contentType === "spotting_guide") {
+      const issue = spottingGuideIssues({
+        title: revision.title,
+        markdown: revision.markdown,
+        fields: revision.fields,
+        citationCount: parsedMarkdown.citations.length,
+      }, parsedMarkdown)[0];
+      if (issue) throw new UserFacingError(issue);
+      const [airport] = await transaction`SELECT a.id FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='airport' AND a.slug=${revision.proposedSlug} AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL`;
+      if (!airport) throw new UserFacingError("Publish an airport article with this slug before approving its spotting guide.");
+    }
     const published = await transaction`SELECT a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL`;
     const availablePaths = published.map((article) => articlePath(article.content_type as ContentType, String(article.slug)));
     availablePaths.push(articlePath(revision.contentType, revision.proposedSlug));
@@ -810,6 +837,8 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     for (const relationship of revision.relationships)
       await transaction`INSERT INTO article_relationships (source_article_id,target_article_id,relationship_type,approved_revision_id,created_at)
         VALUES (${revision.articleId},${relationship.targetArticleId},${relationship.type},${id},${now})`;
+    const { syncPublishedAirframe } = await import("@/lib/airframe-db");
+    await syncPublishedAirframe(transaction, revision.articleId, revision);
     if (audit) await recordAdminAudit(audit, transaction);
     return revision;
   });
@@ -942,10 +971,14 @@ export async function getRevisionImportFieldSources(revisionId: string) {
   return await rows<{field_key:string;field_value:string;provider:string;source_identifier:string;source_urls_json:string}>("SELECT field_key,field_value,provider,source_identifier,source_urls_json::text AS source_urls_json FROM revision_import_field_sources WHERE revision_id=$1 ORDER BY field_key",[revisionId]);
 }
 
-export async function getSlugRedirect(contentType: ContentType, slug: string) {
+export async function getSlugRedirectTarget(contentType: ContentType, slug: string) {
   await ready();
-  const value = await row<{ slug: string }>("SELECT a.slug FROM article_slug_redirects r JOIN articles a ON a.id=r.article_id WHERE r.content_type=$1 AND r.old_slug=$2", [contentType, slug]);
-  return value?.slug ?? null;
+  const value = await row<{ slug: string; content_type: ContentType }>("SELECT a.slug, a.content_type FROM article_slug_redirects r JOIN articles a ON a.id=r.article_id WHERE r.content_type=$1 AND r.old_slug=$2", [contentType, slug]);
+  return value ? { slug: value.slug, contentType: value.content_type } : null;
+}
+
+export async function getSlugRedirect(contentType: ContentType, slug: string) {
+  return (await getSlugRedirectTarget(contentType, slug))?.slug ?? null;
 }
 
 export async function getArticlePublicationControls(contentType: ContentType, slug: string) {
@@ -991,6 +1024,7 @@ function sidebarImages(markdown: string) {
 function articleCardDescription(markdown: string) {
   const paragraph = markdown
     .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+    .replace(/<SpottingLocations(?:\s[^>]*)?>[\s\S]*?<\/SpottingLocations>/gi, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .split(/\n\s*\n/)
     .map((block) => block.trim())
@@ -1010,6 +1044,24 @@ function articleCardDescription(markdown: string) {
     .slice(0, 180);
 }
 
+export async function listPublishedSpottingGuides() {
+  await ready();
+  const values = await rows<{ id: string; slug: string; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>(
+    "SELECT a.id,a.slug,r.title,r.fields_json,r.markdown,COALESCE(r.reviewed_at,r.updated_at) updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='spotting_guide' AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title",
+  );
+  return values.map((item) => ({
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    href: articlePath("spotting_guide", item.slug),
+    description: articleCardDescription(item.markdown),
+    updatedAt: iso(item.updated_at),
+    fields: json<Array<{ key?: string; value?: string }>>(item.fields_json, []).filter(
+      (field): field is { key: string; value: string } => Boolean(field.key && field.value),
+    ),
+  }));
+}
+
 async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   await ready();
   const [documents, redirects, priorTitles] = await Promise.all([
@@ -1020,7 +1072,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   const aliases = new Map<string,string[]>(); const titles = new Map<string,string[]>();
   for (const item of redirects) aliases.set(item.article_id,[...(aliases.get(item.article_id) || []),item.old_slug.replaceAll("-"," ")]);
   for (const item of priorTitles) titles.set(item.article_id,[...(titles.get(item.article_id) || []),item.title]);
-  return documents.map((item) => {
+  return canonicalizeSearchDocuments(documents.map((item) => {
     const fields = json<Array<{key?:string;value?:string}>>(item.fields_json,[]);
     const searchable = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
     const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => canonicalCountry(part)).filter(Boolean)))];
@@ -1030,17 +1082,21 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
     const images = sidebarImages(item.markdown);
     return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,fields:fields.filter((field): field is {key:string;value:string} => Boolean(field.key && field.value)),countries,terms};
-  });
+  }));
 }
 
 // This index includes every live article's searchable fields and Markdown.
 // Persist it in Next's data cache so public page and search traffic does not
 // repeatedly transfer the entire published corpus from Postgres.
-export const listPublicSearchDocuments = unstable_cache(
+const listPublicSearchDocumentsCached = unstable_cache(
   loadPublicSearchDocuments,
-  ["public-search-documents-v3"],
+  ["public-search-documents-v4"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
+
+export function listPublicSearchDocuments() {
+  return queryForPrerender(() => listPublicSearchDocumentsCached());
+}
 
 export type PublicEventSourceArticle = {
   id: string;
@@ -1110,17 +1166,25 @@ async function loadHomepageActivity() {
 
 // Homepage board and source total. Approvals revalidate the search-documents
 // tag, so the board refreshes as soon as something is published.
-export const getHomepageActivity = unstable_cache(
+const getHomepageActivityCached = unstable_cache(
   loadHomepageActivity,
   ["homepage-activity-v1"],
   { revalidate: 3_600, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 
-export const listPublicEventSourceData = unstable_cache(
+export function getHomepageActivity() {
+  return queryForPrerender(() => getHomepageActivityCached());
+}
+
+const listPublicEventSourceDataCached = unstable_cache(
   loadPublicEventSourceData,
   ["public-event-source-data-v2"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
+
+export function listPublicEventSourceData() {
+  return queryForPrerender(() => listPublicEventSourceDataCached());
+}
 
 export async function listPublicFleetSourceData(): Promise<{
   articles: FleetSourceArticle[];
@@ -1198,13 +1262,20 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
   const sections: DiscoverySection[] = [];
   if (article.contentType === "airline") sections.push(
     {title:"Aircraft operated by this airline",entities:outgoing("operates_aircraft")},
+    {title:"Individual airframes",entities:incoming("operated_by")},
     {title:"Hub airports",entities:outgoing("hub_at_airport")},
   );
   if (article.contentType === "aircraft") sections.push(
     {title:"Airlines operating this aircraft",entities:incoming("operates_aircraft")},
+    {title:"Individual airframes",entities:incoming("instance_of")},
     {title:"Manufacturers",entities:outgoing("manufactured_by")},
     {title:"Engines used",entities:outgoing("uses_engine")},
     {title:"Related variants",entities:unique([...outgoing("variant_of"),...incoming("variant_of")])},
+  );
+  if (article.contentType === "airframe") sections.push(
+    {title:"Aircraft type",entities:outgoing("instance_of")},
+    {title:"Operator",entities:outgoing("operated_by")},
+    {title:"Manufacturer",entities:outgoing("manufactured_by")},
   );
   if (article.contentType === "airport") sections.push({title:"Airlines using this airport",entities:incoming("hub_at_airport")});
   if (article.contentType === "manufacturer") sections.push(

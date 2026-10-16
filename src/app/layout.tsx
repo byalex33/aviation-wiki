@@ -208,10 +208,22 @@ export default function RootLayout({
                       Fleet database
                     </Link>
                     <Link
+                      href="/airframes"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Airframes
+                    </Link>
+                    <Link
                       href="/aviation-news"
                       className="flex min-h-10 items-center transition-colors hover:text-primary"
                     >
                       Aviation news
+                    </Link>
+                    <Link
+                      href="/spotting"
+                      className="flex min-h-10 items-center transition-colors hover:text-primary"
+                    >
+                      Plane spotting
                     </Link>
                     <Link
                       href="/contribute"

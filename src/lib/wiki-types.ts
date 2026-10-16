@@ -2,11 +2,16 @@ export const contentTypes = [
   "airline",
   "alliance",
   "aircraft",
+  "airframe",
   "airport",
+  "spotting_guide",
   "manufacturer",
   "engine",
   "event",
 ] as const;
+
+/** SQL literal list for content-type checks. Values come from the const above. */
+export const contentTypeSqlList = contentTypes.map((type) => `'${type}'`).join(",");
 export type ContentType = (typeof contentTypes)[number];
 
 export const revisionStatuses = ["draft", "verifying", "pending_review", "changes_requested", "approved", "rejected"] as const;
@@ -34,6 +39,8 @@ export const relationshipTypes = [
   "variant_of",
   "produces_aircraft",
   "produces_engine",
+  "instance_of",
+  "operated_by",
 ] as const;
 export type RelationshipType = (typeof relationshipTypes)[number];
 export type EntityRelationship = {
