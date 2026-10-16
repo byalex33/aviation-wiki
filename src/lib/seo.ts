@@ -1,36 +1,27 @@
 import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
-import {
-  isSafeImageUrl,
-  parseArticleImageShorthand,
-} from "@/lib/article-markdown";
+import { configuredSiteUrl, firstArticleImage, truncateDescription } from "@/lib/article-summary";
 import { getArticleBySlug, normalizeSlug } from "@/lib/wiki-public-db";
 import { DEFAULT_OG_IMAGE } from "@/lib/site";
 import type { ContentType } from "@/lib/wiki-types";
 
-export const siteUrl = new URL(
-  process.env.NEXT_PUBLIC_APP_URL || "https://aviation.wiki",
-);
+export const siteUrl = configuredSiteUrl();
 
 export function articleDescription(markdown: string) {
-  return markdown
-    .replace(/^#\s+.*(?:\r?\n)+/, "")
-    .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
-    .replace(/\[\^[^\]]+\]/g, "")
-    .replace(/[#*_>`\[\]()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
+  return truncateDescription(
+    markdown
+      .replace(/^#\s+.*(?:\r?\n)+/, "")
+      .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+      .replace(/\[\^[^\]]+\]/g, "")
+      .replace(/[#*_>`\[\]()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 export function articleImageDetails(markdown: string) {
-  const sidebar = markdown.match(/<Sidebar(?:\s[^>]*)?>([\s\S]*?)<\/Sidebar>/i);
-  if (!sidebar) return;
-  for (const line of sidebar[1].split(/\r?\n/)) {
-    const image = parseArticleImageShorthand(line.trim().replace(/^-\s+/, ""));
-    if (image && isSafeImageUrl(image.url)) return image;
-  }
+  return firstArticleImage(markdown);
 }
 
 export function articleImage(markdown: string) {

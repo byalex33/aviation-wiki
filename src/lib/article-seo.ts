@@ -3,6 +3,8 @@ import "server-only";
 import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
+import { firstArticleImage } from "@/lib/article-summary";
+import { siteUrl } from "@/lib/seo";
 import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site";
 import {
   getArticleBySlug,
@@ -120,6 +122,9 @@ export function metadataForArticle(
   const title = searchTitle(revision);
   const publishedTime = revision.reviewedAt || revision.createdAt;
   const modifiedTime = revision.updatedAt;
+  const image = firstArticleImage(revision.markdown);
+  const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
+  const images = imageUrl ? [{ url: imageUrl, alt: revision.title }] : [DEFAULT_OG_IMAGE];
 
   return {
     title,
@@ -130,16 +135,16 @@ export function metadataForArticle(
       description,
       url: path,
       siteName: SITE_NAME,
-      type: "article",
+      type: "article" as const,
       publishedTime,
       modifiedTime,
-      images: [DEFAULT_OG_IMAGE],
+      images,
     },
     twitter: {
-      card: "summary_large_image",
+      card: "summary_large_image" as const,
       title,
       description,
-      images: [DEFAULT_OG_IMAGE.url],
+      images: [imageUrl || DEFAULT_OG_IMAGE.url],
     },
   };
 }
