@@ -341,8 +341,11 @@ export function parseArticleMarkdown(source: string): ParsedArticleMarkdown {
       : parseError.message.includes("Expected a closing tag for `<SpottingLocations>`")
         ? "Missing closing </SpottingLocations> tag."
       : parseError.message.includes("before attribute value") &&
-          /<(?:Chart|SpottingLocations)\b/.test(source)
-        ? "Attribute values must use quotes."
+          /<Chart\b/.test(source)
+        ? "Chart attribute values must use quotes."
+        : parseError.message.includes("before attribute value") &&
+            /<SpottingLocations\b/.test(source)
+          ? "SpottingLocations attribute values must use quotes."
         : parseError.message;
     return {
       root: { type: "root", children: [] },
