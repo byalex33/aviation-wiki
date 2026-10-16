@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ArticleBlockName } from "@/lib/article-markdown";
 
-type SimpleArticleBlockName = Exclude<ArticleBlockName, "Chart">;
+type SimpleArticleBlockName = Exclude<ArticleBlockName, "Chart" | "SpottingLocations">;
 
 type ArticleBlockProps = {
   name: SimpleArticleBlockName;

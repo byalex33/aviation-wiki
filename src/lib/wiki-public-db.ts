@@ -15,6 +15,7 @@ import {
   parseArticleMarkdown,
   parseStructuredFieldMarkdown,
 } from "@/lib/article-markdown";
+import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { f15Article } from "@/lib/builtin-articles";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
@@ -781,6 +782,17 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     if (revision.contentType !== currentArticle.content_type) throw new UserFacingError("An existing article cannot change content type through a revision.");
     const parsedMarkdown = parseArticleMarkdown(revision.markdown);
     if (parsedMarkdown.errors.length) throw new UserFacingError("This revision contains invalid or unsafe Markdown and cannot be approved.");
+    if (revision.contentType === "spotting_guide") {
+      const issue = spottingGuideIssues({
+        title: revision.title,
+        markdown: revision.markdown,
+        fields: revision.fields,
+        citationCount: parsedMarkdown.citations.length,
+      }, parsedMarkdown)[0];
+      if (issue) throw new UserFacingError(issue);
+      const [airport] = await transaction`SELECT a.id FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='airport' AND a.slug=${revision.proposedSlug} AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL`;
+      if (!airport) throw new UserFacingError("Publish an airport article with this slug before approving its spotting guide.");
+    }
     const published = await transaction`SELECT a.slug,a.content_type FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE r.status='approved' AND a.archived_at IS NULL`;
     const availablePaths = published.map((article) => articlePath(article.content_type as ContentType, String(article.slug)));
     availablePaths.push(articlePath(revision.contentType, revision.proposedSlug));
@@ -991,6 +1003,7 @@ function sidebarImages(markdown: string) {
 function articleCardDescription(markdown: string) {
   const paragraph = markdown
     .replace(/<Sidebar(?:\s[^>]*)?>[\s\S]*?<\/Sidebar>/gi, " ")
+    .replace(/<SpottingLocations(?:\s[^>]*)?>[\s\S]*?<\/SpottingLocations>/gi, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .split(/\n\s*\n/)
     .map((block) => block.trim())
@@ -1008,6 +1021,24 @@ function articleCardDescription(markdown: string) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 180);
+}
+
+export async function listPublishedSpottingGuides() {
+  await ready();
+  const values = await rows<{ id: string; slug: string; title: string; fields_json: unknown; markdown: string; updated_at: Date | string }>(
+    "SELECT a.id,a.slug,r.title,r.fields_json,r.markdown,COALESCE(r.reviewed_at,r.updated_at) updated_at FROM articles a JOIN revisions r ON r.id=a.live_revision_id WHERE a.content_type='spotting_guide' AND r.status='approved' AND a.archived_at IS NULL AND a.redirect_to_slug IS NULL ORDER BY r.title",
+  );
+  return values.map((item) => ({
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    href: articlePath("spotting_guide", item.slug),
+    description: articleCardDescription(item.markdown),
+    updatedAt: iso(item.updated_at),
+    fields: json<Array<{ key?: string; value?: string }>>(item.fields_json, []).filter(
+      (field): field is { key: string; value: string } => Boolean(field.key && field.value),
+    ),
+  }));
 }
 
 async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {

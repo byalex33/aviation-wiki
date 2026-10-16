@@ -6,7 +6,11 @@ export const contentTypes = [
   "manufacturer",
   "engine",
   "event",
+  "spotting_guide",
 ] as const;
+
+/** SQL literal list for content-type checks. Values come from the const above. */
+export const contentTypeSqlList = contentTypes.map((type) => `'${type}'`).join(",");
 export type ContentType = (typeof contentTypes)[number];
 
 export const revisionStatuses = ["draft", "verifying", "pending_review", "changes_requested", "approved", "rejected"] as const;

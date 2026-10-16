@@ -36,7 +36,7 @@ Clerk is the identity provider. `src/lib/wiki-auth.ts` exposes `requireContribut
 
 ### Content types & revision lifecycle
 
-Valid `ContentType` values: `airline`, `alliance`, `aircraft`, `airport`, `manufacturer`, `engine`, `event` — defined in `src/lib/wiki-types.ts`.
+Valid `ContentType` values: `airline`, `alliance`, `aircraft`, `airport`, `manufacturer`, `engine`, `event`, `spotting_guide` — defined in `src/lib/wiki-types.ts`. Spotting guides are articles of type `spotting_guide`, published at `/airports/<airport-slug>/spotting`.
 
 Revision lifecycle: `draft → verifying → pending_review → (approved | rejected | changes_requested)`. Only moderators/admins can approve. Staff submitters auto-publish. `saveDraft()` and `transitionRevision()` in `wiki-public-db.ts` drive all state changes.
 

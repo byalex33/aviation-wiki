@@ -29,6 +29,7 @@ const staticRoutes = [
   "/cargo",
   "/airports",
   "/airports/united-kingdom",
+  "/spotting",
   "/manufacturers",
   "/engines",
   "/engines/rolls-royce",

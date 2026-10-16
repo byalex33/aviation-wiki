@@ -89,6 +89,7 @@ export function articleDescription(revision: RevisionRecord) {
     engine: `Explore ${revision.title} specifications, applications, variants, history, and cited aviation data.`,
     alliance: `Explore ${revision.title} members, partners, history, and cited aviation data.`,
     event: `Read a sourced account of ${revision.title}, including when it happened, what changed, and its aviation significance.`,
+    spotting_guide: `Community plane spotting guide for ${revision.title}, including locations, runway use, access, and when it was last verified.`,
   };
   return truncateSentence(fallbacks[revision.contentType]);
 }
@@ -102,6 +103,7 @@ function searchTitle(revision: RevisionRecord) {
     manufacturer: "aircraft, engines and company history",
     engine: "specifications, applications and variants",
     event: "what happened, timeline and aviation impact",
+    spotting_guide: "plane spotting locations, access and last verified",
   };
   return `${revision.title}: ${suffixes[revision.contentType]}`;
 }

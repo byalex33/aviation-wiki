@@ -49,5 +49,6 @@ assert.equal(
 );
 
 assert.ok(directive(contentSecurityPolicy({ publishableKey, development: true }), "script-src").includes("'unsafe-eval'"));
+assert.ok(directive(cacheable, "img-src").includes("https://tile.openstreetmap.org"), "OpenStreetMap tiles are allowed");
 
 console.log("CSP tests passed");

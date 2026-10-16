@@ -4,7 +4,9 @@ import type { MarkdownError, MarkdownNode, MarkdownRoot } from "@/lib/article-ma
 import { ARTICLE_PATH_ALIASES } from "@/lib/article-path-aliases";
 
 const namespaces: Record<string, string> = { airline: "commercial", airlines: "commercial", airport: "airports" };
-const articleNamespaces = new Set([...Object.values(contentTypePaths), ...Object.keys(namespaces)]);
+const articleNamespaces = new Set(
+  [...Object.values(contentTypePaths), ...Object.keys(namespaces)].filter((namespace) => namespace !== "spotting"),
+);
 const siteHosts = new Set(["aviation.wiki", "www.aviation.wiki"]);
 
 /** Only article URLs are checked here; navigation, sources and fragment links stay intact. */
