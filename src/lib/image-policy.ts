@@ -1,4 +1,4 @@
-export const ARTICLE_IMAGE_HOSTS = ["img.clerk.com", "airhex.com", "images.kiwi.com", "flagcdn.com", "upload.wikimedia.org", "cdn.jetphotos.com"] as const;
+export const ARTICLE_IMAGE_HOSTS = ["img.clerk.com", "airhex.com", "images.kiwi.com", "flagcdn.com", "upload.wikimedia.org", "cdn.jetphotos.com", "images-pw.pixieset.com"] as const;
 export const ARTICLE_IMAGE_GUIDANCE = `Use a local /path or an HTTPS image from ${ARTICLE_IMAGE_HOSTS.join(", ")}.`;
 
 export function isAllowedArticleImage(value: string) {
