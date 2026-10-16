@@ -6,10 +6,11 @@ import { SITE_URL } from "@/lib/site";
 import { sitemapImageUrl } from "@/lib/sitemap-images";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
-// Rendered on demand, but listPublicSearchDocuments is cached for 24h so this
-// touches Postgres at most once per day. Kept dynamic (not prerendered) so a
-// build without database env — e.g. a preview deploy — does not need to reach it.
-export const dynamic = "force-dynamic";
+// Cached for a day. A failed generation is not stored, so a Postgres error
+// cannot replace a sitemap that already succeeded. Preview builds have no
+// DATABASE_URL and emit the static routes only; a production build has the
+// database and includes every article, lastmod, and image.
+export const revalidate = 86400;
 
 const staticRoutes = [
   "/",
@@ -57,7 +58,7 @@ const aviationDataRoutes = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const documents = await listPublicSearchDocuments();
+  const documents = process.env.DATABASE_URL ? await listPublicSearchDocuments() : [];
   // Static and data routes carry no lastmod: stamping them with the request
   // time makes every lastmod in the file untrustworthy to crawlers.
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map(

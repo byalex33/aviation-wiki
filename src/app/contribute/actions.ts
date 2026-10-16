@@ -371,6 +371,7 @@ export async function submitRevisionAction(formData: FormData) {
       after: { status: "approved", note },
     });
     revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+    revalidatePath("/sitemap.xml");
     revalidatePath(articlePath(article.contentType, revision.articleSlug));
     revalidatePath(articlePath(article.contentType, article.slug));
     revalidatePath(articleHistoryPath(article.contentType, article.slug));
@@ -458,7 +459,10 @@ export async function moderateRevisionAction(formData: FormData) {
       previousLiveRevision,
     });
 
-  if (intent === "approve") revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+  if (intent === "approve") {
+    revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+    revalidatePath("/sitemap.xml");
+  }
   revalidatePath("/moderation");
   revalidatePath(articlePath(revision.contentType, revision.articleSlug));
   revalidatePath(articlePath(revision.contentType, revision.proposedSlug));
@@ -539,6 +543,7 @@ export async function editAndApproveAction(formData: FormData) {
     });
 
   revalidateTag(PUBLIC_SEARCH_DOCUMENTS_TAG, "max");
+  revalidatePath("/sitemap.xml");
   revalidatePath(articlePath(article.contentType, article.slug));
   revalidatePath(articleHistoryPath(article.contentType, article.slug));
   revalidatePath("/moderation");
