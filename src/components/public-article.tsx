@@ -312,7 +312,7 @@ export function PublicArticle({
   const editorHref = `/editor?type=${revision.contentType}&slug=${encodeURIComponent(article.slug)}`;
   const spottingGuide = revision.contentType === "spotting_guide";
   const airportName = revision.title.replace(/\s+plane spotting$/i, "").trim() || article.title;
-  const airportUrl = new URL(articlePath("airport", article.slug), siteUrl);
+  const airportUrl = new URL(`/airports/${article.slug}`, siteUrl);
   const placeholderGuide = isPlaceholderSpottingGuide(revision.fields, parsed.spottingLocations);
   const verifiedOn = fieldValue(revision.fields, "last verified");
   const freshness = spottingFreshness(verifiedOn || null);
@@ -429,7 +429,7 @@ export function PublicArticle({
             <span> / </span>
             <Link href="/spotting" className="article-link">Plane spotting</Link>
             <span> / </span>
-            <Link href={articlePath("airport", article.slug)} className="article-link">{airportName}</Link>
+            <Link href={`/airports/${article.slug}`} className="article-link">{airportName}</Link>
             <span> / </span>
             <span>{revision.title}</span>
           </>
@@ -469,7 +469,7 @@ export function PublicArticle({
       )}
       {revision.contentType === "airport" && (
         <Link
-          href={articlePath("spotting_guide", article.slug)}
+          href={`/airports/${article.slug}/spotting`}
           className="mt-6 flex items-center gap-4 rounded-2xl border bg-card p-4 transition-colors hover:border-foreground/20"
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10">
