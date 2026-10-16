@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { parseArticleMarkdown } from "../src/lib/article-markdown";
 import { parseExactEventDate } from "../src/lib/on-this-day-data";
 import type { RevisionContent } from "../src/lib/wiki-types";
-import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 const seeds = [
   {
@@ -71,7 +70,6 @@ async function publish() {
 }
 
 if (process.argv.includes("--publish")) {
-  exitIfVercelBuild();
   publish().catch((error) => { console.error(error); process.exitCode = 1; });
 } else {
   console.log(`Validated ${seeds.length} aviation history articles. Use --publish to publish new articles.`);

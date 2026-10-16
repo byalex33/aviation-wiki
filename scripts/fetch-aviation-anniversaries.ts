@@ -1,9 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { anniversaryDate } from "../src/lib/on-this-day-data";
-import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
-  exitIfVercelBuild();
   const [value, output] = process.argv.slice(2);
   const date = value ? anniversaryDate(value) : null;
   if (!date || !output) throw new Error("Usage: node --import tsx scripts/fetch-aviation-anniversaries.ts MM-DD output.json");

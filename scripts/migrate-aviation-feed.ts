@@ -1,9 +1,7 @@
 import { sql } from "../src/lib/postgres";
 import { AVIATION_FEED_SCHEMA_SQL } from "../src/lib/aviation-feed-data";
-import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
-  exitIfVercelBuild();
   if (!process.argv.includes("--apply")) {
     console.log("Creates storage for This Day in Aviation RSS entries. Re-run with --apply against the intended PostgreSQL database.");
     return;

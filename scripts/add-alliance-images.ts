@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import images from "./alliance-images.json";
 import { parseArticleMarkdown } from "../src/lib/article-markdown";
-import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 function addImage(markdown: string, image: typeof images[number]) {
   const parsed = parseArticleMarkdown(markdown);
@@ -66,7 +65,6 @@ async function run(publish: boolean) {
 }
 
 if (process.argv.includes("--publish") || process.argv.includes("--check-live")) {
-  if (process.argv.includes("--publish")) exitIfVercelBuild();
   run(process.argv.includes("--publish")).catch((error) => {
     console.error(error);
     process.exitCode = 1;
