@@ -1,6 +1,6 @@
 import "server-only";
 
-import { articlePath } from "@/lib/article-routes";
+import { publicArticlePath } from "@/lib/article-path-aliases";
 import {
   comparisonDefinition,
   type ComparisonDefinition,
@@ -41,7 +41,7 @@ export async function loadComparison(slug: string) {
     return {
       ...entity,
       articleTitle: revision.title,
-      href: articlePath(revision.contentType, approved.slug),
+      href: publicArticlePath(revision.contentType, approved.slug),
       updatedAt: revision.updatedAt,
       revision,
     };

@@ -6,6 +6,7 @@ import type { Sql, TransactionSql } from "postgres";
 
 import { canonicalCountry } from "@/lib/countries";
 import { validateInternalArticleLinks } from "@/lib/article-link-policy";
+import { canonicalizeSearchDocuments } from "@/lib/article-path-aliases";
 import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
@@ -60,16 +61,27 @@ function mapRevision(value: RevisionRow): RevisionRecord {
 let seeded: Promise<void> | undefined;
 async function ready() {
   await ensureSchema();
-  seeded ??= sql.begin(async (transaction) => {
-    const existing = await transaction`SELECT id FROM articles WHERE slug=${f15Article.slug} AND content_type=${f15Article.contentType} LIMIT 1`;
-    if (existing.length) return;
-    const articleId = randomUUID();
-    const revisionId = randomUUID();
-    const now = new Date();
-    await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${f15Article.slug},${f15Article.title},${f15Article.contentType},NULL,${now},${now})`;
-    await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${articleId},'approved','system','aviation.wiki','Initial import of the existing article',${f15Article.title},${f15Article.contentType},${f15Article.markdown},${transaction.json(f15Article.fields)},${transaction.json(f15Article.sections)},${transaction.json(f15Article.sources)},${transaction.json([])},${f15Article.slug},NULL,${now},${now},${now},${now},'system','Imported from the existing live article')`;
-    await transaction`UPDATE articles SET live_revision_id=${revisionId} WHERE id=${articleId}`;
-  }).then(() => undefined);
+  if (!seeded) {
+    const attempt: { promise?: Promise<void> } = {};
+    attempt.promise = sql.begin(async (transaction) => {
+      const existing = await transaction`SELECT id FROM articles WHERE content_type=${f15Article.contentType} AND slug IN (${f15Article.slug}, ${"f-15-eagle"}) LIMIT 1`;
+      if (existing.length) return;
+      const articleId = randomUUID();
+      const revisionId = randomUUID();
+      const now = new Date();
+      await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${f15Article.slug},${f15Article.title},${f15Article.contentType},NULL,${now},${now})`;
+      await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${articleId},'approved','system','aviation.wiki','Initial import of the existing article',${f15Article.title},${f15Article.contentType},${f15Article.markdown},${transaction.json(f15Article.fields)},${transaction.json(f15Article.sections)},${transaction.json(f15Article.sources)},${transaction.json([])},${f15Article.slug},NULL,${now},${now},${now},${now},'system','Imported from the existing live article')`;
+      await transaction`UPDATE articles SET live_revision_id=${revisionId} WHERE id=${articleId}`;
+      if (f15Article.slug !== "f-15-eagle")
+        await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
+          VALUES (${f15Article.contentType},${"f-15-eagle"},${articleId},${now})
+          ON CONFLICT (content_type,old_slug) DO NOTHING`;
+    }).then(() => undefined).catch((error: unknown) => {
+      if (seeded === attempt.promise) seeded = undefined;
+      throw error;
+    });
+    seeded = attempt.promise;
+  }
   await seeded;
 }
 
@@ -1020,7 +1032,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   const aliases = new Map<string,string[]>(); const titles = new Map<string,string[]>();
   for (const item of redirects) aliases.set(item.article_id,[...(aliases.get(item.article_id) || []),item.old_slug.replaceAll("-"," ")]);
   for (const item of priorTitles) titles.set(item.article_id,[...(titles.get(item.article_id) || []),item.title]);
-  return documents.map((item) => {
+  return canonicalizeSearchDocuments(documents.map((item) => {
     const fields = json<Array<{key?:string;value?:string}>>(item.fields_json,[]);
     const searchable = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
     const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => canonicalCountry(part)).filter(Boolean)))];
@@ -1030,7 +1042,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
     const images = sidebarImages(item.markdown);
     return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,fields:fields.filter((field): field is {key:string;value:string} => Boolean(field.key && field.value)),countries,terms};
-  });
+  }));
 }
 
 // This index includes every live article's searchable fields and Markdown.
@@ -1038,7 +1050,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
 // repeatedly transfer the entire published corpus from Postgres.
 export const listPublicSearchDocuments = unstable_cache(
   loadPublicSearchDocuments,
-  ["public-search-documents-v3"],
+  ["public-search-documents-v4"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 

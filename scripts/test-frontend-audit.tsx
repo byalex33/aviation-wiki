@@ -15,11 +15,14 @@ const csv = '1,"easyJet",\\N,"U2","EZY","EASY","United Kingdom","Y"\n2,"United F
 assert.equal(matchOpenFlightsAirlines(csv, [{ iata: "U2", icao: "EZY" }]).get("U2")?.name, "easyJet");
 assert.equal(matchOpenFlightsAirlines(csv, [{ iata: "U2" }]).size, 0);
 assert.equal(matchOpenFlightsAirlines(`${csv}\n${csv.split("\n")[0]}`, [{ iata: "U2", icao: "EZY" }]).size, 0);
-const paths = new Set(["/commercial/british-airways", "/commercial/british-airways-fleet", "/airports/heathrow"]);
+const paths = new Set(["/commercial/british-airways", "/commercial/british-airways-fleet", "/airports/heathrow", "/commercial/iberia-airlines", "/aircraft/lockheed-martin-f-35-lightning-ii"]);
 assert.equal(resolveInternalArticleLink("/airline/british-airways#fleet", paths), "/commercial/british-airways#fleet");
 assert.equal(resolveInternalArticleLink("/aircraft/british-airways-fleet", paths), "/commercial/british-airways-fleet");
 assert.equal(resolveInternalArticleLink("https://outside.test/airline/british-airways", paths), undefined);
 assert.equal(resolveInternalArticleLink("/engines/missing", paths), null);
+assert.equal(resolveInternalArticleLink("/commercial/iberia#fleet", paths), "/commercial/iberia-airlines#fleet");
+assert.equal(resolveInternalArticleLink("/aircraft/f35-lightning-ii", paths), "/aircraft/lockheed-martin-f-35-lightning-ii");
+assert.equal(resolveInternalArticleLink("/aircraft/f-15-eagle", new Set(["/aircraft/f-15-eagle"])), "/aircraft/f-15-eagle");
 const parsed = parseArticleMarkdown("[BA](/airlines/british-airways) [Missing](/engines/missing)");
 assert.equal(validateInternalArticleLinks(parsed.root, paths).length, 2);
 const rendered = renderToStaticMarkup(<ArticleMarkdown root={canonicalizeArticleLinks(parsed.root, paths)} />);
