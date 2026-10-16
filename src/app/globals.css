@@ -170,7 +170,89 @@ html.dark .site-footer {
   .field-label {
     @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
   }
+
+  .wiki-cite {
+    @apply relative ml-0.5 inline-block align-super text-[0.72em];
+  }
+
+  .wiki-cite > a {
+    @apply rounded-sm font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .wiki-cite-tip {
+    @apply pointer-events-none fixed inset-x-4 bottom-4 z-50 hidden rounded-lg border bg-popover p-3 text-left font-sans text-xs font-normal leading-5 text-popover-foreground shadow-xl sm:absolute sm:inset-x-auto sm:bottom-full sm:left-1/2 sm:mb-2 sm:w-72 sm:-translate-x-1/2;
+  }
+
+  .wiki-cite:hover .wiki-cite-tip,
+  .wiki-cite:focus-within .wiki-cite-tip {
+    display: block;
+  }
+
+  .wiki-table {
+    @apply my-5 overflow-x-auto rounded-lg border;
+  }
+
+  .wiki-table table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  .wiki-table thead tr {
+    @apply border-b bg-muted/40;
+  }
+
+  .wiki-table th,
+  .wiki-table td {
+    @apply border-r px-3 py-2.5 align-top;
+  }
+
+  .wiki-table th {
+    @apply font-semibold;
+  }
+
+  .wiki-table td:first-child {
+    @apply font-medium;
+  }
+
+  .wiki-table th:last-child,
+  .wiki-table td:last-child {
+    border-right-width: 0;
+  }
+
+  .wiki-table tbody tr {
+    @apply border-b;
+  }
+
+  .wiki-table tbody tr:last-child {
+    border-bottom-width: 0;
+  }
 }
+
+/* Each rendered article element gets one short class instead of repeated
+   utility strings. These are utilities, not components, so they keep the
+   precedence of the inline classes they replace (for example over
+   `article > p`), and charts inside the article keep their own styles. */
+@utility wiki-p {
+  @apply mb-4 leading-7 text-foreground/80;
+}
+
+@utility wiki-h {
+  @apply mb-3 mt-8 scroll-mt-24 font-bold tracking-tight first:mt-0;
+}
+
+@utility wiki-h1 { @apply text-3xl; }
+@utility wiki-h2 { @apply text-2xl; }
+@utility wiki-h3 { @apply text-xl; }
+@utility wiki-h4 { @apply text-base; }
+@utility wiki-strong { @apply font-semibold text-foreground; }
+@utility wiki-a { @apply font-medium text-primary underline-offset-4 hover:underline; }
+@utility wiki-ul { @apply mb-4 list-disc space-y-1 pl-6; }
+@utility wiki-ol { @apply mb-4 list-decimal space-y-1 pl-6; }
+@utility wiki-li { @apply pl-1; }
+
+@utility wiki-flag {
+  @apply mr-1 inline-block h-auto w-10 rounded-xs align-middle;
+}
+
 
 /* beUI Select's origin-aware unfold, adapted for existing Base UI menus. */
 .beui-dropdown {

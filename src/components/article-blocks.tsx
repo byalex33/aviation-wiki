@@ -48,6 +48,7 @@ export function ArticleBlock({ name, attributes, children }: ArticleBlockProps) 
   return (
     <Card className={cn(
       "my-6 gap-0 rounded-2xl",
+      (name === "FleetTable" || name === "Specifications") && "render-deferred",
       name === "Sidebar" && "my-0 bg-muted/40",
       name === "Timeline" && "[&_li]:relative [&_li]:border-l-2 [&_li]:border-primary/25 [&_li]:pb-4 [&_li]:pl-5 [&_li]:before:absolute [&_li]:before:-left-[5px] [&_li]:before:top-2 [&_li]:before:size-2 [&_li]:before:rounded-full [&_li]:before:bg-primary",
       name === "Gallery" && (attributes.columns === "2" ? "[&_[data-markdown-children]]:grid-cols-2" : "[&_[data-markdown-children]]:grid-cols-2 md:[&_[data-markdown-children]]:grid-cols-3"),
