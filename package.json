@@ -26,6 +26,8 @@
     "test:citations": "tsx scripts/test-citations.ts",
     "test:relationships": "tsx scripts/test-relationships.ts",
     "test:airline-directory": "tsx scripts/test-airline-directory.ts",
+    "test:commercial-filters": "tsx scripts/test-commercial-filters.tsx",
+    "test:content:commercial-filters": "npm run test:commercial-filters",
     "test:search": "tsx scripts/test-search.ts",
     "test:seo-landings": "tsx scripts/test-seo-landings.ts",
     "test:aviation-data": "tsx scripts/test-aviation-data-model.ts",

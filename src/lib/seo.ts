@@ -4,6 +4,7 @@ import { articlePath } from "@/lib/article-routes";
 import { configuredSiteUrl, firstArticleImage, truncateDescription } from "@/lib/article-summary";
 import { getArticleBySlug, normalizeSlug } from "@/lib/wiki-public-db";
 import { DEFAULT_OG_IMAGE } from "@/lib/site";
+import { socialCardImageUrl } from "@/lib/wikimedia-thumbnail";
 import type { ContentType } from "@/lib/wiki-types";
 
 export const siteUrl = configuredSiteUrl();
@@ -43,7 +44,7 @@ export async function publicArticleMetadata(
     articleDescription(revision.markdown) ||
     `${revision.title}, an approved aviation reference on aviation.wiki.`;
   const image = articleImageDetails(revision.markdown);
-  const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
+  const imageUrl = image ? socialCardImageUrl(new URL(image.url, siteUrl).href) : undefined;
   const modifiedTime = revision.reviewedAt || revision.updatedAt;
   return {
     title: revision.title,
