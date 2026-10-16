@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
+import nextConfig from "../next.config";
 import { clerkFrontendApi, contentSecurityPolicy, isStrictCspPath } from "../src/lib/csp";
+import { ARTICLE_IMAGE_HOSTS } from "../src/lib/image-policy";
 import { THEME_BOOTSTRAP_SCRIPT, THEME_BOOTSTRAP_SCRIPT_HASH } from "../src/lib/inline-scripts";
 
 const publishableKey = `pk_live_${Buffer.from("clerk.aviation.wiki$").toString("base64")}`;
@@ -49,5 +51,26 @@ assert.equal(
 );
 
 assert.ok(directive(contentSecurityPolicy({ publishableKey, development: true }), "script-src").includes("'unsafe-eval'"));
+
+// img-src is derived from ARTICLE_IMAGE_HOSTS (same list as next.config remotePatterns).
+for (const policy of [cacheable, strict]) {
+  const images = directive(policy, "img-src");
+  assert.ok(images.includes("'self'"));
+  assert.ok(images.includes("data:"));
+  assert.ok(images.includes("blob:"));
+  for (const host of ARTICLE_IMAGE_HOSTS) {
+    assert.ok(images.includes(`https://${host}`), `img-src allows https://${host}`);
+  }
+  assert.ok(images.includes("https://images-pw.pixieset.com"));
+}
+
+const remotePatterns = nextConfig.images?.remotePatterns ?? [];
+assert.ok(Array.isArray(remotePatterns));
+for (const host of ARTICLE_IMAGE_HOSTS) {
+  assert.ok(
+    remotePatterns.some((pattern) => pattern.protocol === "https" && pattern.hostname === host && pattern.pathname === "/**"),
+    `remotePatterns allows ${host}`,
+  );
+}
 
 console.log("CSP tests passed");

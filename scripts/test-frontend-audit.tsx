@@ -31,8 +31,8 @@ const table = renderToStaticMarkup(<ArticleMarkdown root={parseArticleMarkdown("
 assert.equal((table.match(/<th scope="col"/g) || []).length, 2);
 assert.match(table, /<thead>/);
 assert.match(table, /<tbody><tr/);
-for (const value of ["https://evil.test/a.png", "//upload.wikimedia.org/a.png", "/\\evil.test/a", "https://upload.wikimedia.org:444/a.png", "https://upload.wikimedia.org.evil.test/a.png"]) assert.equal(isSafeImageUrl(value), false, value);
-for (const value of ["/image.png", "https://upload.wikimedia.org/a.png", "https://cdn.jetphotos.com/a.jpg"]) assert.equal(isSafeImageUrl(value), true, value);
+for (const value of ["https://evil.test/a.png", "//upload.wikimedia.org/a.png", "/\\evil.test/a", "https://upload.wikimedia.org:444/a.png", "https://upload.wikimedia.org.evil.test/a.png", "http://images-pw.pixieset.com/a.jpg", "https://images-pw.pixieset.com.evil.test/a.jpg", "https://pixieset.com/a.jpg"]) assert.equal(isSafeImageUrl(value), false, value);
+for (const value of ["/image.png", "https://upload.wikimedia.org/a.png", "https://cdn.jetphotos.com/a.jpg", "https://images-pw.pixieset.com/a.jpg"]) assert.equal(isSafeImageUrl(value), true, value);
 assert.ok(parseArticleMarkdown("![Bad](https://evil.test/a.png)").errors.length);
 assert.ok(parseArticleMarkdown("![Bad][photo]\n\n[photo]: https://evil.test/a.png").errors.length);
 const base: SearchDocument = { id: "one", title: "British Airways", slug: "british-airways", contentType: "airline", href: "/commercial/british-airways", description: "", countries: ["United Kingdom"], terms: [{ kind: "title", value: "British Airways" }] };
