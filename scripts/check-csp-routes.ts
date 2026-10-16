@@ -3,6 +3,7 @@
 // scripts blocked in the browser. Fail the build instead of shipping that.
 import { readFileSync } from "node:fs";
 
+import { readDeferredPrerenderRoutes, unexpectedMissingPrerenderRoutes } from "../src/lib/build-database";
 import { isStrictCspPath } from "../src/lib/csp";
 import { PUBLIC_DIRECTORY_PATHS } from "../src/lib/public-page-cache";
 
@@ -41,17 +42,19 @@ const uncached = articleRoutes.filter((route) => !(route in manifest.dynamicRout
 if (uncached.length)
   console.warn(`Warning: these article routes are no longer served from the ISR cache:\n  ${uncached.join("\n  ")}`);
 
-const missingLandings = PUBLIC_DIRECTORY_PATHS.filter((route) => !(route in manifest.routes));
-if (missingLandings.length) {
+const cacheableRoutes = [...PUBLIC_DIRECTORY_PATHS, "/sitemap.xml"];
+const deferred = readDeferredPrerenderRoutes(cacheableRoutes);
+const missingCacheable = unexpectedMissingPrerenderRoutes(cacheableRoutes, Object.keys(manifest.routes), deferred);
+if (missingCacheable.length) {
   console.error(
-    `These public landing pages are not in the prerender cache:\n  ${missingLandings.join("\n  ")}\nExport \`revalidate\` and avoid reading the request so they can be ISR'd.`,
+    `These public pages are not in the prerender cache:\n  ${missingCacheable.join("\n  ")}\nExport \`revalidate\` and avoid reading the request so they can be ISR'd.`,
   );
   process.exit(1);
 }
-
-if (!("/sitemap.xml" in manifest.routes)) {
-  console.error("sitemap.xml is not in the prerender cache. Remove force-dynamic and export revalidate from src/app/sitemap.ts.");
-  process.exit(1);
+if (deferred.size) {
+  console.log(
+    `Database was unavailable for ${[...deferred].join(", ")}; those routes will render on demand instead of failing the build.`,
+  );
 }
 
 console.log("CSP route check passed: no strict-CSP route is prerendered.");
