@@ -64,7 +64,7 @@ async function ready() {
   if (!seeded) {
     const attempt: { promise?: Promise<void> } = {};
     attempt.promise = sql.begin(async (transaction) => {
-      const existing = await transaction`SELECT id FROM articles WHERE slug=${f15Article.slug} AND content_type=${f15Article.contentType} LIMIT 1`;
+      const existing = await transaction`SELECT id FROM articles WHERE content_type=${f15Article.contentType} AND slug IN (${f15Article.slug}, ${"f-15-eagle"}) LIMIT 1`;
       if (existing.length) return;
       const articleId = randomUUID();
       const revisionId = randomUUID();
@@ -72,6 +72,10 @@ async function ready() {
       await transaction`INSERT INTO articles (id,slug,title,content_type,live_revision_id,created_at,updated_at) VALUES (${articleId},${f15Article.slug},${f15Article.title},${f15Article.contentType},NULL,${now},${now})`;
       await transaction`INSERT INTO revisions (id,article_id,status,contributor_id,contributor_name,edit_summary,title,content_type,markdown,fields_json,sections_json,sources_json,relationships_json,proposed_slug,parent_revision_id,created_at,updated_at,submitted_at,reviewed_at,moderator_id,moderator_note) VALUES (${revisionId},${articleId},'approved','system','aviation.wiki','Initial import of the existing article',${f15Article.title},${f15Article.contentType},${f15Article.markdown},${transaction.json(f15Article.fields)},${transaction.json(f15Article.sections)},${transaction.json(f15Article.sources)},${transaction.json([])},${f15Article.slug},NULL,${now},${now},${now},${now},'system','Imported from the existing live article')`;
       await transaction`UPDATE articles SET live_revision_id=${revisionId} WHERE id=${articleId}`;
+      if (f15Article.slug !== "f-15-eagle")
+        await transaction`INSERT INTO article_slug_redirects (content_type,old_slug,article_id,created_at)
+          VALUES (${f15Article.contentType},${"f-15-eagle"},${articleId},${now})
+          ON CONFLICT (content_type,old_slug) DO NOTHING`;
     }).then(() => undefined).catch((error: unknown) => {
       if (seeded === attempt.promise) seeded = undefined;
       throw error;
