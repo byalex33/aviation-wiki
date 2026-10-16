@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { isCommercialAircraft } from "../src/lib/article-categories";
 import { parseArticleMarkdown } from "../src/lib/article-markdown";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
 import type {
   RevisionContent,
   SourceLink,
@@ -1069,9 +1070,10 @@ async function publish() {
 }
 
 check();
-if (process.argv.includes("--publish"))
+if (process.argv.includes("--publish")) {
+  exitIfVercelBuild();
   publish().catch((error) => {
     console.error(error);
     process.exitCode = 1;
   });
-else console.log(`Commercial aircraft check passed (${seeds.length} articles).`);
+} else console.log(`Commercial aircraft check passed (${seeds.length} articles).`);

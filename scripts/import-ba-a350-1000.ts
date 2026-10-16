@@ -1,8 +1,10 @@
 import { britishAirwaysA350ImportPlan, summarizeAviationImportPlan } from "../src/lib/aviation-data-import";
 import { importAviationData } from "../src/lib/aviation-data-import-db";
 import { sql } from "../src/lib/postgres";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
+  exitIfVercelBuild();
   const apply = process.argv.includes("--apply");
   const summary = summarizeAviationImportPlan(britishAirwaysA350ImportPlan);
   if (!apply) {

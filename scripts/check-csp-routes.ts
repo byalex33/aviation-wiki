@@ -5,6 +5,20 @@ import { readFileSync } from "node:fs";
 
 import { isStrictCspPath } from "../src/lib/csp";
 
+const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
+  scripts?: { build?: string; postbuild?: string };
+};
+const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8")) as { buildCommand?: string };
+const buildScripts = `${packageJson.scripts?.build ?? ""}\n${packageJson.scripts?.postbuild ?? ""}`;
+if (packageJson.scripts?.build !== "next build" || /backfill|migrate|data:import|data:reconcile|--apply/.test(buildScripts)) {
+  console.error("package.json build and postbuild must stay on next build. One-shot migrations and backfills cannot run during the production build.");
+  process.exit(1);
+}
+if (vercelConfig.buildCommand !== "npm run build") {
+  console.error('vercel.json buildCommand must be "npm run build".');
+  process.exit(1);
+}
+
 const manifest = JSON.parse(readFileSync(".next/prerender-manifest.json", "utf8")) as {
   routes: Record<string, unknown>;
   dynamicRoutes: Record<string, unknown>;

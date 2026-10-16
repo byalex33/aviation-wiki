@@ -1,8 +1,10 @@
 import { sql } from "../src/lib/postgres";
 import { migrateAviationDataSchema } from "../src/lib/aviation-data-db";
 import { AVIATION_DATA_MIGRATION_ID } from "../src/lib/aviation-data-schema";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
+  exitIfVercelBuild();
   const apply = process.argv.includes("--apply");
 
   if (!apply) {

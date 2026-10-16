@@ -1,7 +1,9 @@
 import { sql } from "../src/lib/postgres";
 import { PRO_SCHEMA_SQL } from "../src/lib/pro-schema";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
+  exitIfVercelBuild();
   if (!process.argv.includes("--apply")) {
     console.log("Creates saved collections, collection articles, and per-article watch alerts. Re-run with --apply against the intended PostgreSQL database.");
     return;

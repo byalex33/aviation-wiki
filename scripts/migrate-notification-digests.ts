@@ -1,7 +1,9 @@
 import { sql } from "../src/lib/postgres";
 import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "../src/lib/notification-digest-schema";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
 
 async function main() {
+  exitIfVercelBuild();
   if (!process.argv.includes("--apply")) {
     console.log("Creates the additive notification_digest_batches, notification_digest_items, and notification_immediate_deliveries tables and indexes. Re-run with --apply against the intended PostgreSQL database.");
     return;

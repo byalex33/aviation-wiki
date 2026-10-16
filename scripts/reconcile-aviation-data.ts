@@ -1,4 +1,7 @@
 import { resolveAviationConflict } from "../src/lib/aviation-data-reconciliation-db";
+import { exitIfVercelBuild } from "./refuse-vercel-build";
+
+exitIfVercelBuild();
 
 function option(name: string) {
   const index = process.argv.indexOf(name);

@@ -4,6 +4,8 @@ import { sql } from "../src/lib/postgres";
 import type { DatedAviationEvent } from "../src/lib/on-this-day-data";
 import { readFile } from "node:fs/promises";
 
+import { exitIfVercelBuild } from "./refuse-vercel-build";
+
 // Two gaps in the publisher's archive, checked against primary sources.
 const additionalEvents: DatedAviationEvent[] = [
   {
@@ -23,6 +25,7 @@ const additionalEvents: DatedAviationEvent[] = [
 ];
 
 async function main() {
+  exitIfVercelBuild();
   const posts: { title: { rendered: string }; link: string; excerpt: { rendered: string } }[] = [];
   const snapshot = process.argv.includes("--snapshot")
     ? JSON.parse(await readFile(new URL("./data/aviation-history.json", import.meta.url), "utf8")) : null;
