@@ -15,11 +15,14 @@ const csv = '1,"easyJet",\\N,"U2","EZY","EASY","United Kingdom","Y"\n2,"United F
 assert.equal(matchOpenFlightsAirlines(csv, [{ iata: "U2", icao: "EZY" }]).get("U2")?.name, "easyJet");
 assert.equal(matchOpenFlightsAirlines(csv, [{ iata: "U2" }]).size, 0);
 assert.equal(matchOpenFlightsAirlines(`${csv}\n${csv.split("\n")[0]}`, [{ iata: "U2", icao: "EZY" }]).size, 0);
-const paths = new Set(["/commercial/british-airways", "/commercial/british-airways-fleet", "/airports/heathrow"]);
+const paths = new Set(["/commercial/british-airways", "/commercial/british-airways-fleet", "/airports/heathrow", "/commercial/iberia-airlines", "/aircraft/lockheed-martin-f-35-lightning-ii"]);
 assert.equal(resolveInternalArticleLink("/airline/british-airways#fleet", paths), "/commercial/british-airways#fleet");
 assert.equal(resolveInternalArticleLink("/aircraft/british-airways-fleet", paths), "/commercial/british-airways-fleet");
 assert.equal(resolveInternalArticleLink("https://outside.test/airline/british-airways", paths), undefined);
 assert.equal(resolveInternalArticleLink("/engines/missing", paths), null);
+assert.equal(resolveInternalArticleLink("/commercial/iberia#fleet", paths), "/commercial/iberia-airlines#fleet");
+assert.equal(resolveInternalArticleLink("/aircraft/f35-lightning-ii", paths), "/aircraft/lockheed-martin-f-35-lightning-ii");
+assert.equal(resolveInternalArticleLink("/aircraft/f-15-eagle", new Set(["/aircraft/f-15-eagle"])), "/aircraft/f-15-eagle");
 const parsed = parseArticleMarkdown("[BA](/airlines/british-airways) [Missing](/engines/missing)");
 assert.equal(validateInternalArticleLinks(parsed.root, paths).length, 2);
 const rendered = renderToStaticMarkup(<ArticleMarkdown root={canonicalizeArticleLinks(parsed.root, paths)} />);
@@ -31,8 +34,8 @@ const table = renderToStaticMarkup(<ArticleMarkdown root={parseArticleMarkdown("
 assert.equal((table.match(/<th scope="col"/g) || []).length, 2);
 assert.match(table, /<thead>/);
 assert.match(table, /<tbody><tr/);
-for (const value of ["https://evil.test/a.png", "//upload.wikimedia.org/a.png", "/\\evil.test/a", "https://upload.wikimedia.org:444/a.png", "https://upload.wikimedia.org.evil.test/a.png"]) assert.equal(isSafeImageUrl(value), false, value);
-for (const value of ["/image.png", "https://upload.wikimedia.org/a.png", "https://cdn.jetphotos.com/a.jpg"]) assert.equal(isSafeImageUrl(value), true, value);
+for (const value of ["https://evil.test/a.png", "//upload.wikimedia.org/a.png", "/\\evil.test/a", "https://upload.wikimedia.org:444/a.png", "https://upload.wikimedia.org.evil.test/a.png", "http://images-pw.pixieset.com/a.jpg", "https://images-pw.pixieset.com.evil.test/a.jpg", "https://pixieset.com/a.jpg"]) assert.equal(isSafeImageUrl(value), false, value);
+for (const value of ["/image.png", "https://upload.wikimedia.org/a.png", "https://cdn.jetphotos.com/a.jpg", "https://images-pw.pixieset.com/a.jpg"]) assert.equal(isSafeImageUrl(value), true, value);
 assert.ok(parseArticleMarkdown("![Bad](https://evil.test/a.png)").errors.length);
 assert.ok(parseArticleMarkdown("![Bad][photo]\n\n[photo]: https://evil.test/a.png").errors.length);
 const base: SearchDocument = { id: "one", title: "British Airways", slug: "british-airways", contentType: "airline", href: "/commercial/british-airways", description: "", countries: ["United Kingdom"], terms: [{ kind: "title", value: "British Airways" }] };

@@ -67,6 +67,30 @@ Keep the previous provider available as a temporary rollback source. Do not
 delete it until the new deployment has been stable for an agreed retention
 period and the external dump has been independently backed up.
 
+## Canonical article URLs
+
+Duplicate airline and aircraft pages, and the F-15 / F-35 slugs that do not follow the manufacturer-model pattern, are folded together by `npm run db:canonicalize-articles`. The command reads `DATABASE_URL`. Without `--apply` it only prints a report. It does not delete revisions.
+
+Run it against the intended database only after reading that report. Production is the operator's explicit choice; do not point the script at it until the dry-run pairs, word counts and headings match the expected canonicals:
+
+| Current URL | Canonical URL | Why |
+| --- | --- | --- |
+| `/commercial/iberia` | `/commercial/iberia-airlines` | The longer page is the sourced article. The short URL is a directory stub, same pattern as KLM. |
+| `/commercial/air-india-limited` | `/commercial/air-india` | Air India is the long researched article. The legal-name URL is a directory stub. |
+| `/aircraft/boeing-737` | `/aircraft/boeing-737-family` | The family page has the primary sources, the A320-style family slug, and the comparison fields. |
+| `/aircraft/airbus-a330-900` | `/aircraft/airbus-a330neo` | The A330neo article already covers the A330-900's first flight, certification and entry into service. |
+| `/aircraft/f35-lightning-ii` | `/aircraft/lockheed-martin-f-35-lightning-ii` | Manufacturer-model slug, same pattern as the F-22. Applied only when the new slug is free. |
+| `/aircraft/f-15-eagle` | `/aircraft/mcdonnell-douglas-f-15-eagle` | Designing manufacturer, same pattern as the DC-10 and F-16. Applied only when the new slug is free. |
+
+```sh
+npm run db:canonicalize-articles
+npm run db:canonicalize-articles -- --apply
+```
+
+Duplicate rows keep their ids, slugs and revisions, and gain `redirect_to_slug`. Renamed rows keep their ids and revisions; the previous slug is inserted into `article_slug_redirects`. Published relationship edges move onto the surviving article. Markdown is not rewritten. Open drafts on a duplicate are left for a moderator.
+
+The edge 308s for the four duplicate pairs are already in the application, because those destination pages exist. The F-15 and F-35 renames are not edge redirects until the rows move, so the old URLs keep serving until `--apply`. Apply first, then deploy (or redeploy if this revision is already live) so cached article pages and the 24-hour public search index, which feeds the sitemap, are rebuilt from the new slugs. Old URLs then 308 to the canonical page. Confirm one duplicate URL, one renamed aircraft URL, the canonical page's canonical tag, and that the sitemap lists only the canonical URL.
+
 ## Notification digest recovery
 
 Before deploying the digest recovery code, apply its additive schema to both production and any separate preview database. Use the configured database environment without writing credentials into repository files:
@@ -85,3 +109,30 @@ Resend retains idempotency keys for [24 hours](https://resend.com/docs/dashboard
 New immediate attempts carry a permanent provenance marker, so switching preferences to daily cannot classify them as legacy digests. Pre-upgrade pending/failed deliveries have no saved batch body or original-delivery marker. After 15 minutes, unknown attempts for daily-email users are held for investigation. Their original provider request or delivery mode cannot be reconstructed safely. Failures and held deliveries appear in admin notification diagnostics without exposing email addresses or contents. Check the provider record before deciding whether any manual follow-up is appropriate; do not reset a held batch or generate a new idempotency key blindly.
 
 The saved payload contains email addresses and message text. Keep it within the database's existing access controls and backups. Rollback can leave the additive tables in place, but pause both digest schedules before rolling back to code that does not understand batch ownership. Old code must not resume digest or immediate retries against these reservations. No destructive down migration is provided.
+
+## Spotting guides
+
+Before deploying airport spotting guides, widen the article and revision content-type checks. The command below only prints the SQL. It does not connect.
+
+```sh
+npm run db:migrate:spotting-guides
+npm run db:migrate:spotting-guides -- --apply
+```
+
+Run `--apply` with the intended `DATABASE_URL`. It is safe to repeat. It does not insert guides. Development schema initialization includes the same check; production requests do not. The SQL is generated from `contentTypes`, so repeating it from this revision keeps `spotting_guide` and every other type listed there.
+
+Apply this before any later migration that rebuilds `articles_content_type_check` or `revisions_content_type_check`. A later script drops and recreates those checks from the content types in the revision that runs it. Run it from a revision that already contains `spotting_guide`, or the check will lose this type.
+
+Two placeholder guides (London Heathrow Airport and Manchester Airport) live in `src/data/spotting-guide-seeds.ts`. They are marked PLACEHOLDER. Their map pins are published airport coordinates, not spotting locations. Validate them without a database:
+
+```sh
+npm run data:seed:spotting-guides
+```
+
+Publish them only to a database that should show the placeholders, and only after the airport articles exist:
+
+```sh
+npm run data:seed:spotting-guides -- --publish
+```
+
+The publisher refuses hosts containing `aiven` unless you also pass `--allow-production`. Do not point it at production unless those placeholder pages should go live. A guide is skipped when no single approved airport matches its slug or title. The guide URL reads the database directly. The `/spotting` hub refreshes when the next article approval revalidates public pages, or within the hourly page cache. Search and the sitemap use the shared article index and can lag until that index is revalidated.

@@ -4,6 +4,7 @@ export const contentTypes = [
   "aircraft",
   "airframe",
   "airport",
+  "spotting_guide",
   "manufacturer",
   "engine",
   "event",

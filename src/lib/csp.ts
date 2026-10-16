@@ -85,7 +85,16 @@ export function contentSecurityPolicy({
       "https://*.protect.clerk.com",
     )}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src ${sources("'self'", "data:", "blob:", ...ARTICLE_IMAGE_HOSTS.map((host) => `https://${host}`))}`,
+    `img-src ${sources(
+      "'self'",
+      "data:",
+      "blob:",
+      ...ARTICLE_IMAGE_HOSTS.map((host) => `https://${host}`),
+      "https://tile.openstreetmap.org",
+      "https://a.tile.openstreetmap.org",
+      "https://b.tile.openstreetmap.org",
+      "https://c.tile.openstreetmap.org",
+    )}`,
     `connect-src ${sources(
       "'self'",
       clerk,

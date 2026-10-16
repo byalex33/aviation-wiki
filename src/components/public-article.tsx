@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Menu } from "@base-ui/react/menu";
 import {
   BadgeCheck,
+  Binoculars,
   ExternalLink,
   FilePenLine,
   GitCompareArrows,
@@ -15,6 +16,7 @@ import {
 import { ArticleTocDesktop, ArticleTocMobile, type TocHeading } from "@/components/article-toc";
 import { InformationSidebar } from "@/components/article-information-sidebar";
 import { ArticleMarkdown } from "@/components/article-markdown";
+import { SpottingFreshnessBanner } from "@/components/spotting-freshness";
 import { ApprovedRelationships } from "@/components/entity-relationships";
 import { ImportedRevisionData } from "@/components/imported-revision-data";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +29,8 @@ import {
   type ArticleMentionLink,
 } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
-import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
+import { contentTypePaths } from "@/lib/article-routes";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import { comparisonsForEntity } from "@/lib/comparison-content";
 import type {
   ArticleRecord,
@@ -43,6 +46,12 @@ import {
   jsonLd,
   siteUrl,
 } from "@/lib/seo";
+import {
+  fieldValue,
+  isIsoDate,
+  isPlaceholderSpottingGuide,
+  spottingFreshness,
+} from "@/lib/spotting-guide";
 
 const menuItemClass =
   "rounded-md text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground";
@@ -133,7 +142,7 @@ export function ArticleHeader({
             <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[100] outline-none">
               <Menu.Popup className="beui-dropdown w-56 border bg-popover p-1.5 text-popover-foreground outline-none">
                 <Menu.Item className={menuItemClass}>
-                  <Link href={articleHistoryPath(contentType, slug)} className={menuLinkClass}>
+                  <Link href={publicArticleHistoryPath(contentType, slug)} className={menuLinkClass}>
                     <History className="size-4 text-muted-foreground" />
                     View history
                   </Link>
@@ -285,7 +294,7 @@ export function PublicArticle({
   parsed.root = { ...parsed.root, children: parsed.root.children.filter((node) => !(node.type === "heading" && node.depth === 1 && node.children?.map((child) => child.value ?? "").join("").trim().toLowerCase() === revision.title.trim().toLowerCase())) };
   const headings = getArticleHeadings(parsed.root);
   const tocHeadings: TocHeading[] = headings.map(({ id, text, depth }) => ({ id, text, depth }));
-  const url = new URL(articlePath(revision.contentType, article.slug), siteUrl);
+  const url = new URL(publicArticlePath(revision.contentType, article.slug), siteUrl);
   const image = articleImageDetails(revision.markdown);
   const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
   const relatedComparisons = comparisonsForEntity(
@@ -308,6 +317,15 @@ export function PublicArticle({
     ? `${rawDescription.slice(0, 220).replace(/\s+\S*$/, "")}…`
     : rawDescription;
   const editorHref = `/editor?type=${revision.contentType}&slug=${encodeURIComponent(article.slug)}`;
+  const spottingGuide = revision.contentType === "spotting_guide";
+  const airportName = revision.title.replace(/\s+plane spotting$/i, "").trim() || article.title;
+  const airportUrl = new URL(`/airports/${article.slug}`, siteUrl);
+  const placeholderGuide = isPlaceholderSpottingGuide(revision.fields, parsed.spottingLocations);
+  const verifiedOn = fieldValue(revision.fields, "last verified");
+  const freshness = spottingFreshness(verifiedOn || null);
+  const mappablePlaces = (parsed.spottingLocations?.locations ?? []).filter(
+    (location) => !location.placeholder && location.latitude !== null && location.longitude !== null,
+  );
   const jsonLdGraph = [
     {
       "@type": "TechArticle",
@@ -318,6 +336,15 @@ export function PublicArticle({
       mainEntityOfPage: url,
       datePublished: article.createdAt,
       dateModified: approvedAt,
+      ...(spottingGuide
+        ? {
+            about: {
+              "@type": "Airport",
+              name: airportName,
+              url: airportUrl.toString(),
+            },
+          }
+        : {}),
       publisher: { "@id": `${siteUrl}#organization` },
       ...(imageUrl
         ? {
@@ -334,19 +361,26 @@ export function PublicArticle({
     },
     {
       "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "aviation.wiki", item: siteUrl },
-        {
-          "@type": "ListItem",
-          position: 2,
-          name:
-            revision.contentType === "airline"
-              ? "Commercial airlines"
-              : formatDisplayLabel(contentTypePaths[revision.contentType]),
-          item: new URL(`/${contentTypePaths[revision.contentType]}`, siteUrl),
-        },
-        { "@type": "ListItem", position: 3, name: revision.title, item: url },
-      ],
+      itemListElement: spottingGuide
+        ? [
+            { "@type": "ListItem", position: 1, name: "aviation.wiki", item: siteUrl },
+            { "@type": "ListItem", position: 2, name: "Plane spotting", item: new URL("/spotting", siteUrl) },
+            { "@type": "ListItem", position: 3, name: airportName, item: airportUrl },
+            { "@type": "ListItem", position: 4, name: revision.title, item: url },
+          ]
+        : [
+            { "@type": "ListItem", position: 1, name: "aviation.wiki", item: siteUrl },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name:
+                revision.contentType === "airline"
+                  ? "Commercial airlines"
+                  : formatDisplayLabel(contentTypePaths[revision.contentType]),
+              item: new URL(`/${contentTypePaths[revision.contentType]}`, siteUrl),
+            },
+            { "@type": "ListItem", position: 3, name: revision.title, item: url },
+          ],
     },
     ...(historicalFields.length >= 4
       ? [
@@ -361,6 +395,25 @@ export function PublicArticle({
           },
         ]
       : []),
+    ...(spottingGuide && verifiedOn && isIsoDate(verifiedOn) && !placeholderGuide
+      ? [{
+          "@type": "WebPage",
+          "@id": `${url}#webpage`,
+          url,
+          name: revision.title,
+          lastReviewed: verifiedOn,
+          mainEntity: { "@id": `${url}#article` },
+        }]
+      : []),
+    ...mappablePlaces.map((location) => ({
+      "@type": "Place",
+      name: location.name,
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+    })),
   ];
   return (
     <>
@@ -378,14 +431,27 @@ export function PublicArticle({
         <Link href="/" className="article-link">
           aviation.wiki
         </Link>
-        <span> / </span>
-        <Link href={`/${contentTypePaths[revision.contentType]}`} className="article-link">
-          {revision.contentType === "airline"
-            ? "Commercial airlines"
-            : formatDisplayLabel(contentTypePaths[revision.contentType])}
-        </Link>
-        <span> / </span>
-        <span>{revision.title}</span>
+        {spottingGuide ? (
+          <>
+            <span> / </span>
+            <Link href="/spotting" className="article-link">Plane spotting</Link>
+            <span> / </span>
+            <Link href={`/airports/${article.slug}`} className="article-link">{airportName}</Link>
+            <span> / </span>
+            <span>{revision.title}</span>
+          </>
+        ) : (
+          <>
+            <span> / </span>
+            <Link href={`/${contentTypePaths[revision.contentType]}`} className="article-link">
+              {revision.contentType === "airline"
+                ? "Commercial airlines"
+                : formatDisplayLabel(contentTypePaths[revision.contentType])}
+            </Link>
+            <span> / </span>
+            <span>{revision.title}</span>
+          </>
+        )}
       </nav>
       <ArticleHeader
         title={revision.title}
@@ -399,6 +465,31 @@ export function PublicArticle({
         readingMinutes={readingMinutes}
         contributorName={revision.contributorName || undefined}
       />
+      {spottingGuide && (
+        <div className="mt-6">
+          <SpottingFreshnessBanner
+            placeholder={placeholderGuide}
+            state={freshness.state}
+            label={freshness.label}
+          />
+        </div>
+      )}
+      {revision.contentType === "airport" && (
+        <Link
+          href={`/airports/${article.slug}/spotting`}
+          className="mt-6 flex items-center gap-4 rounded-2xl border bg-card p-4 transition-colors hover:border-foreground/20"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10">
+            <Binoculars className="size-[18px] text-primary" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{article.title} plane spotting</span>
+            <span className="block text-[13px] text-muted-foreground">
+              Community guide with map pins, runway coverage, access notes, and a last verified date.
+            </span>
+          </span>
+        </Link>
+      )}
       {headings.length > 0 && (
         <div className="mt-7 xl:hidden">
           <ArticleTocMobile headings={tocHeadings} />
@@ -488,7 +579,7 @@ export function PublicArticle({
               Last approved{" "}
               {new Date(approvedAt).toLocaleDateString(undefined, { dateStyle: "long" })} · Revision{" "}
               {revision.id.slice(0, 8)} ·{" "}
-              <Link href={articleHistoryPath(revision.contentType, article.slug)} className="article-link">
+              <Link href={publicArticleHistoryPath(revision.contentType, article.slug)} className="article-link">
                 View history
               </Link>
             </p>

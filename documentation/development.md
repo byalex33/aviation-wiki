@@ -204,3 +204,11 @@ node --conditions=react-server --import tsx scripts/publish-aviation-history.ts
 An operator can publish these to the configured database by adding
 `--env-file-if-exists=.env.local` to the Node options and `--publish` after
 the script path. Existing articles and drafts with those slugs are skipped.
+
+## Plane spotting guides
+
+Spotting guides are normal articles with content type `spotting_guide`. The public URL is `/airports/<airport-slug>/spotting`, and `/spotting` lists them. They use the same draft, review, and approval flow as other articles. A guide can be approved only when an approved airport article already uses that slug.
+
+The guide needs one `<SpottingLocations>` block, sections named Runway use, Parking and access, Legal and security, Best times and light, and Typical traffic, and a title ending in “plane spotting”. Add a Sidebar field `Last verified: YYYY-MM-DD` only after an in-person check. Unchecked notes must include the word PLACEHOLDER and must not carry a last verified date. Placeholder pins are not spotting locations.
+
+Map pins use Leaflet and OpenStreetMap tiles. Apply the content-type migration before production deploy, and see [Database operations](database-operations.md#spotting-guides) before publishing the two placeholder seeds.

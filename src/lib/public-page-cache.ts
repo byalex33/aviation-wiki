@@ -5,7 +5,8 @@
 // Preview and local production builds have no DATABASE_URL. Those builds still
 // prerender the page, using a placeholder, so the route stays in the cache
 // instead of rendering on every request. A build that has DATABASE_URL
-// prerenders the real directory.
+// prerenders the real directory. If that connection is refused, the page
+// renders on demand for that deploy instead of failing the export.
 export function publicDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL);
 }
@@ -17,6 +18,7 @@ export const PUBLIC_DIRECTORY_PATHS = [
   "/aircraft/boeing",
   "/airports",
   "/airports/united-kingdom",
+  "/spotting",
   "/airlines/united-kingdom",
   "/manufacturers",
   "/engines",

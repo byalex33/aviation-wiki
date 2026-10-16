@@ -174,6 +174,11 @@ export default async function ContributePage({
                     ))}
                   </MotionSelect>
                 </label>
+                {selectedType === "spotting_guide" && (
+                  <p className="text-sm text-muted-foreground">
+                    Use the airport’s slug. The guide is published at /airports/that-slug/spotting after review. Mark unchecked notes PLACEHOLDER, and add Last verified only after an in-person check.
+                  </p>
+                )}
                 <Button type="submit" className="w-full" size="lg">
                   Create article
                 </Button>

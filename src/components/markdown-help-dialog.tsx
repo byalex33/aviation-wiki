@@ -7,6 +7,7 @@ import { ArticleMarkdown } from "@/components/article-markdown";
 import { CenterMorphModal } from "@/components/ui/center-morph-modal";
 import { Button } from "@/components/ui/button";
 import { CHART_TEMPLATE } from "@/lib/article-chart";
+import { SPOTTING_LOCATIONS_HELP } from "@/lib/spotting-guide";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 
 const examples = [
@@ -70,6 +71,11 @@ Status: Active
     description:
       "Insert a safe local dataset. The first column supplies categories and every remaining column is numeric.",
     source: CHART_TEMPLATE,
+  },
+  {
+    title: "Spotting locations",
+    description: "Airport spotting guides use one SpottingLocations block. Placeholder notes must include PLACEHOLDER and are not verified spots.",
+    source: SPOTTING_LOCATIONS_HELP,
   },
 ] as const;
 

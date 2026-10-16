@@ -1,10 +1,12 @@
 import { contentTypePaths } from "@/lib/article-routes";
 import type { MarkdownError, MarkdownNode, MarkdownRoot } from "@/lib/article-markdown";
 
-import { ARTICLE_PATH_ALIASES } from "@/lib/article-path-aliases";
+import { preferredArticlePath } from "@/lib/article-path-aliases";
 
 const namespaces: Record<string, string> = { airline: "commercial", airlines: "commercial", airport: "airports" };
-const articleNamespaces = new Set([...Object.values(contentTypePaths), ...Object.keys(namespaces)]);
+const articleNamespaces = new Set(
+  [...Object.values(contentTypePaths), ...Object.keys(namespaces)].filter((namespace) => namespace !== "spotting"),
+);
 const siteHosts = new Set(["aviation.wiki", "www.aviation.wiki"]);
 
 /** Only article URLs are checked here; navigation, sources and fragment links stay intact. */
@@ -18,8 +20,8 @@ export function resolveInternalArticleLink(href: string, availablePaths: Iterabl
   if (segments.length !== 2 || !articleNamespaces.has(segments[0])) return undefined;
   const available = availablePaths instanceof Set ? availablePaths : new Set(availablePaths);
   const canonical = `/${namespaces[segments[0]] || segments[0]}/${segments[1]}`;
-  const alias = ARTICLE_PATH_ALIASES[canonical];
-  if (alias && available.has(alias)) return alias + url.search + url.hash;
+  const preferred = preferredArticlePath(canonical, available);
+  if (preferred) return preferred + url.search + url.hash;
   if (available.has(canonical)) return canonical + url.search + url.hash;
   // A unique published slug in another content type is an unambiguous route correction.
   const matches = [...available].filter((path) => path.split("/").at(-1) === segments[1]);

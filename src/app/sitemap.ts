@@ -8,10 +8,11 @@ import { SITE_URL } from "@/lib/site";
 import { sitemapImageUrl } from "@/lib/sitemap-images";
 import { listPublicSearchDocuments } from "@/lib/wiki-public-db";
 
-// Cached for a day. A failed generation is not stored, so a Postgres error
-// cannot replace a sitemap that already succeeded. Preview builds have no
-// DATABASE_URL and emit the static routes only; a production build has the
-// database and includes every article, lastmod, and image.
+// Cached for a day when the database answers. A connection failure during
+// `next build` opts this route into on-demand rendering instead of failing
+// the export or storing a partial file. The route is not skipped up front:
+// a healthy build still prerenders every URL, lastmod, and image. Preview
+// builds have no DATABASE_URL and emit the static routes only.
 export const revalidate = 86400;
 
 const staticRoutes = [
@@ -31,6 +32,7 @@ const staticRoutes = [
   "/cargo",
   "/airports",
   "/airports/united-kingdom",
+  "/spotting",
   "/manufacturers",
   "/engines",
   "/engines/rolls-royce",

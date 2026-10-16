@@ -338,3 +338,16 @@ html.dark .site-footer {
     transition: opacity 120ms ease-out;
   }
 }
+
+.spotting-map.leaflet-container {
+  z-index: 0;
+  height: 360px;
+  width: 100%;
+  background: var(--muted);
+}
+
+.spotting-map.leaflet-container img,
+.spotting-map.leaflet-container canvas {
+  max-width: none;
+  max-height: none;
+}

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
 import { firstArticleImage } from "@/lib/article-summary";
+import { socialCardImageUrl } from "@/lib/wikimedia-thumbnail";
 import { siteUrl } from "@/lib/seo";
 import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/site";
 import {
@@ -86,6 +87,7 @@ export function articleDescription(revision: RevisionRecord) {
     airframe: `Explore ${revision.title}: type, serial number, registration history, operators, status, and cited sources.`,
     airline: `Explore the ${revision.title} fleet, hubs, airline codes, history, and cited aviation data.`,
     airport: `Explore ${revision.title} codes, location, airlines, facilities, history, and cited aviation data.`,
+    spotting_guide: `Community plane spotting guide for ${revision.title}, including locations, runway use, access, and when it was last verified.`,
     manufacturer: `Explore ${revision.title} aircraft, engines, company history, and cited aviation data.`,
     engine: `Explore ${revision.title} specifications, applications, variants, history, and cited aviation data.`,
     alliance: `Explore ${revision.title} members, partners, history, and cited aviation data.`,
@@ -101,6 +103,7 @@ function searchTitle(revision: RevisionRecord) {
     airline: "fleet, hubs and airline profile",
     alliance: "members, airlines and history",
     airport: "codes, airlines and airport guide",
+    spotting_guide: "plane spotting locations, access and last verified",
     manufacturer: "aircraft, engines and company history",
     engine: "specifications, applications and variants",
     event: "what happened, timeline and aviation impact",
@@ -125,7 +128,7 @@ export function metadataForArticle(
   const publishedTime = revision.reviewedAt || revision.createdAt;
   const modifiedTime = revision.updatedAt;
   const image = firstArticleImage(revision.markdown);
-  const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
+  const imageUrl = image ? socialCardImageUrl(new URL(image.url, siteUrl).href) : undefined;
   const images = imageUrl ? [{ url: imageUrl, alt: revision.title }] : [DEFAULT_OG_IMAGE];
 
   return {

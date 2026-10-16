@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
+import { sameRelationshipKeys, unionRelationships } from "../src/lib/article-canonicalization";
+import { contentTypePaths, parseArticlePath } from "../src/lib/article-routes";
+import { ARTICLE_PATH_ALIASES, ARTICLE_SLUG_RENAMES, CANONICAL_DUPLICATE_SOURCES, canonicalizeSearchDocuments, preferredArticlePath } from "../src/lib/article-path-aliases";
+import { publicArticlePath } from "../src/lib/public-article-paths";
 import { legacyRedirects } from "../src/lib/legacy-redirects";
 import { documentsForSeoLanding, seoLandingDefinition, seoLandingDefinitions } from "../src/lib/seo-landing-data";
 import type { SearchDocument } from "../src/lib/search-types";
@@ -37,5 +41,40 @@ assert.equal(redirectFor("/airlines/british-airways"), "/commercial/british-airw
 assert.equal(redirectFor("/airlines/united-kingdom-airways"), "/commercial/united-kingdom-airways");
 assert.equal(redirectFor("/airline/british-airways"), "/commercial/british-airways");
 assert.equal(redirectFor("/airport/heathrow"), "/airports/heathrow");
+for (const source of CANONICAL_DUPLICATE_SOURCES) {
+  const destination = ARTICLE_PATH_ALIASES[source];
+  assert.equal(redirectFor(source), destination, source);
+  assert.equal(redirectFor(`${source}/history`), `${destination}/history`, `${source} history`);
+  assert.equal(Object.hasOwn(ARTICLE_PATH_ALIASES, destination), false, `${destination} must not redirect again`);
+}
+assert.equal(redirectFor("/aircraft/f35-lightning-ii"), null);
+assert.equal(redirectFor("/aircraft/f-15-eagle"), null);
+assert.equal(preferredArticlePath("/aircraft/f35-lightning-ii", ["/aircraft/f35-lightning-ii"]), null);
+assert.equal(preferredArticlePath("/aircraft/f35-lightning-ii", ["/aircraft/lockheed-martin-f-35-lightning-ii"]), ARTICLE_SLUG_RENAMES["/aircraft/f35-lightning-ii"]);
+assert.equal(preferredArticlePath("/commercial/iberia", ["/commercial/iberia-airlines"]), "/commercial/iberia-airlines");
+assert.equal(publicArticlePath("airline", "iberia"), "/commercial/iberia-airlines");
+assert.equal(publicArticlePath("aircraft", "f-15-eagle"), "/aircraft/f-15-eagle");
+for (const [contentType, prefix] of Object.entries(contentTypePaths)) {
+  assert.equal(parseArticlePath(`/${prefix}/example-slug`)?.contentType, contentType);
+}
+const indexed = canonicalizeSearchDocuments([
+  { ...document("iberia", "Iberia", "airline"), slug: "iberia", href: "/commercial/iberia" },
+  { ...document("iberia-airlines", "Iberia Airlines", "airline"), slug: "iberia-airlines", href: "/commercial/iberia-airlines" },
+]);
+assert.deepEqual(indexed.map((item) => item.href), ["/commercial/iberia-airlines"]);
+assert.equal(indexed[0]?.terms.some((term) => term.value === "iberia"), true);
+
+const merged = unionRelationships(
+  [{ type: "variant_of", targetArticleId: "max", citationIdentifiers: ["boeing"] }],
+  [{ type: "variant_of", targetArticleId: "classic", citationIdentifiers: ["wiki"] }, { type: "variant_of", targetArticleId: "family", citationIdentifiers: [] }],
+  "family",
+  "editorial",
+  new Set(["boeing"]),
+);
+assert.deepEqual(merged, [
+  { type: "variant_of", targetArticleId: "max", citationIdentifiers: ["boeing"] },
+  { type: "variant_of", targetArticleId: "classic", citationIdentifiers: [] },
+]);
+assert.equal(sameRelationshipKeys(merged, [{ type: "variant_of", targetArticleId: "classic" }, { type: "variant_of", targetArticleId: "max" }]), true);
 
 console.log("Legacy redirect tests passed");
