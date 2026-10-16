@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import { hasPro } from "@/lib/pro";
 import { row } from "@/lib/postgres";
 import { listSavedArticles, type SavedArticle } from "@/lib/saved-articles";

@@ -13,10 +13,6 @@ const contentTypePaths: Record<ContentType, string> = {
   event: "aviation-news",
 };
 
-function articlePath(contentType: ContentType, slug: string) {
-  return `/${contentTypePaths[contentType]}/${slug}`;
-}
-
 /**
  * Public URLs that permanently redirect to another live article.
  * `next.config` emits these as 308s, so the destination must already exist.
@@ -75,16 +71,6 @@ export function parseArticlePath(path: string) {
   const contentType = prefixToContentType[match[1]];
   if (!contentType) return null;
   return { contentType, slug: match[2] };
-}
-
-/** Href for readers. Alias sources point at the canonical article; renames do not, until that slug is published. */
-export function publicArticlePath(contentType: ContentType, slug: string) {
-  const path = articlePath(contentType, slug);
-  return ARTICLE_PATH_ALIASES[path] ?? path;
-}
-
-export function publicArticleHistoryPath(contentType: ContentType, slug: string) {
-  return `${publicArticlePath(contentType, slug)}/history`;
 }
 
 export function preferredArticlePath(path: string, availablePaths?: Iterable<string>) {

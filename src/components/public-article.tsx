@@ -28,7 +28,7 @@ import {
 } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
 import { contentTypePaths } from "@/lib/article-routes";
-import { publicArticleHistoryPath, publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import { comparisonsForEntity } from "@/lib/comparison-content";
 import type {
   ArticleRecord,

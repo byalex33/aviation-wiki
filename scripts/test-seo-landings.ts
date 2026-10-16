@@ -4,7 +4,8 @@ import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
 import { sameRelationshipKeys, unionRelationships } from "../src/lib/article-canonicalization";
 import { contentTypePaths } from "../src/lib/article-routes";
-import { ARTICLE_PATH_ALIASES, ARTICLE_SLUG_RENAMES, CANONICAL_DUPLICATE_SOURCES, canonicalizeSearchDocuments, parseArticlePath, preferredArticlePath, publicArticlePath } from "../src/lib/article-path-aliases";
+import { ARTICLE_PATH_ALIASES, ARTICLE_SLUG_RENAMES, CANONICAL_DUPLICATE_SOURCES, canonicalizeSearchDocuments, parseArticlePath, preferredArticlePath } from "../src/lib/article-path-aliases";
+import { publicArticlePath } from "../src/lib/public-article-paths";
 import { legacyRedirects } from "../src/lib/legacy-redirects";
 import { documentsForSeoLanding, seoLandingDefinition, seoLandingDefinitions } from "../src/lib/seo-landing-data";
 import type { SearchDocument } from "../src/lib/search-types";

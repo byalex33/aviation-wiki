@@ -11,7 +11,7 @@ import {
 } from "@/components/revision-history";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
-import { publicArticleHistoryPath, publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import {
   getApprovedRevision,
   getArticleBySlug,

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import {
   comparisonDefinition,
   type ComparisonDefinition,

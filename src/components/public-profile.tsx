@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowUpRight, Check, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import type { PublicContribution } from "@/lib/public-profile-types";
 import { cn } from "@/lib/utils";
 import type { ContentType } from "@/lib/wiki-types";

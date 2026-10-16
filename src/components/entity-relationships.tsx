@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Compass, Plane } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { publicArticlePath } from "@/lib/article-path-aliases";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import { getPublicDiscoverySections } from "@/lib/wiki-public-db";
 import type { ArticleRecord, EntityOption } from "@/lib/wiki-types";
 
