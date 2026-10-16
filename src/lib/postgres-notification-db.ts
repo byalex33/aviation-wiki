@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { row, rows } from "@/lib/postgres";
+import { emptyIfUndefinedTable } from "@/lib/postgres-errors";
 import { notificationTypes, type EmailFrequency, type NotificationPreferences, type NotificationRecord, type NotificationType } from "@/lib/notification-types";
 import type * as Local from "@/lib/notification-db";
 
@@ -71,8 +72,13 @@ export async function listArticleWatcherIds(articleId: string) {
   return (await rows<{user_id: string}>("SELECT user_id FROM article_watches WHERE article_id=$1", [articleId])).map(value => value.user_id);
 }
 export async function listArticleWatchAlerts(articleId: string) {
-  return rows<{user_id: string; edits: boolean; sources: boolean; relationships: boolean}>(
-    "SELECT user_id,edits,sources,relationships FROM article_watch_alerts WHERE article_id=$1", [articleId]);
+  // Created by `npm run db:migrate:pro -- --apply`. ensureSchema() does not
+  // apply it in production, so a missing relation must not fail publication.
+  return emptyIfUndefinedTable(
+    () => rows<{user_id: string; edits: boolean; sources: boolean; relationships: boolean}>(
+      "SELECT user_id,edits,sources,relationships FROM article_watch_alerts WHERE article_id=$1", [articleId]),
+    "article_watch_alerts is not present; run `npm run db:migrate:pro -- --apply`. Watch filters are skipped.",
+  );
 }
 export async function queueEmailDelivery(notificationId: string, userId: string) {
   await rows(`INSERT INTO notification_email_deliveries (id,notification_id,user_id,status,created_at,updated_at)

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ArticleMarkdown } from "../src/components/article-markdown";
+import { ArticleImageDisplay, ArticleMarkdown } from "../src/components/article-markdown";
 import { getAircraftArticleTitles, getArticleHeadings, getArticleMentionParts, parseArticleImageShorthand, parseArticleMarkdown, parseStructuredFieldMarkdown, resolveFlagCode } from "../src/lib/article-markdown";
+import { validateInternalArticleLinks } from "../src/lib/article-link-policy";
 
 const valid = parseArticleMarkdown("A claim.[^alpha] Another claim.[^alpha]\n\n[^alpha]: https://example.com/source");
 assert.deepEqual(valid.errors, []);
@@ -103,6 +104,32 @@ assert.deepEqual(linkedCreditSidebar.sidebarImages, [
     credit: "Photo by [Benjamin Barbe](https://www.jetphotos.com/photographer/98834) on [JetPhotos](https://www.jetphotos.com/photo/12155165)",
   },
 ]);
+
+const pixiesetCredit = "Photo: Daniel Balmer ([danielbalmerphotography.com](https://danielbalmerphotography.com))";
+const pixiesetImage = `![https://images-pw.pixieset.com/site/gaZpO4/0jQDqm/A26-75618e0c-2500.jpg | ${pixiesetCredit}]`;
+const pixiesetSidebar = parseArticleMarkdown(`<Sidebar>
+${pixiesetImage}
+Role: Attack aircraft
+</Sidebar>`);
+assert.deepEqual(pixiesetSidebar.errors, []);
+assert.deepEqual(pixiesetSidebar.sidebarFields, [{ key: "Role", value: "Attack aircraft" }]);
+assert.deepEqual(pixiesetSidebar.sidebarImages, [{
+  url: "https://images-pw.pixieset.com/site/gaZpO4/0jQDqm/A26-75618e0c-2500.jpg",
+  credit: pixiesetCredit,
+}]);
+const pixiesetCreditMarkdown = parseStructuredFieldMarkdown(pixiesetCredit);
+assert.deepEqual(pixiesetCreditMarkdown.errors, []);
+assert.deepEqual(validateInternalArticleLinks(pixiesetSidebar.root, []), []);
+assert.deepEqual(validateInternalArticleLinks(pixiesetCreditMarkdown.root, []), []);
+const pixiesetMarkup = renderToStaticMarkup(createElement(ArticleImageDisplay, {
+  image: pixiesetSidebar.sidebarImages[0],
+  alt: "Douglas A-26 Invader",
+}));
+assert.match(pixiesetMarkup, /src="https:\/\/images-pw\.pixieset\.com\/site\/gaZpO4\/0jQDqm\/A26-75618e0c-2500\.jpg"/);
+assert.match(pixiesetMarkup, /href="https:\/\/danielbalmerphotography\.com"/);
+assert.match(pixiesetMarkup, /Photo: Daniel Balmer/);
+assert.match(pixiesetMarkup, />danielbalmerphotography\.com</);
+
 assert.match(parseArticleMarkdown("<Sidebar>\nBroken field\n</Sidebar>").errors[0]?.message || "", /Label: value/);
 
 const headings = getArticleHeadings(parseArticleMarkdown("## Fleet\n\n### Current fleet\n\n## Fleet").root);
