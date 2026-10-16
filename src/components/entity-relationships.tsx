@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Compass, Plane } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { articlePath } from "@/lib/article-routes";
+import { publicArticlePath } from "@/lib/public-article-paths";
 import { getPublicDiscoverySections } from "@/lib/wiki-public-db";
 import type { ArticleRecord, EntityOption } from "@/lib/wiki-types";
 
 function EntityLink({ entity }: { entity: EntityOption }) {
-  return <Link href={articlePath(entity.contentType, entity.slug)} className="font-medium text-primary hover:underline">{entity.title}</Link>;
+  return <Link href={publicArticlePath(entity.contentType, entity.slug)} className="font-medium text-primary hover:underline">{entity.title}</Link>;
 }
 
 function RelationshipList({ title, icon: Icon, entities }: { title: string; icon: typeof Plane; entities: EntityOption[] }) {

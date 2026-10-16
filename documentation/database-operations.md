@@ -59,6 +59,30 @@ Keep the previous provider available as a temporary rollback source. Do not
 delete it until the new deployment has been stable for an agreed retention
 period and the external dump has been independently backed up.
 
+## Canonical article URLs
+
+Duplicate airline and aircraft pages, and the F-15 / F-35 slugs that do not follow the manufacturer-model pattern, are folded together by `npm run db:canonicalize-articles`. The command reads `DATABASE_URL`. Without `--apply` it only prints a report. It does not delete revisions.
+
+Run it against the intended database only after reading that report. Production is the operator's explicit choice; do not point the script at it until the dry-run pairs, word counts and headings match the expected canonicals:
+
+| Current URL | Canonical URL | Why |
+| --- | --- | --- |
+| `/commercial/iberia` | `/commercial/iberia-airlines` | The longer page is the sourced article. The short URL is a directory stub, same pattern as KLM. |
+| `/commercial/air-india-limited` | `/commercial/air-india` | Air India is the long researched article. The legal-name URL is a directory stub. |
+| `/aircraft/boeing-737` | `/aircraft/boeing-737-family` | The family page has the primary sources, the A320-style family slug, and the comparison fields. |
+| `/aircraft/airbus-a330-900` | `/aircraft/airbus-a330neo` | The A330neo article already covers the A330-900's first flight, certification and entry into service. |
+| `/aircraft/f35-lightning-ii` | `/aircraft/lockheed-martin-f-35-lightning-ii` | Manufacturer-model slug, same pattern as the F-22. Applied only when the new slug is free. |
+| `/aircraft/f-15-eagle` | `/aircraft/mcdonnell-douglas-f-15-eagle` | Designing manufacturer, same pattern as the DC-10 and F-16. Applied only when the new slug is free. |
+
+```sh
+npm run db:canonicalize-articles
+npm run db:canonicalize-articles -- --apply
+```
+
+Duplicate rows keep their ids, slugs and revisions, and gain `redirect_to_slug`. Renamed rows keep their ids and revisions; the previous slug is inserted into `article_slug_redirects`. Published relationship edges move onto the surviving article. Markdown is not rewritten. Open drafts on a duplicate are left for a moderator.
+
+The edge 308s for the four duplicate pairs are already in the application, because those destination pages exist. The F-15 and F-35 renames are not edge redirects until the rows move, so the old URLs keep serving until `--apply`. Apply first, then deploy (or redeploy if this revision is already live) so cached article pages and the 24-hour public search index, which feeds the sitemap, are rebuilt from the new slugs. Old URLs then 308 to the canonical page. Confirm one duplicate URL, one renamed aircraft URL, the canonical page's canonical tag, and that the sitemap lists only the canonical URL.
+
 ## Notification digest recovery
 
 Before deploying the digest recovery code, apply its additive schema to both production and any separate preview database. Use the configured database environment without writing credentials into repository files:

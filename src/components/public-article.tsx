@@ -27,7 +27,8 @@ import {
   type ArticleMentionLink,
 } from "@/lib/article-markdown";
 import { citedSources, sourceTitle } from "@/lib/article-citations";
-import { articleHistoryPath, articlePath, contentTypePaths } from "@/lib/article-routes";
+import { contentTypePaths } from "@/lib/article-routes";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import { comparisonsForEntity } from "@/lib/comparison-content";
 import type {
   ArticleRecord,
@@ -131,7 +132,7 @@ export function ArticleHeader({
             <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-[100] outline-none">
               <Menu.Popup className="beui-dropdown w-56 border bg-popover p-1.5 text-popover-foreground outline-none">
                 <Menu.Item className={menuItemClass}>
-                  <Link href={articleHistoryPath(contentType, slug)} className={menuLinkClass}>
+                  <Link href={publicArticleHistoryPath(contentType, slug)} className={menuLinkClass}>
                     <History className="size-4 text-muted-foreground" />
                     View history
                   </Link>
@@ -279,7 +280,7 @@ export function PublicArticle({
   parsed.root = { ...parsed.root, children: parsed.root.children.filter((node) => !(node.type === "heading" && node.depth === 1 && node.children?.map((child) => child.value ?? "").join("").trim().toLowerCase() === revision.title.trim().toLowerCase())) };
   const headings = getArticleHeadings(parsed.root);
   const tocHeadings: TocHeading[] = headings.map(({ id, text, depth }) => ({ id, text, depth }));
-  const url = new URL(articlePath(revision.contentType, article.slug), siteUrl);
+  const url = new URL(publicArticlePath(revision.contentType, article.slug), siteUrl);
   const image = articleImageDetails(revision.markdown);
   const imageUrl = image ? new URL(image.url, siteUrl).href : undefined;
   const relatedComparisons = comparisonsForEntity(
@@ -478,7 +479,7 @@ export function PublicArticle({
               Last approved{" "}
               {new Date(approvedAt).toLocaleDateString(undefined, { dateStyle: "long" })} · Revision{" "}
               {revision.id.slice(0, 8)} ·{" "}
-              <Link href={articleHistoryPath(revision.contentType, article.slug)} className="article-link">
+              <Link href={publicArticleHistoryPath(revision.contentType, article.slug)} className="article-link">
                 View history
               </Link>
             </p>

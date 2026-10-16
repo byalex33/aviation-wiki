@@ -11,6 +11,7 @@ import {
 } from "@/components/revision-history";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { articleHistoryPath, articlePath } from "@/lib/article-routes";
+import { publicArticleHistoryPath, publicArticlePath } from "@/lib/public-article-paths";
 import {
   getApprovedRevision,
   getArticleBySlug,
@@ -37,7 +38,7 @@ export async function PublicArticleRoute({
   const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
-    permanentRedirect(articlePath(contentType, controls.redirect_to_slug));
+    permanentRedirect(publicArticlePath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
     const destination = await getSlugRedirect(contentType, slug);
@@ -62,7 +63,7 @@ export async function PublicArticleRoute({
         href:
           entity.id === article.id
             ? null
-            : articlePath(entity.contentType, entity.slug),
+            : publicArticlePath(entity.contentType, entity.slug),
       })),
     )
     .filter((link) => markdown.includes(link.title.toLocaleLowerCase("en")));
@@ -90,9 +91,7 @@ export async function PublicArticleHistoryRoute({
   const controls = await getArticlePublicationControls(contentType, slug);
   if (controls?.archived_at) notFound();
   if (controls?.redirect_to_slug)
-    permanentRedirect(
-      articleHistoryPath(contentType, controls.redirect_to_slug),
-    );
+    permanentRedirect(publicArticleHistoryPath(contentType, controls.redirect_to_slug));
   const article = await getArticleBySlug(slug, contentType);
   if (!article) {
     const destination = await getSlugRedirect(contentType, slug);
@@ -105,11 +104,11 @@ export async function PublicArticleHistoryRoute({
   const query = await searchParams;
   const from = query.from ? await getApprovedRevision(article.id, query.from) : null;
   const to = query.to ? await getApprovedRevision(article.id, query.to) : null;
-  const pathname = articleHistoryPath(contentType, slug);
+  const pathname = publicArticleHistoryPath(contentType, article.slug);
   return (
     <main className="mx-auto max-w-[1100px] px-5 pb-20 pt-8 sm:px-6">
       <nav className="text-sm text-muted-foreground">
-        <Link href={articlePath(contentType, slug)} className="article-link">
+        <Link href={publicArticlePath(contentType, article.slug)} className="article-link">
           {article.title}
         </Link>
         <span> / History</span>

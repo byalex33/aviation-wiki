@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 import { articlePath } from "@/lib/article-routes";
+import { ARTICLE_PATH_ALIASES } from "@/lib/article-path-aliases";
 import { configuredSiteUrl, firstArticleImage, truncateDescription } from "@/lib/article-summary";
-import { getArticleBySlug, normalizeSlug } from "@/lib/wiki-public-db";
+import { getArticleBySlug, getArticlePublicationControls, getSlugRedirect, normalizeSlug } from "@/lib/wiki-public-db";
 import { DEFAULT_OG_IMAGE } from "@/lib/site";
 import { socialCardImageUrl } from "@/lib/wikimedia-thumbnail";
 import type { ContentType } from "@/lib/wiki-types";
@@ -34,7 +35,18 @@ export async function publicArticleMetadata(
   contentType: ContentType,
 ): Promise<Metadata> {
   const slug = normalizeSlug((await params).slug);
-  const article = await getArticleBySlug(slug, contentType);
+  const requestedPath = articlePath(contentType, slug);
+  const aliasTarget = ARTICLE_PATH_ALIASES[requestedPath];
+  if (aliasTarget) return movedMetadata(aliasTarget);
+  const [controls, article] = await Promise.all([
+    getArticlePublicationControls(contentType, slug),
+    getArticleBySlug(slug, contentType),
+  ]);
+  if (controls?.redirect_to_slug) return movedMetadata(articlePath(contentType, controls.redirect_to_slug));
+  if (!article) {
+    const destination = await getSlugRedirect(contentType, slug);
+    if (destination) return movedMetadata(articlePath(contentType, destination));
+  }
   const revision = article?.liveRevision;
   if (!article || !revision || revision.status !== "approved")
     return { title: "Article not found", robots: { index: false, follow: false } };
@@ -66,6 +78,14 @@ export async function publicArticleMetadata(
       description,
       images: [imageUrl || DEFAULT_OG_IMAGE.url],
     },
+  };
+}
+
+function movedMetadata(canonical: string): Metadata {
+  return {
+    title: "Moved",
+    alternates: { canonical },
+    robots: { index: false, follow: true },
   };
 }
 

@@ -61,6 +61,7 @@
     "test:editorial-ui": "node --import tsx scripts/test-editorial-ui.tsx",
     "test:aviation-history": "node --conditions=react-server --import tsx scripts/publish-aviation-history.ts",
     "db:migrate:notification-digests": "node --conditions=react-server --import tsx scripts/migrate-notification-digests.ts",
+    "db:canonicalize-articles": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/canonicalize-duplicate-articles.ts",
     "test:sqlite-digest": "node --conditions=react-server --import tsx scripts/test-sqlite-digest.mts",
     "test:postgres-digest-storage": "node --conditions=react-server --import tsx scripts/test-postgres-digest-storage.mts",
     "test:digest-recovery": "node --conditions=react-server --import tsx scripts/test-digest-recovery.mts",

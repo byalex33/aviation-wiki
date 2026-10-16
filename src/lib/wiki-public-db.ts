@@ -6,6 +6,7 @@ import type { Sql, TransactionSql } from "postgres";
 
 import { canonicalCountry } from "@/lib/countries";
 import { validateInternalArticleLinks } from "@/lib/article-link-policy";
+import { canonicalizeSearchDocuments } from "@/lib/article-path-aliases";
 import { articlePath } from "@/lib/article-routes";
 import { aviationCategoryFor } from "@/lib/article-categories";
 import { PUBLIC_SEARCH_DOCUMENTS_TAG } from "@/lib/cache-tags";
@@ -1034,7 +1035,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
   const aliases = new Map<string,string[]>(); const titles = new Map<string,string[]>();
   for (const item of redirects) aliases.set(item.article_id,[...(aliases.get(item.article_id) || []),item.old_slug.replaceAll("-"," ")]);
   for (const item of priorTitles) titles.set(item.article_id,[...(titles.get(item.article_id) || []),item.title]);
-  return documents.map((item) => {
+  return canonicalizeSearchDocuments(documents.map((item) => {
     const fields = json<Array<{key?:string;value?:string}>>(item.fields_json,[]);
     const searchable = fields.filter((field) => field.key && field.value && searchableFieldPattern.test(field.key));
     const countries = [...new Set(searchable.filter((field) => /country/i.test(field.key!)).flatMap((field) => field.value!.split(/[,;/]/).map((part) => canonicalCountry(part)).filter(Boolean)))];
@@ -1044,7 +1045,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
     for (const field of searchable) { const kind: SearchTermKind = codeFieldPattern.test(field.key!) ? "code" : /alias|abbreviation|acronym/i.test(field.key!) ? "alias" : "field"; for (const value of field.value!.split(/[,;/]|\s+\|\s+/).map((part) => part.trim()).filter(Boolean)) terms.push({value,kind,label:field.key}); }
     const images = sidebarImages(item.markdown);
     return {id:item.id,title:item.title,slug:item.slug,contentType:item.content_type,href:articlePath(item.content_type,item.slug),description:articleCardDescription(item.markdown),updatedAt:iso(item.updated_at),imageUrl:images[0]?.url,imageUrls:images.map((image) => image.url),imageCredit:images[0]?.credit || undefined,fields:fields.filter((field): field is {key:string;value:string} => Boolean(field.key && field.value)),countries,terms};
-  });
+  }));
 }
 
 // This index includes every live article's searchable fields and Markdown.
@@ -1052,7 +1053,7 @@ async function loadPublicSearchDocuments(): Promise<SearchDocument[]> {
 // repeatedly transfer the entire published corpus from Postgres.
 const listPublicSearchDocumentsCached = unstable_cache(
   loadPublicSearchDocuments,
-  ["public-search-documents-v3"],
+  ["public-search-documents-v4"],
   { revalidate: 86_400, tags: [PUBLIC_SEARCH_DOCUMENTS_TAG] },
 );
 
