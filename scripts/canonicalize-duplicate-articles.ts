@@ -23,11 +23,11 @@ import { randomUUID } from "node:crypto";
 
 import { getArticleHeadings, parseArticleMarkdown } from "../src/lib/article-markdown";
 import { sameRelationshipKeys, unionRelationships, type StoredRelationship } from "../src/lib/article-canonicalization";
+import { parseArticlePath } from "../src/lib/article-routes";
 import {
   ARTICLE_PATH_ALIASES,
   ARTICLE_SLUG_RENAMES,
   CANONICAL_DUPLICATE_SOURCES,
-  parseArticlePath,
 } from "../src/lib/article-path-aliases";
 import { sql } from "../src/lib/postgres";
 import type { TransactionSql } from "postgres";

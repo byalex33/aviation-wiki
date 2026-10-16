@@ -1,18 +1,6 @@
 // Loaded by next.config through legacy-redirects. Keep this module free of
 // imports: that compiler does not resolve the app's `@/` paths.
 
-type ContentType = "airline" | "alliance" | "aircraft" | "airport" | "manufacturer" | "engine" | "event";
-
-const contentTypePaths: Record<ContentType, string> = {
-  airline: "commercial",
-  alliance: "alliances",
-  aircraft: "aircraft",
-  airport: "airports",
-  manufacturer: "manufacturers",
-  engine: "engines",
-  event: "aviation-news",
-};
-
 /**
  * Public URLs that permanently redirect to another live article.
  * `next.config` emits these as 308s, so the destination must already exist.
@@ -60,18 +48,6 @@ export const ARTICLE_SLUG_RENAMES: Record<string, string> = {
   [`/aircraft/${F35_LEGACY_SLUG}`]: `/aircraft/${F35_CANONICAL_SLUG}`,
   [`/aircraft/${F15_LEGACY_SLUG}`]: `/aircraft/${F15_CANONICAL_SLUG}`,
 };
-
-const prefixToContentType = Object.fromEntries(
-  Object.entries(contentTypePaths).map(([contentType, prefix]) => [prefix, contentType]),
-) as Record<string, ContentType>;
-
-export function parseArticlePath(path: string) {
-  const match = /^\/([a-z0-9-]+)\/([a-z0-9-]+)$/.exec(path);
-  if (!match) return null;
-  const contentType = prefixToContentType[match[1]];
-  if (!contentType) return null;
-  return { contentType, slug: match[2] };
-}
 
 export function preferredArticlePath(path: string, availablePaths?: Iterable<string>) {
   const available = availablePaths
