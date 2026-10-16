@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { wikimediaThumbnail } from "../src/lib/wikimedia-thumbnail";
+import { socialCardImageUrl, wikimediaThumbnail } from "../src/lib/wikimedia-thumbnail";
 
 const base = "https://upload.wikimedia.org/wikipedia/commons";
 assert.equal(
@@ -22,5 +22,20 @@ for (const unchanged of [
   "http://upload.wikimedia.org/wikipedia/commons/9/9f/Photo.jpg",
   "/local/photo.jpg",
 ]) assert.equal(wikimediaThumbnail(unchanged, 500), unchanged);
+
+assert.equal(
+  socialCardImageUrl(`${base}/9/9f/9V-SKA_%28Airbus_A380%29.jpg`),
+  `${base}/thumb/9/9f/9V-SKA_%28Airbus_A380%29.jpg/1280px-9V-SKA_%28Airbus_A380%29.jpg`,
+  "social cards use a 1280px thumbnail",
+);
+assert.equal(
+  socialCardImageUrl(`${base}/thumb/8/8c/Airbus_A220-300.jpg/1920px-Airbus_A220-300.jpg`),
+  `${base}/thumb/8/8c/Airbus_A220-300.jpg/1280px-Airbus_A220-300.jpg`,
+  "larger social-card thumbnails shrink to 1280",
+);
+assert.equal(
+  socialCardImageUrl("https://cdn.jetphotos.com/full/1/photo.jpg"),
+  "https://cdn.jetphotos.com/full/1/photo.jpg",
+);
 
 console.log("Wikimedia thumbnail tests passed");
