@@ -4,6 +4,7 @@ import postgres, { type Sql } from "postgres";
 
 import { NOTIFICATION_DIGEST_SCHEMA_SQL } from "@/lib/notification-digest-schema";
 
+import { AIRFRAME_SCHEMA_SQL } from "@/lib/airframe-schema";
 import { AVIATION_DATA_SCHEMA_SQL } from "@/lib/aviation-data-schema";
 import { PRO_SCHEMA_SQL } from "@/lib/pro-schema";
 import { AVIATION_FEED_SCHEMA_SQL } from "@/lib/aviation-feed-data";
@@ -46,7 +47,7 @@ async function createSchema() {
       id text PRIMARY KEY,
       slug text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')),
       live_revision_id text,
       created_at timestamptz NOT NULL,
       updated_at timestamptz NOT NULL,
@@ -64,7 +65,7 @@ async function createSchema() {
       contributor_name text NOT NULL,
       edit_summary text NOT NULL,
       title text NOT NULL,
-      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event')),
+      content_type text NOT NULL CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe')),
       markdown text NOT NULL DEFAULT '',
       fields_json jsonb NOT NULL DEFAULT '[]',
       sections_json jsonb NOT NULL DEFAULT '[]',
@@ -82,9 +83,9 @@ async function createSchema() {
       reviewed_at timestamptz
     );
     ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_content_type_check;
-    ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event'));
+    ALTER TABLE articles ADD CONSTRAINT articles_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe'));
     ALTER TABLE revisions DROP CONSTRAINT IF EXISTS revisions_content_type_check;
-    ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event'));
+    ALTER TABLE revisions ADD CONSTRAINT revisions_content_type_check CHECK (content_type IN ('airline','alliance','aircraft','airport','manufacturer','engine','event','airframe'));
     ALTER TABLE articles DROP CONSTRAINT IF EXISTS articles_live_revision_id_fkey;
     ALTER TABLE articles ADD CONSTRAINT articles_live_revision_id_fkey FOREIGN KEY (live_revision_id) REFERENCES revisions(id) DEFERRABLE INITIALLY DEFERRED;
     CREATE INDEX IF NOT EXISTS revisions_article_idx ON revisions(article_id, created_at DESC);
@@ -103,7 +104,9 @@ async function createSchema() {
         'uses_engine',
         'variant_of',
         'produces_aircraft',
-        'produces_engine'
+        'produces_engine',
+        'instance_of',
+        'operated_by'
       ));
     CREATE OR REPLACE FUNCTION validate_article_relationship_insert()
     RETURNS trigger
@@ -127,11 +130,13 @@ async function createSchema() {
           AND (
             (NEW.relationship_type = 'operates_aircraft' AND source.content_type = 'airline' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'hub_at_airport' AND source.content_type = 'airline' AND target.content_type = 'airport')
-            OR (NEW.relationship_type = 'manufactured_by' AND source.content_type = 'aircraft' AND target.content_type = 'manufacturer')
+            OR (NEW.relationship_type = 'manufactured_by' AND source.content_type IN ('aircraft','airframe') AND target.content_type = 'manufacturer')
             OR (NEW.relationship_type = 'uses_engine' AND source.content_type = 'aircraft' AND target.content_type = 'engine')
             OR (NEW.relationship_type = 'variant_of' AND source.content_type = 'aircraft' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'produces_aircraft' AND source.content_type = 'manufacturer' AND target.content_type = 'aircraft')
             OR (NEW.relationship_type = 'produces_engine' AND source.content_type = 'manufacturer' AND target.content_type = 'engine')
+            OR (NEW.relationship_type = 'instance_of' AND source.content_type = 'airframe' AND target.content_type = 'aircraft')
+            OR (NEW.relationship_type = 'operated_by' AND source.content_type = 'airframe' AND target.content_type = 'airline')
           )
       ) THEN
         RAISE EXCEPTION 'invalid or unverified relationship'
@@ -186,6 +191,7 @@ async function createSchema() {
     );
     CREATE INDEX IF NOT EXISTS api_keys_user_idx ON api_keys(user_id, created_at DESC);
     `);
+    await transaction.unsafe(AIRFRAME_SCHEMA_SQL);
     await transaction.unsafe(AVIATION_DATA_SCHEMA_SQL);
     await transaction.unsafe(NOTIFICATION_DIGEST_SCHEMA_SQL);
     await transaction.unsafe(PRO_SCHEMA_SQL);

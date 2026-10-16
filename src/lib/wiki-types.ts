@@ -6,6 +6,7 @@ export const contentTypes = [
   "manufacturer",
   "engine",
   "event",
+  "airframe",
 ] as const;
 export type ContentType = (typeof contentTypes)[number];
 
@@ -34,6 +35,8 @@ export const relationshipTypes = [
   "variant_of",
   "produces_aircraft",
   "produces_engine",
+  "instance_of",
+  "operated_by",
 ] as const;
 export type RelationshipType = (typeof relationshipTypes)[number];
 export type EntityRelationship = {

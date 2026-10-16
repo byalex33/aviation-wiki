@@ -23,6 +23,8 @@ import {
   fleetFiltersFromSearchParams,
   type FleetOperator,
 } from "@/lib/fleet-data";
+import { OperatorFleetList } from "@/components/operator-fleet";
+import { loadOperatorFleetSummaries } from "@/lib/airframe-db";
 import { aviationDataEnabled } from "@/lib/aviation-data-flags";
 import { loadFleetRecords } from "@/lib/public-fleet";
 import { absoluteUrl } from "@/lib/site";
@@ -95,7 +97,13 @@ export default async function FleetPage({
     if (value) params.set(key, value);
   }
   const filters = fleetFiltersFromSearchParams(params);
-  const records = await loadFleetRecords();
+  let records: Awaited<ReturnType<typeof loadFleetRecords>> = [];
+  try {
+    records = await loadFleetRecords();
+  } catch (error) {
+    if (process.env.AIRFRAME_FIXTURES !== "true") throw error;
+  }
+  const operatorFleets = await loadOperatorFleetSummaries();
   const filtered = filterFleetRecords(records, filters);
   const options = fleetFilterOptions(records);
   const queryString = filterQuery(filters);
@@ -197,6 +205,16 @@ export default async function FleetPage({
             </TrackedLink>
           </div>
         </section>
+
+        {operatorFleets.length > 0 && (
+          <section className="mt-10" aria-labelledby="operator-tail-lists">
+            <h2 id="operator-tail-lists" className="text-2xl font-semibold">Operator fleets from airframe records</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              In-service, stored, on-order, and historical tails come from individual airframe pages. Average fleet age uses in-service aircraft with a delivery date or year of manufacture.
+            </p>
+            <OperatorFleetList summaries={operatorFleets} />
+          </section>
+        )}
 
         {aviationDataEnabled && (
           <Link

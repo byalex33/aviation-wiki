@@ -8,6 +8,7 @@ export const contentTypePaths: Record<ContentType, string> = {
   manufacturer: "manufacturers",
   engine: "engines",
   event: "aviation-news",
+  airframe: "airframes",
 };
 
 export function articlePath(contentType: ContentType, slug: string) {

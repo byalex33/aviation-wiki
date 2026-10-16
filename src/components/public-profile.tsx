@@ -70,6 +70,7 @@ const contentTypeLabels: Record<ContentType, string> = {
   manufacturer: "Manufacturers",
   engine: "Engines",
   event: "Aviation news",
+  airframe: "Airframes",
 };
 
 const monthFormatter = new Intl.DateTimeFormat("en", {

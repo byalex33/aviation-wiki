@@ -810,6 +810,8 @@ export async function publishRevision(id: string, moderatorId: string, note?: st
     for (const relationship of revision.relationships)
       await transaction`INSERT INTO article_relationships (source_article_id,target_article_id,relationship_type,approved_revision_id,created_at)
         VALUES (${revision.articleId},${relationship.targetArticleId},${relationship.type},${id},${now})`;
+    const { syncPublishedAirframe } = await import("@/lib/airframe-db");
+    await syncPublishedAirframe(transaction, revision.articleId, revision);
     if (audit) await recordAdminAudit(audit, transaction);
     return revision;
   });
@@ -942,10 +944,14 @@ export async function getRevisionImportFieldSources(revisionId: string) {
   return await rows<{field_key:string;field_value:string;provider:string;source_identifier:string;source_urls_json:string}>("SELECT field_key,field_value,provider,source_identifier,source_urls_json::text AS source_urls_json FROM revision_import_field_sources WHERE revision_id=$1 ORDER BY field_key",[revisionId]);
 }
 
-export async function getSlugRedirect(contentType: ContentType, slug: string) {
+export async function getSlugRedirectTarget(contentType: ContentType, slug: string) {
   await ready();
-  const value = await row<{ slug: string }>("SELECT a.slug FROM article_slug_redirects r JOIN articles a ON a.id=r.article_id WHERE r.content_type=$1 AND r.old_slug=$2", [contentType, slug]);
-  return value?.slug ?? null;
+  const value = await row<{ slug: string; content_type: ContentType }>("SELECT a.slug, a.content_type FROM article_slug_redirects r JOIN articles a ON a.id=r.article_id WHERE r.content_type=$1 AND r.old_slug=$2", [contentType, slug]);
+  return value ? { slug: value.slug, contentType: value.content_type } : null;
+}
+
+export async function getSlugRedirect(contentType: ContentType, slug: string) {
+  return (await getSlugRedirectTarget(contentType, slug))?.slug ?? null;
 }
 
 export async function getArticlePublicationControls(contentType: ContentType, slug: string) {
@@ -1198,13 +1204,20 @@ export async function getPublicDiscoverySections(articleId: string): Promise<Dis
   const sections: DiscoverySection[] = [];
   if (article.contentType === "airline") sections.push(
     {title:"Aircraft operated by this airline",entities:outgoing("operates_aircraft")},
+    {title:"Individual airframes",entities:incoming("operated_by")},
     {title:"Hub airports",entities:outgoing("hub_at_airport")},
   );
   if (article.contentType === "aircraft") sections.push(
     {title:"Airlines operating this aircraft",entities:incoming("operates_aircraft")},
+    {title:"Individual airframes",entities:incoming("instance_of")},
     {title:"Manufacturers",entities:outgoing("manufactured_by")},
     {title:"Engines used",entities:outgoing("uses_engine")},
     {title:"Related variants",entities:unique([...outgoing("variant_of"),...incoming("variant_of")])},
+  );
+  if (article.contentType === "airframe") sections.push(
+    {title:"Aircraft type",entities:outgoing("instance_of")},
+    {title:"Operator",entities:outgoing("operated_by")},
+    {title:"Manufacturer",entities:outgoing("manufactured_by")},
   );
   if (article.contentType === "airport") sections.push({title:"Airlines using this airport",entities:incoming("hub_at_airport")});
   if (article.contentType === "manufacturer") sections.push(

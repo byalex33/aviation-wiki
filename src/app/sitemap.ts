@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
+import { graphAirframePath } from "@/lib/airframe-record";
 import { aviationDataEnabled } from "@/lib/aviation-data-flags";
+import { loadAirframeProjections } from "@/lib/aviation-data-public";
 import { aviationRoutes } from "@/lib/route-data";
 import { SITE_URL } from "@/lib/site";
 import { sitemapImageUrl } from "@/lib/sitemap-images";
@@ -33,6 +35,7 @@ const staticRoutes = [
   "/engines",
   "/engines/rolls-royce",
   "/fleet",
+  "/airframes",
   "/compare",
   "/compare/airbus-a320-vs-boeing-737",
   "/compare/boeing-787-vs-airbus-a350",
@@ -49,7 +52,6 @@ const staticRoutes = [
 // Included only once the aviation data graph is live in this environment
 // (AVIATION_DATA_ENABLED). Until then these routes render the 404 page.
 const aviationDataRoutes = [
-  "/airframes",
   "/registrations",
   "/registrations/g",
   "/production-lists",
@@ -96,10 +98,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.5,
       }))
     : [];
+  const graphAirframeEntries: MetadataRoute.Sitemap = aviationDataEnabled
+    ? (await loadAirframeProjections().catch(() => [])).map((airframe) => ({
+        url: new URL(graphAirframePath(airframe), SITE_URL).toString(),
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
+      }))
+    : [];
 
   return [
     ...staticEntries,
     ...aviationDataEntries,
+    ...graphAirframeEntries.filter((entry) => !articleEntries.some((article) => article.url === entry.url)),
     ...routeEntries,
     ...articleEntries,
   ];

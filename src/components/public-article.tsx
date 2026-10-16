@@ -35,6 +35,8 @@ import type {
   RevisionRecord,
 } from "@/lib/wiki-types";
 import { formatDisplayLabel } from "@/lib/display";
+import { OperatorFleet, TypeAirframeList } from "@/components/operator-fleet";
+import type { AirframeRecord, OperatorFleetSummary } from "@/lib/airframe-record";
 import {
   articleDescription,
   articleImageDetails,
@@ -267,12 +269,16 @@ export function PublicArticle({
   articleLinks,
   availableArticlePaths,
   structuredData,
+  operatorFleet = null,
+  typeAirframes = [],
 }: {
   article: ArticleRecord;
   revision: RevisionRecord;
   articleLinks: ArticleMentionLink[];
   availableArticlePaths?: string[];
   structuredData?: { href: string; label: string };
+  operatorFleet?: OperatorFleetSummary | null;
+  typeAirframes?: AirframeRecord[];
 }) {
   const parsed = parseArticleMarkdown(revision.markdown);
   if (availableArticlePaths) parsed.root = canonicalizeArticleLinks(parsed.root, availableArticlePaths);
@@ -421,6 +427,10 @@ export function PublicArticle({
               </span>
               <span className="whitespace-nowrap text-sm font-semibold">Explore →</span>
             </Link>
+          )}
+          {operatorFleet && <OperatorFleet summary={operatorFleet} />}
+          {typeAirframes.length > 0 && (
+            <TypeAirframeList title={`Airframes of the ${revision.title}`} records={typeAirframes} />
           )}
           {parsed.errors.length ? (
             <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">

@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Database, ExternalLink } from "lucide-reac
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { graphAirframePath } from "@/lib/airframe-record";
 import type {
   AirframeProjection,
   GraphSource,
@@ -81,7 +82,7 @@ function AirframeCard({ airframe }: { airframe: AirframeProjection }) {
     <article className="rounded-xl border bg-card p-4 shadow-xs">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link href={`/airframes/${airframe.publicId}`} className="article-link text-lg font-semibold">
+          <Link href={graphAirframePath(airframe)} className="article-link text-lg font-semibold">
             {airframe.currentRegistration?.registration ?? airframe.publicId}
           </Link>
           <p className="mt-1 text-sm text-muted-foreground">
