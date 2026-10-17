@@ -4,14 +4,16 @@ import { ExternalLink } from "lucide-react";
 
 import {
   addPrivateNoteAction,
-  adminModerateRevisionAction,
+  adminModerateRevisionFormAction,
   assignRevisionAction,
 } from "@/app/admin/actions";
+import { ActionForm } from "@/components/action-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { EditAndApproveLink } from "@/components/edit-and-approve-link";
 import { ImportedRevisionData } from "@/components/imported-revision-data";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import type {
@@ -153,7 +155,7 @@ export default async function AdminReviewPage({
               <CardTitle>Decision</CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={adminModerateRevisionAction} className="space-y-3">
+              <ActionForm action={adminModerateRevisionFormAction} className="space-y-3">
                 <input
                   type="hidden"
                   name="revisionId"
@@ -171,12 +173,7 @@ export default async function AdminReviewPage({
                 >
                   Approve
                 </ConfirmSubmitButton>
-                <Link
-                  href={`/moderation/${revision.id}/edit`}
-                  className={`${buttonVariants({ variant: "outline" })} w-full`}
-                >
-                  Edit and approve
-                </Link>
+                <EditAndApproveLink revisionId={String(revision.id)} area="admin" />
                 <Button
                   type="submit"
                   name="intent"
@@ -195,7 +192,7 @@ export default async function AdminReviewPage({
                 >
                   Reject
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
           <Card>

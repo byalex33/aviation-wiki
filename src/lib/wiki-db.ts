@@ -7,6 +7,7 @@ import { f15Article } from "@/lib/builtin-articles";
 import { parseArticleMarkdown } from "@/lib/article-markdown";
 import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { validateRelationshipShape, relationshipKey } from "@/lib/relationship-rules";
+import { revisionTransitions } from "@/lib/revision-transitions";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
 import { contentTypeSqlList, type ArticleRecord, type ArticleWithLiveRevision, type ContentType, type EntityOption, type EntityRelationship, type RevisionContent, type RevisionRecord, type RevisionStatus, type VerificationResult } from "@/lib/wiki-types";
@@ -513,14 +514,7 @@ export function saveDraft(input: { revisionId?: string; articleId: string; propo
 }
 
 export function transitionRevision(id: string, actorId: string, toStatus: RevisionStatus, options: { note?: string | null; verification?: VerificationResult | null; moderator?: boolean } = {}) {
-  const allowedTransitions: Record<RevisionStatus, RevisionStatus[]> = {
-    draft: ["verifying", "pending_review"],
-    verifying: ["pending_review", "changes_requested", "approved", "rejected"],
-    pending_review: ["changes_requested", "approved", "rejected"],
-    changes_requested: ["draft"],
-    approved: [],
-    rejected: [],
-  };
+  const allowedTransitions = revisionTransitions;
   const change = db.transaction(() => {
     const revision = getRevision(id);
     if (!revision) throw new UserFacingError("Revision not found.");

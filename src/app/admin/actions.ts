@@ -19,6 +19,7 @@ import {
   wikiRoles,
   type WikiRole,
 } from "@/lib/wiki-auth";
+import { canModerateRevision } from "@/lib/revision-transitions";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
 import { runPublishedFollowUp } from "@/lib/published-follow-up";
@@ -65,7 +66,7 @@ export async function adminModerateRevisionAction(formData: FormData) {
   const intent = text(formData, "intent", 40);
   const note = text(formData, "moderatorNote");
   const before = await wikiDb.getRevision(revisionId);
-  if (!before || !["pending_review", "verifying"].includes(before.status))
+  if (!before || !canModerateRevision(before.status, intent))
     throw new UserFacingError("This revision is not awaiting review.");
   await adminDb.assertArticleEditable(before.articleId, actor.role);
   const previousLiveRevision =
@@ -133,6 +134,18 @@ export async function adminModerateRevisionAction(formData: FormData) {
   revalidatePath(articlePath(before.contentType, before.proposedSlug));
   revalidatePath(articleHistoryPath(before.contentType, before.articleSlug));
   redirect("/admin/moderation");
+}
+
+export async function adminModerateRevisionFormAction(
+  _previousState: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  try {
+    await adminModerateRevisionAction(formData);
+    return { error: null };
+  } catch (error) {
+    return formActionError(error);
+  }
 }
 
 export async function assignRevisionAction(formData: FormData) {

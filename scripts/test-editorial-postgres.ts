@@ -121,6 +121,16 @@ async function main() {
   await transitionRevision(broken.id, "contributor", "pending_review");
   await assert.rejects(publishRevision(broken.id, "moderator"), /No published article exists/);
 
+  // A moderator can close a changes-requested revision and keep the rejection note.
+  const closable = await saveDraft(inputFor(article.id, race.id, { ...content, title: "Changes to close" }));
+  await transitionRevision(closable.id, "contributor", "pending_review");
+  await transitionRevision(closable.id, "moderator", "changes_requested", { moderator: true, note: "Needs a source" });
+  const closed = await transitionRevision(closable.id, "moderator", "rejected", { moderator: true, note: "Closing this requested change." });
+  assert.equal(closed.status, "rejected");
+  assert.equal(closed.moderatorNote, "Closing this requested change.");
+  const closeEvent = await sql`SELECT note FROM revision_events WHERE revision_id=${closable.id} AND to_status='rejected'`;
+  assert.equal(closeEvent[0]?.note, "Closing this requested change.");
+
   // F19: every editorial restriction prevents anonymous directory publication.
   for (const control of ["locked", "trusted", "moderator", "admin", "archived", "redirect"]) {
     const name = `Directory ${control} ${suffix}`;

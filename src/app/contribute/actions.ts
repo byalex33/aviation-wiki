@@ -19,6 +19,7 @@ import { reconcileCitationSources } from "@/lib/article-citations";
 import { spottingGuideIssues } from "@/lib/spotting-guide";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { runPublishedFollowUp } from "@/lib/published-follow-up";
+import { canModerateRevision } from "@/lib/revision-transitions";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { isStaffRole, requireContributor, requireModerator } from "@/lib/wiki-auth";
 import {
@@ -432,7 +433,7 @@ export async function moderateRevisionAction(formData: FormData) {
     .trim()
     .slice(0, 2000);
   const revision = await getPostgresRevision(revisionId);
-  if (!revision || !["pending_review", "verifying"].includes(revision.status))
+  if (!revision || !canModerateRevision(revision.status, intent))
     throw new UserFacingError("This revision is not awaiting review.");
   await assertPostgresArticleEditable(revision.articleId, moderator.role);
   const audit = {
