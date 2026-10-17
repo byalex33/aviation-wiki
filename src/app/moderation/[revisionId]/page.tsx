@@ -6,7 +6,8 @@ import { moderateRevisionFormAction } from "@/app/contribute/actions";
 import { ActionForm } from "@/components/action-form";
 import { RevisionComparison } from "@/components/revision-comparison";
 import { RevisionStatusBadge } from "@/components/revision-status-badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { EditAndApproveLink } from "@/components/edit-and-approve-link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { sourceTitle } from "@/lib/article-citations";
@@ -94,12 +95,7 @@ export default async function ModeratorReviewPage({
                 >
                   Approve and publish
                 </Button>
-                <Link
-                  href={`/moderation/${revision.id}/edit`}
-                  className={`${buttonVariants({ variant: "outline" })} w-full`}
-                >
-                  Edit and approve
-                </Link>
+                <EditAndApproveLink revisionId={revision.id} area="public" />
                 <Button
                   type="submit"
                   name="intent"

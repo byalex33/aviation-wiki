@@ -21,6 +21,7 @@ import { f15Article } from "@/lib/builtin-articles";
 import { queryForPrerender } from "@/lib/prerender-database";
 import { ensureSchema, row, rows, sql } from "@/lib/postgres";
 import { relationshipKey, validateRelationshipShape } from "@/lib/relationship-rules";
+import { revisionTransitions } from "@/lib/revision-transitions";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { submitIndexNow } from "@/lib/indexnow";
 import type { SearchDocument, SearchTermKind } from "@/lib/search-types";
@@ -743,7 +744,7 @@ export async function saveDraft(input: { revisionId?: string; articleId: string;
 }
 
 export async function transitionRevision(id: string, actorId: string, toStatus: RevisionStatus, options: { note?: string | null; verification?: VerificationResult | null; moderator?: boolean; audit?: AdminAuditInput } = {}) {
-  const allowedTransitions: Record<RevisionStatus, RevisionStatus[]> = { draft: ["verifying", "pending_review"], verifying: ["pending_review", "changes_requested", "approved", "rejected"], pending_review: ["changes_requested", "approved", "rejected"], changes_requested: ["draft"], approved: [], rejected: [] };
+  const allowedTransitions = revisionTransitions;
   await ready();
   await sql.begin(async (transaction) => {
     const values = await transaction.unsafe(`${revisionSelect} WHERE r.id=$1 FOR UPDATE OF r`, [id]) as unknown as RevisionRow[];
